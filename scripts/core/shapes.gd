@@ -80,5 +80,6 @@ static func void_material() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.albedo_color = Color.BLACK
+	m.disable_fog = true   # stays pure black at any distance: no haze, no atmosphere
 	_materials["void"] = m
 	return m

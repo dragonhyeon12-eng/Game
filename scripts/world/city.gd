@@ -203,7 +203,7 @@ func _streets() -> void:
 			_crosswalk(i + Vector3(-6.7, 0, 0), true)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4242
-	var spots := [[Vector3(-30, 0, -17.4), 0], [Vector3(34, 0, -17.4), 0], [Vector3(9, 0, 17.4), 0],
+	var spots := [[Vector3(-30, 0, -17.4), 0], [Vector3(-44, 0, 17.4), 0], [Vector3(9, 0, 17.4), 0],
 		[Vector3(-17.4, 0, 33), 90], [Vector3(17.4, 0, -32), 90], [Vector3(17.4, 0, 42), 90],
 		[Vector3(56, 0, 17.4), 0], [Vector3(-60, 0, -17.4), 0], [Vector3(-17.4, 0, -52), 90]]
 	for s in spots:
@@ -289,9 +289,10 @@ func _lighting() -> void:
 	var env := make_env(Color(0.6, 0.7, 0.85), 0.6)
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.8
-	env.ambient_light_sky_contribution = 0.75
+	# neutral ambient: sky-only ambient turned every shadow deep blue
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.78, 0.8, 0.86)
+	env.ambient_light_energy = 0.55
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.tonemap_exposure = 1.05
 	env.adjustment_enabled = true
@@ -302,7 +303,7 @@ func _lighting() -> void:
 	env.fog_density = 0.0035
 	env.fog_sky_affect = 0.15
 	if Settings.quality >= 1:
-		env.sdfgi_enabled = true
+		env.ssil_enabled = true
 		env.volumetric_fog_enabled = true
 		env.volumetric_fog_density = 0.004
 		env.volumetric_fog_albedo = Color(1.0, 0.95, 0.88)

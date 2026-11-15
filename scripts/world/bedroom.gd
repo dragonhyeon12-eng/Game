@@ -135,7 +135,7 @@ func _lighting() -> void:
 	spot(Vector3(0.6, 2.4, -3.2), Vector3(0.6, 0, 0.2), Color(0.55, 0.65, 1.0), 0.45, 7.0, 20.0)
 	omni(Vector3(2.5, -0.4, -7.0), Color(1.0, 0.6, 0.3), 1.0 if waking else 2.0, 9.0)
 	if not waking:
-		omni(Vector3(-2.3, 1.12, -1.42), Color(1.0, 0.72, 0.42), 1.1, 5.0)       # desk lamp
+		omni(Vector3(-2.3, 1.05, -1.42), Color(1.0, 0.72, 0.42), 1.1, 5.0, false)  # desk lamp (inside its shade: no shadows)
 		omni(Vector3(-2.2, 1.13, -0.8), Color(0.6, 0.72, 1.0), 0.6, 3.5, false)  # monitor glow
 
 

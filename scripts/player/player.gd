@@ -338,7 +338,8 @@ func _update_hands(delta: float) -> void:
 	var e := 1.0 - pow(1.0 - a, 3.0)
 	for h in _hands:
 		var side: float = h.get_meta("side")
-		var from := Vector3(0.34 * side, -0.48, 0.1)
-		var to := Vector3(0.23 * side, -0.21, -0.24)
+		# from behind the shoulders, fingers curling down over them into the bottom corners of view
+		var from := Vector3(0.36 * side, -0.5, 0.15)
+		var to := Vector3(0.25 * side, -0.225, -0.24)
 		h.position = from.lerp(to, e)
-		h.rotation_degrees = Vector3(15.0 * (1.0 - e), -15.0 * side, 0)
+		h.rotation_degrees = Vector3(-8.0 + 20.0 * (1.0 - e), -14.0 * side, -6.0 * side)
