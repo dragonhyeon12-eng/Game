@@ -1,116 +1,99 @@
 # DREAM PROTOCOL
 
 First-person psychological horror about lucid dreaming, unstable reality and subconscious fear.
-Unreal Engine 5 (C++). PC.
+Made with **Godot 4.5** (free, open source, no account needed). Runs on Mac, Windows and Linux.
 
-This repository holds **Milestone 1: the vertical slice**. It covers the bedroom, the tutorial video, the notebook, the summer dream city, manifestation, NPC dialogue, the Observer, the fall into the yellow maze, DREAD, the pause-menu horror, the death sequence and checkpoints.
-
-> **Status: written but not yet compiled.** The code was written without access to an Unreal Engine install, so it has never been built. It targets the UE 5.4–5.6 API. Expect a few compile errors on the first build, most likely small API-signature differences. Fix those before you judge the gameplay. See [Known risks](#known-risks).
+This is **Milestone 1: the vertical slice**: bedroom → tutorial video → notebook → summer dream city
+(ice cream, people, the Observer) → falling into the yellow maze → DREAD → the ending of the slice.
 
 ---
 
-## 1. Setup (about 5 minutes)
+## How to play it (Mac)
 
-1. Install **Unreal Engine 5.5** (5.4 or 5.6 should also work) and Visual Studio 2022 with the *Game development with C++* workload.
-2. Right-click `DreamProtocol.uproject` → **Generate Visual Studio project files**.
-3. Open `DreamProtocol.sln` and build **DreamProtocolEditor | Development Editor | Win64**.
-4. Open the project. When it asks about the missing startup map, continue.
-5. **Create the one required map:** File → New Level → **Empty Level** (it must be empty, with no lights or sky), then save it as `Content/Maps/DreamSlice`.
-6. Press **Play**. For the most accurate behaviour use *Play → Standalone Game*, because in the editor **Esc** stops PIE. **P** also opens the pause menu.
+1. Download **Godot 4.5** (the normal version, not ".NET"): https://godotengine.org/download/macos/
+   Unzip it and drag **Godot.app** into *Applications*.
+2. Download this project: on GitHub click **Code → Download ZIP** (branch `claude/dream-protocol-dev-eom8wy`), and unzip it.
+3. Open Godot. The first time macOS may say it can't verify the app: right-click Godot.app → **Open** → **Open**.
+4. In the Project Manager click **Import**, choose the `project.godot` file inside the unzipped folder, then **Import & Edit**.
+   The first import takes about a minute.
+5. Press **▶ (Run Project)** at the top right, or **⌘B**.
 
-Everything else is generated at runtime. That covers geometry, lights, sky, fog, post-processing, audio, UI and characters. **No binary assets are needed**, so the whole game can be diffed and reviewed as text.
+That's it. No other downloads, no Xcode.
 
-`GlobalDefaultGameMode` is set to `DPGameMode`, so any empty level works.
+**If it runs slowly** (older or Intel Macs): Pause → MENU → SETTINGS → *Graphics quality* → **LOW**.
+It takes effect when you enter the next area.
 
-## 2. Controls
+## Controls
 
 | Action | Keyboard / mouse | Gamepad |
 |---|---|---|
-| Move / look | WASD / mouse | Left / right stick |
-| Run, crouch, jump | Shift, Ctrl or C, Space | L3, R3, A |
-| Interact / continue dialogue | E (or F) | X |
-| Dialogue choice | 1–4 or click | — |
-| Manifest (hold) | Q | LB |
-| Bite / let go of held object | Left mouse / right mouse | RT / LT |
-| Picture something else | Mouse wheel | D-pad left/right |
-| Try to wake up (hold) | T | D-pad up |
-| Notebook | N or Tab | View |
-| Pause | Esc or P | Menu |
+| Move / look | WASD / mouse | sticks |
+| Run / crouch / jump | Shift / Ctrl or C / Space | L3 / R3 / A |
+| Interact, continue dialogue | E | X |
+| Dialogue choice | 1–5 or click | |
+| Picture (manifest) something | hold **Q** | LB |
+| Bite / let go | left / right mouse | RT / LT |
+| Picture something else | mouse wheel | D-pad ← → |
+| Try to wake up | hold **T** | D-pad ↑ |
+| Notebook | **N** or Tab | Back |
+| Pause | Esc or P | Start |
 
-## 3. What's playable
+## What's in the slice
 
-1. **Title**, drawn over the bedroom at night.
-2. **Bedroom.** Watch *"HOW TO LUCID DREAM TONIGHT! (100% WORKING)"* on the PC. The player writes the five rules into the notebook as the video plays. Take the notebook, then go to bed.
-3. **Summer city.** A 5×5-block sunny city with a park, fountain, trees, cars, birdsong and sky with volumetric clouds.
-   - Hold **Q** to summon an ice cream cone. Bite it, toss it, or give it to Mina.
-   - The balloon and beach ball unlock after your first manifestation.
-   - NPCs: **Mina** (ice cream vendor with no ice cream), **Mr. Halvorsen** (bench, pigeons), **Theo** (kite) and a jogger who calls out one-liners as he passes.
-   - Some dialogue choices break the notebook's rules. Each break lowers dream stability and draws the Observer nearer.
-   - **The Observer** stands near a bus stop at the far end of the avenue. He never moves while watched, and you never quite reach him.
-   - Hold **T** to wake up. You fall through the floor instead.
-4. **Yellow maze.** A seeded office-maze under fluorescent light.
-   - Walls outside the spanning tree open and close while unobserved, so the maze is always solvable. Lights die. The chair keeps turning up. A picture of a summer street appears on a wall.
-   - The Observer appears at the end of corridors behind you.
-   - The notebook now has **rule 6: "NEVER READ THIS NOTEBOOK TWICE."** Reading it again breaks it.
-   - Later, someone else writes in the notebook. You only hear the page.
-   - The exit is where the hum is loudest. Reaching it ends the slice.
-5. **DREAD 100 in a nightmare** plays the death sequence: you wake in the bedroom, hear a sound behind you, black hands grab your shoulders, a red flash, then *"You woke up." / "Didn't you?"* You return to the last checkpoint.
-6. **Pause menu horror.** At high DREAD the menu can become `RESUME / RESUME / RESUME – WHY ARE YOU HIDING?`. All three entries resume, and **Esc** gives the real menu. Very rarely the game unpauses itself, at most once per session. Both behaviours can be turned off in Settings.
+- **Bedroom, 3 AM.** Watch *"HOW TO LUCID DREAM TONIGHT! (100% WORKING)"* on the PC; the five rules
+  get written into your notebook. Take the notebook. Go to bed.
+- **The summer city.** Bright, warm and peaceful on purpose. Hold Q to picture an ice cream. Talk to
+  Mina (the ice cream vendor with no ice cream), Mr. Halvorsen and his pigeons, Theo and his kite, the jogger.
+  Some questions break the notebook's rules. The **Observer** stands at the far end of the avenue.
+  He never moves while you watch him. Hold T to wake up.
+- **The yellow maze.** You fall through the floor instead. Fluorescent hum, stained carpet, a maze that
+  is always solvable but rearranges itself when you aren't looking. Your notebook has a sixth rule now.
+- **DREAD** (fear + dream stability) drives vignette, desaturation, grain, flickering lights, a low drone,
+  knocks behind you, how often the maze changes and when the Observer appears.
+- **The pause menu** may not be entirely a pause menu at very high DREAD.
+- **If DREAD reaches 100** you wake up in your bedroom. Probably.
+- **Checkpoints** at the start of each area; **Continue** on the title screen.
 
-## 4. Architecture
+## Accessibility (Settings)
+
+Mouse sensitivity, invert look, field of view, head bob, camera jolts, **visual intensity** (flicker,
+vignette, distortion, red flash), **horror audio intensity**, master volume, text size, DREAD meter,
+menu corruption on/off, self-unpause on/off, graphics quality.
+
+## Project layout
 
 ```
-Source/DreamProtocol/
-  Core/          DPGameMode (story flow, zones, checkpoints, sequences)
-                 DPCharacter (FP controller, camera, holds, foley, shoulder-grab hands)
-                 DPPlayerController (Enhanced Input built in code, UI modes, pause logic)
-                 DPData (JSON loader)  DPEffects (data-driven effect strings)
-                 DPObservation ("is the player looking at this?")
-                 DPShapes (runtime geometry helpers)  DPSaveGame  DPSettings  DPGameInstance
-  Dread/         DPDreadComponent (FEAR + STABILITY, look-behind detection, stages)
-                 DPDreadDirector (post-process, drone, distant knocks, per-zone hook)
-  Anomaly/       DPAnomalySubsystem (registry of reusable "changes while unobserved" events)
-  Notebook/      DPNotebookSubsystem (rule state: write / reveal / hide / rewrite / break / reread)
-  Dialogue/      DPDialogueSubsystem (node graph with conditions + effects)
-  NPC/           DPNPC (friendly dream characters)  DPObserver (the silhouette)
-  Manifestation/ DPManifestationComponent  DPManifestedObject
-  Audio/         DPSynthSound (procedural synth: room tone, city, water, hum, drone, foley)
-  World/         DPZone (base) -> DPBedroomZone, DPSummerCityZone, DPMazeZone
-  UI/            DPHUD + Slate widgets (menus, notebook, tutorial video)
-Content/Data/    Dialogue.json  Notebook.json  Manifestations.json  Tutorial.json
+project.godot            Godot project (open this)
+scenes/main.tscn         entry point - everything else is built in code (no binary assets)
+data/                    dialogue, notebook rules, manifestable objects, tutorial script (JSON)
+scripts/autoload/        Game (story flow, zones, checkpoints, sequences, DREAD director)
+                         Settings, Data, Sfx (procedural audio), Notebook, Dialogue, Anomalies
+scripts/core/            Observation ("is the player looking at this?"), Effects, Shapes, Interactable
+scripts/player/          Player controller, Dread, Manifestation, ManifestedObject
+scripts/world/           Zone (base + geometry builder), BedroomZone, CityZone, MazeZone
+scripts/npc/             NPC, Observer
+scripts/ui/              HUD, menus, notebook, tutorial video, DREAD post-process shader
+tests/flow_test.tscn     automated playthrough of the whole slice
+unreal/                  the earlier Unreal Engine 5 version (archived, ignored by Godot)
 ```
 
 **Key ideas**
+- **Zones.** Each realm is a `Zone` subclass with its own geometry, light, audio, characters, anomalies
+  and dream rules (fear gain, fear floor, anomaly pacing, whether manifestation works). Adding THE DEEP
+  later means adding one new zone script.
+- **Unobserved change** is a shared system: zones register anomalies ("this wall may toggle", "this light
+  may die"); `Anomalies` decides when, based on dream stability, and only while nobody is looking.
+- **Data-driven story.** Dialogue, rules, objects and the video script are JSON. Effects are strings like
+  `fear:+10`, `rule:break:rule_tell`, `notebook:rewrite:rule_scary:spiral`, `observer:closer`.
+  New Game reloads the JSON, so you can edit the story and test immediately.
+- **No assets.** Geometry is built from primitives, all audio is synthesised at startup, all UI is code.
+  Everything can be read, diffed and reviewed as text. Real art can replace pieces later.
 
-- **One zone at a time.** A *zone* is a self-contained realm: geometry, lighting, audio, NPCs, anomalies and its own dream rules (fear gain, fear floor, anomaly pacing, whether manifestation works). Adding THE DEEP means writing a new `ADPZone` subclass. No core system changes.
-- **Unobserved change** is a shared primitive. `DPObservation` tests the camera frustum (with a safety margin) and occlusion. `DPAnomalySubsystem` decides *when* any registered anomaly may change, using dream stability. Each zone only says *what* can change. When the player later sees a change, it counts as a discovered inconsistency and adds fear.
-- **The DREAD loop.** Fear rises, stability falls toward (100 − fear), anomalies speed up, and more gets discovered. Fear decays after calm periods; stability recovers slowly. The city damps fear gains to 35%, so the opening stays comforting. A single look over the shoulder is never punished; only *repeatedly* checking behind is.
-- **Data-driven content.** Dialogue, rules (including variants and break consequences), manifestable objects and the tutorial script are JSON. Effects are strings such as `fear:+10`, `rule:break:rule_tell`, `notebook:rewrite:rule_scary:spiral` and `observer:closer`. **New Game reloads the JSON**, so you can edit content while the editor is running.
-- **Art hooks.** Everything is built from engine primitives with a coloured material. If an artist creates `/Game/DreamProtocol/Materials/M_ObserverVoid` (an unlit black material), the Observer and the hands use it automatically. More overrides can follow the same `DPShapes::FindArtOverride` pattern.
+## Testing
 
-## 5. Accessibility
+Run the automated playthrough (it plays the whole slice and prints `FLOW TEST PASSED`):
+open `tests/flow_test.tscn` in the editor and press **F6**, or from a terminal:
 
-Settings (title or Pause → MENU → SETTINGS) are stored separately from progress:
-
-- mouse sensitivity, invert look, field of view
-- head bob, camera jolts
-- **visual intensity**: scales vignette, grain, desaturation, colour fringe, light-flicker depth and the red flash
-- **horror audio intensity**, master volume
-- text size, DREAD meter on/off
-- menu corruption on/off, self-unpause on/off
-
-## 6. Known risks
-
-These parts were written from API knowledge and could not be verified:
-
-- **API signatures** that changed across UE 5.x, for example `USoundWaveProcedural::OnGeneratePCMAudio`/`SetSampleRate`, Slate `FillWidth(TAttribute<float>)` and some fog/light setters. Any compile errors should be shallow fixes.
-- **TextRender facing.** The `EXIT` sign, the monitor title and the cart sign assume `UTextRenderComponent` faces +X. If they read mirrored, rotate them 180°.
-- **Look and tuning.** Light intensities and exposure were chosen blind and will need an in-editor pass. The same goes for DREAD balancing: fear values, decay and anomaly pacing are grouped at the top of `DPDreadComponent.cpp` and in each zone.
-- **Basic-shape visuals.** Geometry is primitive placeholder art. With Lumen it should read as stylised, not finished.
-
-## 7. Not in this milestone (by design)
-
-- The fear realms (THE DEEP, COMPRESSION, ABOVE, BLACKOUT, STILL LIFE, OPEN SPACE, PATTERN, THE QUIET).
-- Mirrors and reflection horror.
-- THE DESTINATION, both endings and THE CORE.
-- Realm leakage beyond the single summer picture in the maze.
+```
+godot --path . res://tests/flow_test.tscn
+```

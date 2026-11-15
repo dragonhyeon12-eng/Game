@@ -1,17 +1,11 @@
-# Unreal generated
-Binaries/
-Intermediate/
-Saved/
-DerivedDataCache/
-Build/
-.vs/
-.vscode/
-.idea/
-*.sln
-*.suo
-*.opensdf
-*.sdf
-*.VC.db
-*.VC.opendb
-Plugins/*/Binaries/
-Plugins/*/Intermediate/
+# Godot
+.godot/
+*.import
+export_presets.cfg
+/build/
+# Unreal (archived project)
+unreal/Binaries/
+unreal/Intermediate/
+unreal/Saved/
+unreal/DerivedDataCache/
+.DS_Store

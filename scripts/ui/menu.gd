@@ -1,0 +1,132 @@
+class_name DPMenu
+extends Control
+## Keyboard / mouse / gamepad menu used for the title screen, the pause menu (including its corrupted
+## form) and settings. Up/Down select, Enter activates, Left/Right change a setting, Esc goes back.
+##
+## items: [{label, action: Callable, value: Callable (optional), adjust: Callable(dir) (optional)}]
+
+var on_back: Callable
+var on_timeout: Callable
+var _buttons: Array[Button] = []
+var _items: Array = []
+var _age := 0.0
+
+
+static func create(title: String, subtitle: String, items: Array, footnote := "", corrupted := false) -> DPMenu:
+	var m := DPMenu.new()
+	m._build(title, subtitle, items, footnote, corrupted)
+	return m
+
+
+func _build(title: String, subtitle: String, items: Array, footnote: String, corrupted: bool) -> void:
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	_items = items
+	var bg := ColorRect.new()
+	bg.color = Color(0, 0, 0, 0.86 if corrupted else 0.6)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(bg)
+
+	var box := VBoxContainer.new()
+	box.position = Vector2(120, 0)
+	box.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	box.offset_left = 120
+	box.offset_right = 900
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 6)
+	add_child(box)
+
+	if title != "":
+		box.add_child(UIStyle.label(title, 30 if corrupted else 46, UIStyle.DANGER if corrupted else UIStyle.TEXT))
+	if subtitle != "":
+		var s := UIStyle.label(subtitle, 15, UIStyle.DIM)
+		s.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(s)
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 22)
+	box.add_child(spacer)
+
+	for i in items.size():
+		var it: Dictionary = items[i]
+		var b := UIStyle.flat_button(_label_for(it), 24)
+		b.custom_minimum_size = Vector2(560, 0)
+		if corrupted:
+			b.add_theme_color_override("font_focus_color", UIStyle.DANGER)
+			b.add_theme_color_override("font_hover_color", UIStyle.DANGER)
+		b.pressed.connect(_on_pressed.bind(i))
+		b.gui_input.connect(_on_button_input.bind(i))
+		b.mouse_entered.connect(b.grab_focus)
+		box.add_child(b)
+		_buttons.append(b)
+
+	if footnote != "":
+		var f := UIStyle.label(footnote, 12, Color(0.55, 0.55, 0.55, 0.85))
+		f.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+		f.offset_left = -560
+		f.offset_top = -50
+		f.offset_right = -40
+		f.offset_bottom = -24
+		f.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		add_child(f)
+
+
+func _ready() -> void:
+	if not _buttons.is_empty():
+		_buttons[0].grab_focus.call_deferred()
+
+
+func set_timeout(seconds: float, callback: Callable) -> void:
+	on_timeout = callback
+	get_tree().create_timer(seconds, true).timeout.connect(func():
+		if is_inside_tree() and on_timeout.is_valid():
+			var cb := on_timeout
+			on_timeout = Callable()
+			cb.call())
+
+
+func _label_for(it: Dictionary) -> String:
+	if it.has("value"):
+		return "%s     <  %s  >" % [it.label, it.value.call()]
+	return it.label
+
+
+func _refresh() -> void:
+	for i in _buttons.size():
+		_buttons[i].text = _label_for(_items[i])
+
+
+func _process(delta: float) -> void:
+	_age += delta
+
+
+func _on_pressed(i: int) -> void:
+	if _age < 0.15:
+		return  # ignore the key press that opened the menu
+	var it: Dictionary = _items[i]
+	if it.has("adjust"):
+		it.adjust.call(1)
+		_refresh()
+	elif it.has("action"):
+		it.action.call()
+
+
+func _on_button_input(event: InputEvent, i: int) -> void:
+	var it: Dictionary = _items[i]
+	if not it.has("adjust"):
+		return
+	if event.is_action_pressed("ui_left"):
+		it.adjust.call(-1)
+		_refresh()
+		accept_event()
+	elif event.is_action_pressed("ui_right"):
+		it.adjust.call(1)
+		_refresh()
+		accept_event()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not is_visible_in_tree():
+		return
+	if event.is_action_pressed("ui_cancel") and _age >= 0.15 and on_back.is_valid():
+		get_viewport().set_input_as_handled()
+		on_back.call()
