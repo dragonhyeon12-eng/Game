@@ -1,0 +1,60 @@
+{
+	"title": "LUCID DREAM RULES (!!)",
+	"rules": [
+		{
+			"id": "rule_mirrors",
+			"order": 10,
+			"text": "Never look into mirrors.",
+			"style": "Player",
+			"onBreak": [ "fear:+12", "stability:-15", "observer:closer" ]
+		},
+		{
+			"id": "rule_scary",
+			"order": 20,
+			"text": "Don't think about anything scary.",
+			"style": "Player",
+			"variants": [
+				{ "id": "spiral", "text": "Don't think about anything scary. Don't think about it. Don't think about it. Don't", "style": "Player" }
+			],
+			"onBreak": [ "fear:+6" ]
+		},
+		{
+			"id": "rule_tell",
+			"order": 30,
+			"text": "Don't tell anyone you're dreaming.",
+			"style": "Player",
+			"onBreak": [ "fear:+6", "stability:-10", "observer:closer" ],
+			"onRepeatBreak": [ "fear:+8", "stability:-12", "observer:closer" ]
+		},
+		{
+			"id": "rule_realworld",
+			"order": 40,
+			"text": "Don't ask dream characters about the real world. Especially lottery numbers.",
+			"style": "Player",
+			"onBreak": [ "fear:+6", "stability:-10", "observer:closer" ],
+			"onRepeatBreak": [ "fear:+10", "stability:-15", "observer:closer" ]
+		},
+		{
+			"id": "rule_force",
+			"order": 50,
+			"text": "Don't forcefully change your surroundings.",
+			"style": "Player",
+			"onBreak": [ "fear:+4", "stability:-8", "thought:...Did the street just flicker?" ]
+		},
+		{
+			"id": "never_twice",
+			"order": 60,
+			"text": "NEVER READ THIS NOTEBOOK TWICE.",
+			"style": "Pressed",
+			"breaksOnReread": 1,
+			"onBreak": [ "fear:+16", "stability:-14", "notebook:rewrite:rule_scary:spiral", "observer:closer", "sound:knock" ],
+			"onRepeatBreak": [ "fear:+9", "stability:-8", "notebook:hide:rule_force", "observer:closer" ]
+		},
+		{
+			"id": "maze_hint",
+			"order": 70,
+			"text": "follow the hum.",
+			"style": "Unknown"
+		}
+	]
+}

@@ -1,0 +1,263 @@
+{
+	"dialogues": [
+		{
+			"id": "mina",
+			"entries": [
+				{ "ifFlag": "gave_icecream", "node": "after" },
+				{ "ifFlag": "talked_mina", "node": "again" },
+				{ "ifFlag": "", "node": "start" }
+			],
+			"nodes": [
+				{
+					"id": "start",
+					"speaker": "Mina",
+					"text": "Afternoon! Careful, the pavement's hot enough to fry an egg on today. Not that I've got any eggs. Or anything, really.",
+					"next": "hub"
+				},
+				{
+					"id": "again",
+					"speaker": "Mina",
+					"text": "Back again? Still nothing in the freezer, I'm afraid.",
+					"next": "hub"
+				},
+				{
+					"id": "hub",
+					"speaker": "Mina",
+					"text": "What can I do for you?",
+					"choices": [
+						{ "text": "Here. I made you one.", "requiresFlag": "holding:ice_cream", "next": "give", "effects": [ "manifest:give", "flag:gave_icecream" ] },
+						{ "text": "Do you sell ice cream?", "hiddenIfFlag": "asked_mina_icecream", "next": "none", "effects": [ "flag:asked_mina_icecream" ] },
+						{ "text": "It's a beautiful day.", "next": "day" },
+						{ "text": "You know I'm dreaming, right?", "next": "dream", "effects": [ "rule:break:rule_tell" ] },
+						{ "text": "See you around.", "next": "end" }
+					]
+				},
+				{
+					"id": "none",
+					"speaker": "Mina",
+					"text": "I do! Well. I'm supposed to. I've been out all summer. Every morning I open the freezer and it's just... cold air. Funny, isn't it?",
+					"next": "none2"
+				},
+				{
+					"id": "none2",
+					"speaker": "Mina",
+					"text": "Nobody's complained. Nobody ever seems to want any. You're the first person who's asked in... huh. I don't actually know how long.",
+					"next": "hub"
+				},
+				{
+					"id": "day",
+					"speaker": "Mina",
+					"text": "Isn't it? It's always like this here. Every single day. I honestly can't remember the last time it rained.",
+					"next": "hub"
+				},
+				{
+					"id": "dream",
+					"speaker": "Mina",
+					"text": "...Ha. Sure, hon. Aren't we all?",
+					"next": "dream2"
+				},
+				{
+					"id": "dream2",
+					"speaker": "",
+					"text": "Her smile stays exactly where it is, for a moment too long.",
+					"next": "end"
+				},
+				{
+					"id": "give",
+					"speaker": "Mina",
+					"text": "Oh! Oh, where did you— no. Never mind. Don't tell me. It's perfect.",
+					"next": "give2"
+				},
+				{
+					"id": "give2",
+					"speaker": "Mina",
+					"text": "It's cold. It's actually cold. Thank you. I think I'd forgotten what the cart was for.",
+					"next": "end"
+				},
+				{
+					"id": "after",
+					"speaker": "Mina",
+					"text": "You again! I'm still thinking about that cone. Don't tell anyone, but it's the best thing that's happened around here in ages.",
+					"next": "end"
+				}
+			]
+		},
+		{
+			"id": "halvorsen",
+			"entries": [
+				{ "ifFlag": "asked_lottery", "node": "after_lottery" },
+				{ "ifFlag": "talked_halvorsen", "node": "again" },
+				{ "ifFlag": "", "node": "start" }
+			],
+			"nodes": [
+				{
+					"id": "start",
+					"speaker": "Old man",
+					"text": "Mind the pigeons. They think they own this bench. They may well be right.",
+					"next": "hub"
+				},
+				{
+					"id": "again",
+					"speaker": "Mr. Halvorsen",
+					"text": "Back for more pigeon wisdom?",
+					"next": "hub"
+				},
+				{
+					"id": "hub",
+					"speaker": "Mr. Halvorsen",
+					"text": "Sit, if you like. There's room.",
+					"choices": [
+						{ "text": "What's your name?", "hiddenIfFlag": "halvorsen_named", "next": "name", "effects": [ "flag:halvorsen_named" ] },
+						{ "text": "Do you come here often?", "next": "often" },
+						{ "text": "What's the real world like?", "next": "real", "effects": [ "rule:break:rule_realworld" ] },
+						{ "text": "Have a nice day.", "next": "end" }
+					]
+				},
+				{
+					"id": "name",
+					"speaker": "Mr. Halvorsen",
+					"text": "Halvorsen. Arne, if we're going to be friends. My wife used to call me 'Arne the Bench'. She thought she was very funny. She was.",
+					"next": "hub"
+				},
+				{
+					"id": "often",
+					"speaker": "Mr. Halvorsen",
+					"text": "Every day. I sit, I feed them, I watch the sun go down. Well. The sun doesn't really go anywhere, does it? Hm. Never noticed that before.",
+					"next": "hub"
+				},
+				{
+					"id": "real",
+					"speaker": "",
+					"text": "He stops throwing crumbs.",
+					"next": "real2"
+				},
+				{
+					"id": "real2",
+					"speaker": "Mr. Halvorsen",
+					"text": "The real world. I don't think I've ever been. Have you?",
+					"choices": [
+						{ "text": "Never mind. Forget I asked.", "next": "end" },
+						{ "text": "What are tomorrow's lottery numbers?", "next": "lottery", "effects": [ "rule:break:rule_realworld", "flag:asked_lottery" ] }
+					]
+				},
+				{
+					"id": "lottery",
+					"speaker": "Mr. Halvorsen",
+					"text": "Four. Eleven. Eleven. Twenty-three. Thirty. Forty-one.",
+					"next": "lottery2"
+				},
+				{
+					"id": "lottery2",
+					"speaker": "",
+					"text": "The pigeons have stopped moving.",
+					"next": "lottery3"
+				},
+				{
+					"id": "lottery3",
+					"speaker": "Mr. Halvorsen",
+					"text": "...Why would you ask me that?",
+					"next": "end"
+				},
+				{
+					"id": "after_lottery",
+					"speaker": "Mr. Halvorsen",
+					"text": "I'd rather just sit for a while, if it's all the same to you.",
+					"next": "end"
+				}
+			]
+		},
+		{
+			"id": "theo",
+			"entries": [
+				{ "ifFlag": "told_theo", "node": "after_dream" },
+				{ "ifFlag": "talked_theo", "node": "again" },
+				{ "ifFlag": "", "node": "start" }
+			],
+			"nodes": [
+				{
+					"id": "start",
+					"speaker": "Kid",
+					"text": "Hey! HEY. Look how high it is! It's the highest one ever. Probably.",
+					"next": "hub"
+				},
+				{
+					"id": "again",
+					"speaker": "Theo",
+					"text": "It's still up there! I'm Theo, by the way. I already told you that. Did I?",
+					"next": "hub"
+				},
+				{
+					"id": "hub",
+					"speaker": "Theo",
+					"text": "Wanna hold the string? You can't, actually. It's mine.",
+					"choices": [
+						{ "text": "That's really high.", "next": "high" },
+						{ "text": "Where are your parents?", "next": "parents" },
+						{ "text": "Who's that man down the street? The dark one.", "requiresFlag": "observer_noticed", "hiddenIfFlag": "asked_theo_observer", "next": "observer", "effects": [ "flag:asked_theo_observer" ] },
+						{ "text": "None of this is real. I'm dreaming.", "next": "dream", "effects": [ "rule:break:rule_tell", "flag:told_theo" ] },
+						{ "text": "See you, Theo.", "next": "end" }
+					]
+				},
+				{
+					"id": "high",
+					"speaker": "Theo",
+					"text": "I know! I made it go up there just by wanting it to. You can do that here, you know. You just have to really, really want it.",
+					"next": "hub"
+				},
+				{
+					"id": "parents",
+					"speaker": "Theo",
+					"text": "Somewhere. Mom says I can stay out till the streetlights come on.",
+					"next": "parents2"
+				},
+				{
+					"id": "parents2",
+					"speaker": "Theo",
+					"text": "They never come on, though.",
+					"next": "hub"
+				},
+				{
+					"id": "observer",
+					"speaker": "Theo",
+					"text": "What man?",
+					"next": "observer2"
+				},
+				{
+					"id": "observer2",
+					"speaker": "Theo",
+					"text": "There's nobody there. You're being weird.",
+					"next": "hub"
+				},
+				{
+					"id": "dream",
+					"speaker": "Theo",
+					"text": "No you're not.",
+					"next": "dream2"
+				},
+				{
+					"id": "dream2",
+					"speaker": "Theo",
+					"text": "...Don't say stuff like that. It makes the sky go weird.",
+					"next": "end"
+				},
+				{
+					"id": "after_dream",
+					"speaker": "Theo",
+					"text": "I'm not talking to you. You say weird stuff.",
+					"next": "end"
+				}
+			]
+		},
+		{
+			"id": "jogger",
+			"entries": [],
+			"nodes": [],
+			"barks": [
+				"Beautiful day for it!",
+				"Can't stop! I'm on lap... I forget which lap!",
+				"Morning! Or afternoon. Whatever it is!",
+				"Same loop every day. Never gets old!"
+			]
+		}
+	]
+}
