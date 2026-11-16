@@ -326,6 +326,10 @@ func _build_all() -> void:
 	streams["gurgle"] = _to_wav(_gurgle(3.0), true)
 	streams["drip"] = _to_wav(_drip(), false)
 	streams["splash"] = _to_wav(_splash(), false)
+	streams["wind"] = _to_wav(_wind(8.0), true)
+	streams["grind"] = _to_wav(_grind(2.0), true)
+	streams["breath"] = _to_wav(_breath(4.0), true)
+	streams["creak"] = _to_wav(_creak(), false)
 	print("Sfx: synthesized %d sounds in %d ms" % [streams.size(), Time.get_ticks_msec() - t0])
 
 
@@ -636,4 +640,68 @@ func _chirps() -> PackedFloat32Array:
 			phase += TAU * (f0 + 1400.0 * t / dur) / RATE
 			if start + i < n:
 				s[start + i] += sin(phase) * sin(PI * t / dur) * 0.18
+	return s
+
+
+## Wind high up: band-limited noise with slow gusting swells and a thin whistle.
+func _wind(sec: float) -> PackedFloat32Array:
+	var n := int(sec * RATE)
+	var s := PackedFloat32Array()
+	s.resize(n + 4000)
+	var lp := 0.0
+	var bp := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		lp += (_noise() - lp) * 0.03
+		bp += (lp - bp) * 0.2
+		var swell := 0.55 + 0.45 * sin(TAU * t / sec * 2.0) * sin(TAU * t / sec * 3.0 + 1.0)
+		var whistle := sin(TAU * (700.0 + 120.0 * sin(TAU * t / sec)) * t) * 0.02 * swell * swell
+		s[i] = (lp * 0.9 + (lp - bp) * 1.5) * swell + whistle
+	_seam(s, 4000)
+	return s
+
+
+## Concrete walls grinding along a floor.
+func _grind(sec: float) -> PackedFloat32Array:
+	var n := int(sec * RATE)
+	var s := PackedFloat32Array()
+	s.resize(n + 2000)
+	var lp := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		lp += (_noise() - lp) * 0.08
+		var stutter := 0.6 + 0.4 * absf(sin(TAU * 7.0 * t + sin(TAU * 1.5 * t) * 2.0))
+		s[i] = (lp * 0.7 + sin(TAU * 38.0 * t) * 0.25) * stutter
+	_seam(s, 2000)
+	return s
+
+
+## Someone breathing, close, in the dark: slow filtered-noise inhale/exhale.
+func _breath(sec: float) -> PackedFloat32Array:
+	var n := int(sec * RATE)
+	var s := PackedFloat32Array()
+	s.resize(n)
+	var lp := 0.0
+	for i in n:
+		var t := float(i) / RATE
+		var ph := fmod(t, sec * 0.5) / (sec * 0.5)
+		var env := sin(PI * clampf(ph / 0.45, 0.0, 1.0)) if ph < 0.45 else sin(PI * clampf((ph - 0.5) / 0.4, 0.0, 1.0)) * 0.8
+		env = maxf(env, 0.0)
+		lp += (_noise() - lp) * (0.12 if ph < 0.5 else 0.07)
+		s[i] = lp * env * 0.6
+	return s
+
+
+## A long wooden/metal creak.
+func _creak() -> PackedFloat32Array:
+	var n := int(0.9 * RATE)
+	var s := PackedFloat32Array()
+	s.resize(n)
+	var ph := 0.0
+	for i in n:
+		var t := float(i) / RATE
+		var f := 90.0 + 60.0 * sin(t * 5.0) + 30.0 * _rng.randf()
+		ph += f / RATE
+		var pulse := 1.0 if fmod(ph, 1.0) < 0.08 else 0.0
+		s[i] = (pulse * 0.5 + _noise() * 0.05) * sin(PI * t / 0.9)
 	return s

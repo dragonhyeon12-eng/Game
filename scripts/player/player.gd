@@ -244,6 +244,12 @@ func _interact() -> void:
 
 
 func _set_crouch(on: bool) -> void:
+	if not on and _crouched:
+		# no standing up under a low ceiling
+		var q := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP * 0.5, global_position + Vector3.UP * 1.85, 1)
+		q.exclude = [get_rid()]
+		if not get_world_3d().direct_space_state.intersect_ray(q).is_empty():
+			return
 	_crouched = on
 	var cap := _shape.shape as CapsuleShape3D
 	cap.height = 1.1 if on else 1.76
@@ -282,8 +288,11 @@ func _physics_process(delta: float) -> void:
 	dir = dir.normalized() * minf(input.length(), 1.0)
 
 	var accel := 12.0 if is_on_floor() else 2.0
-	velocity.x = lerpf(velocity.x, dir.x * speed, clampf(accel * delta, 0.0, 1.0))
-	velocity.z = lerpf(velocity.z, dir.z * speed, clampf(accel * delta, 0.0, 1.0))
+	var want := dir * speed
+	if Game.zone and Game.zone.has_method("wind_at"):
+		want += Game.zone.wind_at(global_position) * (0.0 if _crouched else 1.0)
+	velocity.x = lerpf(velocity.x, want.x, clampf(accel * delta, 0.0, 1.0))
+	velocity.z = lerpf(velocity.z, want.z, clampf(accel * delta, 0.0, 1.0))
 	if not is_on_floor() or phasing:
 		var gs: float = Game.zone.gravity_scale_at(global_position) if Game.zone else 1.0
 		velocity.y -= GRAVITY * gs * delta

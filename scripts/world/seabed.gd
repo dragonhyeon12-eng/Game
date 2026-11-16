@@ -178,6 +178,8 @@ func _process(delta: float) -> void:
 	leviathan.orbit_center = leviathan.orbit_center.lerp(Vector3(p.x, 0, p.z), clampf(delta * 0.3, 0.0, 1.0))
 	if Game.in_sequence:
 		return
+	if pl.manifestation.held != null and not Game.has_flag("seabed_light"):
+		Game.set_flag("seabed_light")
 	_hints()
 
 	# off the path?
@@ -203,6 +205,7 @@ func _process(delta: float) -> void:
 	# the cave
 	if not _chase and p.z < CHASE_START_Z:
 		_chase = true
+		Game.set_flag("seabed_cliff")
 		leviathan.place_head(p + Vector3(0, 6, 70), Vector3(0, 0, -1))
 		leviathan.rush(p, 6.5)
 		Sfx.play("whoosh", 0.0, 0.4)
@@ -212,6 +215,7 @@ func _process(delta: float) -> void:
 		if p.z < CLIFF_Z - 4.5:
 			# inside. it hits the opening and cannot follow
 			_safe = true
+			Game.set_flag("seabed_cave")
 			# its snout ends right at the opening: far too big to follow
 			leviathan.block_at(MOUTH + Vector3(0, MOUTH_H * 0.6, 3.0 + leviathan.thickness * 4.0))
 			Sfx.play("thud", 6.0, 0.35)

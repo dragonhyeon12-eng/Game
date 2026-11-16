@@ -29,6 +29,18 @@
 			"title": "THE DEEP",
 			"unlock": "deep_escaped",
 			"text": "The bottom of the sea is very quiet.\n\nI held a light I had imagined and followed stones that glowed, because something enormous was circling above me, waiting for me to step wrong.\n\nIt came for me at the cliff. It didn't fit through the opening. I keep thinking about that: that the dream had rules even for it.\n\nThere was a door at the back of the cave, full of light.\n\nI don't know what's on the other side of it yet."
+		},
+		{
+			"id": "compression",
+			"title": "COMPRESSION",
+			"unlock": "comp_escaped",
+			"text": "A basement under a building I've never lived in. Every corridor a little narrower than the last, every ceiling a little lower. The way I came in turned into wall while my back was turned.\n\nThere was a room whose walls only moved when I wasn't looking at them, so I walked it looking left, then right, then left, like a child crossing a road. There was something breathing in the vent behind me. Not my breathing. I checked.\n\nAnd the drying room. Sheets on lines, and shapes under three of them, standing very still. They were closer every time I looked back. I didn't look back much.\n\nThe elevator said MAX 1 PERSON. On the way up it got smaller."
+		},
+		{
+			"id": "above",
+			"title": "ABOVE",
+			"unlock": "above_escaped",
+			"text": "The elevator opened onto a roof above the clouds. Towers all around, going down into the fog further than towers go.\n\nI walked out along a plank over nothing to get a key, because there was a key at the end of it. I crossed a steel beam on my hands and knees when the wind came. When I looked back the beam wasn't there anymore.\n\nSomeone fell past, far away. No sound until they were already gone. I don't think it was anyone. I think it was supposed to be me.\n\nThere was a red light at the top of the mast. It was warm."
 		}
 	]
 }

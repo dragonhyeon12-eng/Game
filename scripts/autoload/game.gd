@@ -20,6 +20,9 @@ var flags := {}
 var maze_seed := 1
 var mode := "menu"
 var in_sequence := false
+## Numbers for objective text, e.g. {"fuses": 2}
+var counters := {}
+var _obj_t := 0.0
 
 var _seq := 0                    # bumping this cancels running sequences
 var _mode_before_menu := "game"
@@ -57,6 +60,18 @@ func set_flag(f: String) -> void:
 	flags[f] = true
 	if Journal.on_flag(f) and hud:
 		hud.show_hint("Your dream journal has a new entry.\n(Pause > MENU > DREAM JOURNAL)", 6.0)
+
+
+## The current zone's objectives as [[text, done], ...] (see data/Objectives.json).
+func objectives() -> Array:
+	var out := []
+	for o in Data.objectives.get(zone_type, []):
+		var done := has_flag(o.get("flag", ""))
+		var after: String = o.get("after", "")
+		if after != "" and not has_flag(after) and not done:
+			continue
+		out.append([String(o.get("text", "")).format(counters), done])
+	return out
 
 
 func clear_flag(f: String) -> void:
@@ -150,6 +165,10 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 			zone = DeepZone.new()
 		"seabed":
 			zone = SeabedZone.new()
+		"compression":
+			zone = CompressionZone.new()
+		"above":
+			zone = AboveZone.new()
 		_:
 			zone_type = ""
 			return
@@ -171,6 +190,10 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 		"maze": Sfx.play_music("maze", 6.0)
 		"deep": Sfx.play_music("deep", 8.0)
 		"seabed": Sfx.play_music("deep", 4.0)
+		"compression": Sfx.stop_music(2.0)   # nothing but the building
+		"above":
+			Sfx.play_music("deep", 6.0)
+			Sfx.music_gain = 0.6
 		_: Sfx.stop_music(1.5)   # the real bedroom stays quiet
 	print("Entered zone: ", type, " (waking)" if waking else "")
 
@@ -188,6 +211,7 @@ func _leave_zone() -> void:
 func _reset_world() -> void:
 	_cancel_sequences()
 	flags.clear()
+	counters.clear()
 	Notebook.reset()
 	if Dialogue.is_active():
 		Dialogue.end()
@@ -211,7 +235,7 @@ func save_checkpoint() -> void:
 	var data := {
 		"version": 1, "zone": zone_type, "flags": flags.keys(), "seed": maze_seed,
 		"notebook": Notebook.get_state(), "fear": player.dread.fear, "stability": player.dread.stability,
-		"unlocked": player.manifestation.unlocked,
+		"unlocked": player.manifestation.unlocked, "counters": counters,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
@@ -229,6 +253,7 @@ func _restore_checkpoint(fear_override := -1.0, stability_override := -1.0) -> b
 	for f in data.get("flags", []):
 		flags[f] = true
 	maze_seed = int(data.get("seed", 1))
+	counters = data.get("counters", {})
 	Notebook.load_state(data.get("notebook", {}))
 	enter_zone(data.zone, true)
 	player.manifestation.unlocked = data.get("unlocked", Data.manifest_start.duplicate())
@@ -441,12 +466,51 @@ func on_maze_exit() -> void:
 # ------------------------------------------------------------------ THE DEEP exit (end of the current build)
 
 func on_deep_exit() -> void:
+	_realm_transition("deep_escaped", "compression", "COMPRESSION", "")
+
+
+func on_compression_exit() -> void:
+	_realm_transition("comp_escaped", "above", "ABOVE", "")
+
+
+## Leave one realm for the next: fade, silence, a title card, the next zone, a checkpoint.
+func _realm_transition(flag: String, next: String, title: String, subtitle: String) -> void:
+	if in_sequence and flag != "comp_escaped":
+		return
+	in_sequence = true
+	var t := _seq
+	set_mode("cinematic")
+	set_flag(flag)
+	hud.fade_to(1.0, 1.5)
+	if not await _wait(1.8, t): return
+	Sfx.stop_music(0.01)
+	_leave_zone()
+	player.set_drone(0.0)
+	player.dread.set_profile(false, 0.0, 0.0, 10.0)
+	player.set_physics_process(false)
+	if not await _wait(2.0, t): return
+	hud.show_card(title, subtitle, 2.0)
+	if not await _wait(4.5, t): return
+	hud.hide_card(1.5)
+	if not await _wait(1.5, t): return
+	player.set_physics_process(true)
+	player.reset_presentation()
+	enter_zone(next)
+	player.dread.set_values(15.0, 100.0)
+	save_checkpoint()
+	hud.fade_to(0.0, 3.0)
+	in_sequence = false
+	set_mode("game")
+
+
+## End of the current build: the top of ABOVE.
+func on_above_exit() -> void:
 	if in_sequence:
 		return
 	in_sequence = true
 	var t := _seq
 	set_mode("cinematic")
-	set_flag("deep_escaped")
+	set_flag("above_escaped")
 	hud.fade_to(1.0, 1.5)
 	if not await _wait(1.8, t): return
 	Sfx.stop_music(0.01)
@@ -455,7 +519,7 @@ func on_deep_exit() -> void:
 	player.dread.set_profile(false, 0.0, 0.0, 10.0)
 	player.set_physics_process(false)
 	if not await _wait(2.5, t): return
-	hud.show_card("THE DEEP", "End of the current build. More of the dream is still being written. Thank you for playing.", 2.0)
+	hud.show_card("ABOVE", "End of the current build. More of the dream is still being written. Thank you for playing.", 2.0)
 	if not await _wait(7.5, t): return
 	hud.hide_card(1.5)
 	if not await _wait(2.0, t): return
@@ -527,6 +591,35 @@ func leviathan_kill(lev: Leviathan) -> void:
 	_death_sequence("wake")
 
 
+## Something touches you in the dark. No hands this time.
+func sudden_death() -> void:
+	if in_sequence:
+		return
+	in_sequence = true
+	set_mode("cinematic")
+	hud.clear_text()
+	Sfx.play("static", 2.0)
+	Sfx.play("thud", 6.0, 0.5)
+	player.jolt(Vector3(-10, 8, -6))
+	hud.set_fade(1.0, Color(0.05, 0, 0))
+	_death_sequence("wake")
+
+
+## Falling, a long way.
+func fall_death() -> void:
+	if in_sequence:
+		return
+	in_sequence = true
+	var t := _seq
+	set_mode("cinematic")
+	hud.clear_text()
+	Sfx.play("whoosh", 4.0, 0.5)
+	hud.show_thought("No no no no no", 2.0)
+	hud.fade_to(1.0, 1.8)
+	if not await _wait(2.2, t): return
+	_death_sequence("wake")
+
+
 func _death_sequence(prelude := "fade") -> void:
 	in_sequence = true
 	var t := _seq
@@ -594,6 +687,10 @@ func _process(delta: float) -> void:
 		Sfx.music_gain = lerpf(0.55, 1.1, s) * lerpf(0.6, 1.0, Settings.audio_intensity)
 	if zone:
 		zone.on_dread(s * 100.0, d.stage, delta)
+	_obj_t -= delta
+	if _obj_t <= 0.0:
+		_obj_t = 0.25
+		hud.set_objectives(objectives())
 	if not in_sequence and d.nightmare and d.stage >= Dread.Stage.UNEASY and _clock > _next_distant:
 		# Something knocks, somewhere you aren't looking.
 		var back := player.global_transform.basis.z.rotated(Vector3.UP, randf_range(-1.0, 1.0))

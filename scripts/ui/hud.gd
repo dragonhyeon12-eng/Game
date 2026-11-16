@@ -12,6 +12,9 @@ var _hold_box: VBoxContainer
 var _hold_label: Label
 var _hold_bar: ProgressBar
 var _hint_panel: PanelContainer
+var _obj_panel: PanelContainer
+var _obj_label: Label
+var _obj_text := ""
 var _hint: Label
 var _thought: Label
 var _meter_box: VBoxContainer
@@ -133,6 +136,18 @@ func _build() -> void:
 	_hint_panel.add_child(_hint)
 	root.add_child(_hint_panel)
 
+	_obj_panel = PanelContainer.new()
+	_obj_panel.add_theme_stylebox_override("panel", UIStyle.panel_style())
+	_obj_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_obj_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_obj_panel.offset_right = -40
+	_obj_panel.offset_top = 40
+	_obj_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_obj_panel.modulate.a = 0.85
+	_obj_label = UIStyle.label("", 15)
+	_obj_panel.add_child(_obj_label)
+	root.add_child(_obj_panel)
+
 	_thought = UIStyle.shadowed(UIStyle.label("", 22, Color(0.95, 0.94, 0.9), UIStyle.italic_font()))
 	_thought.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_thought.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -236,6 +251,7 @@ func _process(delta: float) -> void:
 	if not menu_open() and not _overlay_open:
 		_hint_t = maxf(0.0, _hint_t - delta)
 	_hint_panel.visible = gameplay and _hint_t > 0.0
+	_obj_panel.visible = gameplay and Settings.show_objectives and _obj_text != "" and not _dialogue.visible
 	_hint_panel.modulate.a = clampf(_hint_t / 0.6, 0.0, 1.0)
 
 	if player:
@@ -274,6 +290,21 @@ func set_gameplay_visible(v: bool) -> void:
 func show_thought(text: String, seconds := 4.0) -> void:
 	_thought.text = text
 	_thought_t = seconds
+
+
+## Objective list: [[text, done], ...]
+func set_objectives(list: Array) -> void:
+	var lines := PackedStringArray()
+	for o in list:
+		lines.append(("[x]  " if o[1] else "[  ]  ") + o[0])
+	var txt := "\n".join(lines)
+	if txt == _obj_text:
+		return
+	var newly_done: bool = _obj_text != "" and txt.count("[x]") > _obj_text.count("[x]")
+	_obj_text = txt
+	_obj_label.text = "OBJECTIVES\n" + txt if txt != "" else ""
+	if newly_done:
+		Sfx.play("page", -8.0, 1.2)
 
 
 func show_hint(text: String, seconds := 6.0) -> void:
@@ -440,6 +471,7 @@ func _settings(back: Callable) -> void:
 		["Game may unpause itself", flag.call("self_unpause")],
 		["Graphics quality (next area)", num.call("quality", 0.0, 1.0, 1.0, func(v): return "HIGH" if v >= 1 else "LOW")],
 		["Super duper shaders (strong GPU)", flag.call("super_shaders")],
+		["Show objectives", flag.call("show_objectives")],
 	]
 	var items := []
 	for r in rows:

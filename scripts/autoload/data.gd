@@ -10,6 +10,7 @@ var manifest_start: Array = []
 var manifest_after_first: Array = []
 var tutorial := {}
 var journal: Array = []
+var objectives := {}      # zone id -> [{flag, text, after}]
 var notebook_title := ""
 
 
@@ -47,6 +48,7 @@ func reload() -> void:
 		manifest[item["id"]] = item
 	tutorial = _load("Tutorial.json")
 	journal = _load("Journal.json").get("entries", [])
+	objectives = _load("Objectives.json")
 
 
 static func vec(a, fallback := Vector3.ZERO) -> Vector3:

@@ -60,6 +60,11 @@ var _world_env: WorldEnvironment
 var _in_ocean := false
 var _grabbed := false
 var leviathans: Array[Leviathan] = []
+var _handle_pickup: Node3D
+var _locker_door: Node3D
+var _gate: StaticBody3D
+var _gate_hint := false
+const GATE_POS := Vector3(11.5, 0, 0)
 
 
 func zone_id() -> String: return "deep"
@@ -123,6 +128,7 @@ func build() -> void:
 	_well()
 	_pump_room()
 	_props()
+	_objectives()
 	_lighting()
 	_register_anomalies()
 	_characters()
@@ -359,8 +365,13 @@ func _pump_room() -> void:
 	part("cylinder", Vector3(0, 0.22, 0), Vector3(0.04, 0.45, 0.04), Color(0.7, 0.1, 0.08), _lever_arm, Vector3.ZERO, 0.0, "metal")
 	part("sphere", Vector3(0, 0.46, 0), Vector3.ONE * 0.09, Color(0.1, 0.1, 0.1), _lever_arm)
 	_lever_arm.rotation_degrees.z = 35
+	_lever_arm.visible = false
+	part("cylinder", Vector3(33.0, 1.02, -2), Vector3(0.07, 0.05, 0.07), Color(0.15, 0.15, 0.16), null, Vector3.ZERO, 0.0, "metal")  # empty socket
 	interactable(Vector3(33.0, 1.3, -2), Vector3(0.5, 0.8, 0.8),
-		func(): return "Pull the DRAIN lever" if not lever_pulled else "The lever",
+		func():
+			if not _lever_arm.visible:
+				return "Fit the handle" if Game.has_flag("deep_handle") else "DRAIN lever (no handle)"
+			return "Pull the DRAIN lever" if not lever_pulled else "The lever",
 		func(): _pull_lever())
 	omni(Vector3(36, 3.0, 0), Color(1.0, 0.9, 0.7), 0.8, 9.0, true)
 	# the door back to the hall (x = 32, z 2.5..3.5): jammed from the hall side
@@ -479,6 +490,15 @@ func _characters() -> void:
 # ------------------------------------------------------------------ the drain
 
 func _pull_lever() -> void:
+	Game.set_flag("deep_saw_lever")
+	if not Game.has_flag("deep_handle"):
+		Game.hud.show_thought("The handle's been snapped off. There's just a socket. Where would it be...", 4.0)
+		return
+	if not _lever_arm.visible:
+		_lever_arm.visible = true
+		Sfx.play("thud", -12.0, 1.6)
+		Game.hud.show_thought("It fits.", 2.0)
+		return
 	if lever_pulled:
 		Game.hud.show_thought("It won't move any further.", 2.0)
 		return
@@ -520,6 +540,15 @@ func on_player_entered(from_save: bool) -> void:
 	if not from_save:
 		Notebook.reveal_on_next_open("deep_watch")
 	lever_pulled = Game.has_flag("deep_lever")
+	_lever_arm.visible = lever_pulled
+	if Game.has_flag("deep_handle"):
+		_handle_pickup.visible = false
+	if Game.has_flag("deep_key"):
+		_open_locker(true)
+	if Game.has_flag("deep_gate"):
+		_open_gate(true)
+	if Game.has_flag("deep_in_pump"):
+		_open_pump_door()
 	if lever_pulled:
 		_lever_arm.rotation_degrees.z = -35
 		_open_pump_door()
@@ -588,18 +617,24 @@ func _through_tunnel() -> void:
 	Sfx.play("whoosh", -8.0, 1.6)
 	Game.hud.fade_to(0.0, 1.2)
 	Game.hud.show_thought("...I came up somewhere else. This is the other end of the building.", 4.0)
+	Game.set_flag("deep_in_pump")
 	_in_tunnel = false
 
 
 func _hints() -> void:
+	if not _gate_hint and Game.has_flag("deep_saw_lever") and not Game.has_flag("deep_handle") and _t > 30.0 \
+			and Game.player.global_position.distance_to(Vector3(-4, 0, -5)) < 12.0:
+		_gate_hint = true
+		Game.hud.show_thought("Something red is lying at the bottom of the pool.", 3.5)
 	if _hint == 0 and _t > 2.0:
 		Game.hud.show_thought("A swimming pool. At night. Who leaves the lights on in the water?", 4.5)
 		_hint = 1
 	elif _hint == 1 and _t > 9.0:
 		Game.hud.show_hint("Find a way out.\nIn water: Space swim up   C dive   (watch your breath)", 9.0)
 		_hint = 2
-	elif _hint == 2 and not _saw_well and Game.player.global_position.distance_to(Vector3(18, 0, 0)) < 9.0:
+	elif _hint == 2 and not _saw_well and Game.player.global_position.distance_to(Vector3(18, 0, 0)) < 10.0:
 		_saw_well = true
+		Game.set_flag("deep_saw_gate")
 		Game.hud.show_thought("There's no bottom. There has to be a bottom.", 3.5)
 	elif _hint == 2 and _t > 120.0 and not lever_pulled:
 		Game.hud.show_thought("The pump room door is jammed... there has to be another way in.", 4.0)
@@ -632,3 +667,131 @@ func _update_observers(delta: float) -> void:
 		reflection.try_appear_at(spot)
 	if reflection.is_present():
 		reflection.global_position.y = _main_water.position.y
+
+
+# ------------------------------------------------------------------ objectives: handle, locker 13, gate
+
+func _objectives() -> void:
+	# the DRAIN lever's handle, lying on the bottom of the main pool
+	_handle_pickup = group(Vector3(-4, -MAIN_DEPTH + 0.06, -5), 30)
+	part("cylinder", Vector3(0, 0, 0), Vector3(0.05, 0.5, 0.05), Color(0.75, 0.1, 0.08), _handle_pickup, Vector3(0, 0, 90), 0.4, "metal")
+	part("sphere", Vector3(0.26, 0, 0), Vector3.ONE * 0.1, Color(0.1, 0.1, 0.1), _handle_pickup)
+	var glint := OmniLight3D.new()
+	glint.light_color = Color(1.0, 0.4, 0.3)
+	glint.light_energy = 0.6
+	glint.omni_range = 1.6
+	glint.position = Vector3(0, 0.3, 0)
+	_handle_pickup.add_child(glint)
+	var take := interactable(Vector3(-4, -MAIN_DEPTH + 0.3, -5), Vector3(1.0, 0.8, 1.0),
+		func(): return "Take the lever handle",
+		func():
+			_handle_pickup.visible = false
+			Game.set_flag("deep_handle")
+			Sfx.play("thud", -14.0, 1.8)
+			Game.hud.show_thought("A lever handle. Snapped clean off. Like someone wanted it down here.", 4.0),
+		func(): return _handle_pickup.visible)
+	take.name = "HandlePickup"
+
+	# locker 13 (there were twelve)
+	var lz := -9.0 + 12 * 0.6
+	box(Vector3(-31.7, 1.0, lz), Vector3(0.25, 2.0, 0.57), Color(0.22, 0.32, 0.38), true, 0.0, "metal")
+	_locker_door = group(Vector3(-31.42, 0.02, lz + 0.28))
+	part("box", Vector3(0, 0.98, -0.28), Vector3(0.03, 1.96, 0.55), Color(0.25, 0.37, 0.45), _locker_door, Vector3.ZERO, 0.0, "metal")
+	for k in 4:
+		part("box", Vector3(0.02, 1.6 + k * 0.05, -0.28), Vector3(0.01, 0.015, 0.35), Color(0.1, 0.12, 0.13), _locker_door)
+	label(Vector3(-31.39, 1.45, lz), 90, "13", 0.12, Color(0.85, 0.85, 0.8), false)
+	# what's inside: wet black hair hanging from the hook, and the key
+	for k in 9:
+		part("box", Vector3(-31.65 + randf_range(-0.06, 0.06), 1.35, lz + randf_range(-0.18, 0.18)), Vector3(0.012, randf_range(0.6, 1.1), 0.012),
+			Color(0.02, 0.02, 0.02), null, Vector3(randf_range(-6, 6), 0, randf_range(-6, 6)), 0.0, 0.2)
+	var key := part("box", Vector3(-31.6, 1.05, lz), Vector3(0.02, 0.09, 0.03), Color(0.85, 0.7, 0.3), null, Vector3.ZERO, 0.3, "metal")
+	key.name = "GateKey"
+	interactable(Vector3(-31.3, 1.0, -5.7), Vector3(0.4, 2.0, 6.6), func(): return "Lockers",
+		func(): Game.hud.show_thought("Locked. All of them. I counted twelve.", 3.0))
+	interactable(Vector3(-31.3, 1.0, lz), Vector3(0.4, 2.0, 0.55),
+		func(): return "Locker 13" if not Game.has_flag("deep_key") else "",
+		func():
+			_open_locker(false)
+			Game.set_flag("deep_key")
+			Sfx.play("thud", -2.0, 0.9)
+			Game.player.dread.add_fear(10.0, "locker 13")
+			Game.player.jolt(Vector3(-3, 2, 0))
+			Game.hud.show_thought("Hair. Wet hair. ...And a key. Don't touch the hair. Just take the key.", 4.5),
+		func(): return not Game.has_flag("deep_key"))
+	# note in the pump room
+	label(Vector3(39.83, 1.9, -1.0), -90, "WELL GATE KEY\nmoved to locker 13", 0.09, Color(0.15, 0.15, 0.17), false)
+
+	# the fence around the diving well, padlocked
+	var fence := StaticBody3D.new()
+	fence.collision_layer = 4   # solid to you, transparent to watching
+	add_child(fence)
+	var steel := Color(0.62, 0.64, 0.66)
+	var sides := [
+		[Vector3(18, 0, -7.6), Vector3(13.4, 0, 0)], [Vector3(18, 0, 7.6), Vector3(13.4, 0, 0)],
+		[Vector3(24.6, 0, 0), Vector3(0, 0, 15.2)],
+		[Vector3(11.5, 0, -4.15), Vector3(0, 0, 6.9)], [Vector3(11.5, 0, 4.15), Vector3(0, 0, 6.9)],
+	]
+	for sd in sides:
+		var c: Vector3 = sd[0]
+		var ext: Vector3 = sd[1]
+		var length := ext.length()
+		var along := ext.normalized()
+		var sz := Vector3(maxf(absf(ext.x), 0.05), 1.3, maxf(absf(ext.z), 0.05))
+		box(c + Vector3(0, 1.3, 0), sz + Vector3(0, -1.26, 0), steel, false, 0.0, "metal")
+		box(c + Vector3(0, 0.65, 0), sz + Vector3(0, -1.27, 0), steel, false, 0.0, "metal")
+		var n := int(length / 0.18)
+		for k in n + 1:
+			box(c + along * (-length * 0.5 + k * length / n) + Vector3(0, 0.65, 0), Vector3(0.025, 1.3, 0.025), steel, false, 0.0, "metal")
+		var cs := CollisionShape3D.new()
+		var b := BoxShape3D.new()
+		b.size = Vector3(maxf(absf(ext.x), 0.1), 2.4, maxf(absf(ext.z), 0.1))
+		cs.shape = b
+		cs.position = c + Vector3(0, 1.2, 0)
+		fence.add_child(cs)
+	# the gate
+	_gate = StaticBody3D.new()
+	_gate.collision_layer = 4
+	_gate.position = GATE_POS + Vector3(0, 0, -0.7)   # hinge
+	add_child(_gate)
+	var gcs := CollisionShape3D.new()
+	var gb := BoxShape3D.new()
+	gb.size = Vector3(0.1, 2.4, 1.4)
+	gcs.shape = gb
+	gcs.position = Vector3(0, 1.2, 0.7)
+	_gate.add_child(gcs)
+	part("box", Vector3(0, 1.3, 0.7), Vector3(0.04, 0.04, 1.4), steel, _gate, Vector3.ZERO, 0.0, "metal")
+	part("box", Vector3(0, 0.1, 0.7), Vector3(0.04, 0.04, 1.4), steel, _gate, Vector3.ZERO, 0.0, "metal")
+	for k in 8:
+		part("box", Vector3(0, 0.7, 0.05 + k * 0.185), Vector3(0.025, 1.25, 0.025), steel, _gate, Vector3.ZERO, 0.0, "metal")
+	part("box", Vector3(-0.06, 0.9, 1.3), Vector3(0.05, 0.08, 0.06), Color(0.75, 0.6, 0.25), _gate, Vector3.ZERO, 0.0, "metal")   # padlock
+	part("box", Vector3(-0.08, 0.95, 1.2), Vector3(0.02, 0.2, 0.12), Color(0.85, 0.82, 0.7), _gate, Vector3(0, 0, 10), 0.0, 0.8)   # tag
+	interactable(GATE_POS + Vector3(0, 1.0, 0), Vector3(0.6, 2.0, 1.4),
+		func(): return "Unlock the gate" if Game.has_flag("deep_key") else "Gate",
+		func():
+			Game.set_flag("deep_saw_gate")
+			if Game.has_flag("deep_key"):
+				_open_gate(false)
+				Game.set_flag("deep_gate")
+			else:
+				Game.hud.show_thought("Padlocked. There's a tag on the chain: \"SPARE KEY - LOCKER 13\".", 4.0),
+		func(): return not Game.has_flag("deep_gate"))
+
+
+func _open_locker(instant: bool) -> void:
+	var key := get_node_or_null("GateKey")
+	if key:
+		key.visible = false
+	if instant:
+		_locker_door.rotation_degrees.y = -100
+	else:
+		create_tween().tween_property(_locker_door, "rotation_degrees:y", -100.0, 0.25).set_trans(Tween.TRANS_BACK)
+
+
+func _open_gate(instant: bool) -> void:
+	_gate.get_child(0).disabled = true
+	if instant:
+		_gate.rotation_degrees.y = 100
+	else:
+		Sfx.play("thud", -8.0, 1.5)
+		create_tween().tween_property(_gate, "rotation_degrees:y", 100.0, 1.2).set_trans(Tween.TRANS_SINE)
+		Game.hud.show_thought("Open. Now there's nothing between me and it.", 3.0)

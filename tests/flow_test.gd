@@ -34,6 +34,28 @@ func wait(seconds: float) -> void:
 	await get_tree().create_timer(seconds, true).timeout
 
 
+## Use the interactable in the current zone with this prompt (the nearest one to `near`, if given).
+func use(prompt: String, near := Vector3.INF) -> bool:
+	var best: Interactable = null
+	var bd := INF
+	for c in Game.zone.get_children():
+		if c is Interactable and c.get_prompt() == prompt and c.can_interact():
+			var d: float = 0.0 if near == Vector3.INF else c.global_position.distance_to(near)
+			if d < bd:
+				bd = d
+				best = c
+	if best:
+		best.interact()
+	return best != null
+
+
+func objective_done(text_start: String) -> bool:
+	for o in Game.objectives():
+		if String(o[0]).begins_with(text_start):
+			return o[1]
+	return false
+
+
 func frames(n: int) -> void:
 	for i in n:
 		await get_tree().process_frame
@@ -293,12 +315,12 @@ func _run() -> void:
 	check(Game.player.global_position.x > 32.0, "the tunnel surfaced in the pump room (x=%.1f)" % Game.player.global_position.x)
 
 	print("== the drain")
-	var lever_found := false
-	for c in deep.get_children():
-		if c is Interactable and c.get_prompt() == "Pull the DRAIN lever":
-			lever_found = true
-			c.interact()
-	check(lever_found and deep.lever_pulled, "pulled the drain lever")
+	check(Game.has_flag("deep_in_pump") and objective_done("Get into the PUMP ROOM"), "objective: got into the pump room")
+	use("DRAIN lever (no handle)")
+	check(not deep.lever_pulled and Game.has_flag("deep_saw_lever"), "the lever has no handle")
+	check(use("Take the lever handle"), "found the handle at the bottom of the pool")
+	check(use("Fit the handle"), "fitted the handle")
+	check(use("Pull the DRAIN lever") and deep.lever_pulled, "pulled the drain lever")
 	deep.drain_rate_override = 12.0
 	Game.player.teleport(Transform3D(Basis(), Vector3(33.6, 0.05, -2)))
 	look_at_point(Vector3(38, 1.4, 2))
@@ -315,6 +337,12 @@ func _run() -> void:
 			c.interact()
 	await wait(0.3)
 	check(not deep._pump_door.visible, "the pump room door opens from inside")
+
+	print("== the gate")
+	check(use("Gate") and not Game.has_flag("deep_gate"), "the gate is padlocked")
+	check(use("Locker 13") and Game.has_flag("deep_key"), "locker 13 had the key")
+	check(use("Unlock the gate") and Game.has_flag("deep_gate"), "unlocked the gate")
+	check(objective_done("Find the key") and objective_done("Unlock the gate"), "objectives ticked off")
 
 	print("== down the well, into the sea")
 	Game.player.teleport(Transform3D(Basis(), Vector3(18, 0.2, 2)))
@@ -370,21 +398,151 @@ func _run() -> void:
 			out = true
 			c.interact()
 	check(out, "the glowing doorway")
-	await wait(8.0)
-	await shot("deep_end")
-	await wait(8.0)
-	check(Game.zone_type == "bedroom" and Game.hud.menu_open(), "returned to title")
+	check(objective_done("Get inside the sea cave"), "seabed objectives")
+	await wait(12.5)
+	check(Game.zone_type == "compression" and Game.mode == "game", "arrived in COMPRESSION")
 	check(Journal.is_unlocked("deep"), "journal entry THE DEEP unlocked")
+	await _compression()
+	await _above()
+	check(Game.zone_type == "bedroom" and Game.hud.menu_open(), "returned to title")
 	for e in ["video", "summer", "maze"]:
 		check(Journal.is_unlocked(e), "journal entry %s unlocked" % e)
 
 	print("== continue from checkpoint")
 	Game.continue_game()
 	await wait(1.0)
-	check(Game.zone_type == "seabed", "continue restores the seabed checkpoint")
+	check(Game.zone_type == "above", "continue restores the ABOVE checkpoint")
 
 	if failures.is_empty():
 		print("FLOW TEST PASSED")
 	else:
 		print("FLOW TEST FAILED: ", failures)
 	get_tree().quit(0 if failures.is_empty() else 1)
+
+
+func _compression() -> void:
+	var cz: CompressionZone = Game.zone
+	Game.player.dread.set_values(20, 80)
+	await wait(1.0)
+	await shot("compression_start")
+	print("== the hub; the corridor seals")
+	Game.player.teleport(Transform3D(Basis(), Vector3(0.5, 0.05, -17)))
+	await wait(0.5)
+	check(Game.has_flag("comp_saw_box"), "found the dead elevator")
+	look_at_point(Vector3(3.5, 1.4, -22))
+	await wait(5.0)
+	check(Game.has_flag("comp_sealed"), "the corridor behind you sealed itself")
+	await shot("compression_hub")
+	print("== the press")
+	Game.player.teleport(Transform3D(Basis(Vector3.UP, deg_to_rad(-90)), Vector3(8, 0.05, -18)))
+	look_at_point(Vector3(14, 1.3, -18))
+	await wait(1.5)
+	check(cz._press_h[0] < 1.8 and cz._press_h[1] < 1.8, "walls close in when you look away (%.2f, %.2f)" % [cz._press_h[0], cz._press_h[1]])
+	var h0: float = cz._press_h[0]
+	look_at_point(Vector3(9, 1.3, -18 - h0))
+	await wait(1.0)
+	check(absf(cz._press_h[0] - h0) < 0.05, "the wall you watch stays put")
+	await shot("the_press")
+	check(use("Take the fuse", Vector3(13.7, 0.9, -18)), "fuse from the press")
+	Game.player.teleport(Transform3D(Basis(), Vector3(0.5, 0.05, -17)))
+	await wait(1.5)
+	check(cz._press_h[0] > h0, "walls retreat once you're out")
+	print("== the vent")
+	Game.player._set_crouch(true)
+	Game.player.teleport(Transform3D(Basis(), Vector3(-10.5, 0.05, -24)))
+	await wait(0.5)
+	Game.player._set_crouch(false)
+	check(Game.player._crouched, "can't stand up inside the duct")
+	await shot("the_vent")
+	check(use("Take the fuse", Vector3(-6, 0.1, -32.5)), "fuse from the vent")
+	Game.player._crouched = false
+	print("== the drying room")
+	Game.player.dread.set_values(20, 80)
+	Game.player.teleport(Transform3D(Basis(), Vector3(-6.5, 0.05, -7)))
+	var fig: Node3D = cz._figures[0]
+	var d0 := fig.global_position.distance_to(Game.player.global_position)
+	look_at_point(Vector3(-2, 1.5, -7))   # away from them
+	await wait(0.6)
+	var d1 := fig.global_position.distance_to(Game.player.global_position)
+	check(d1 < d0 - 0.4, "they come closer while you look away (%.1f -> %.1f)" % [d0, d1])
+	look_at_point(fig.global_position + Vector3(0, 1.4, 0))
+	await wait(0.6)
+	var d2 := fig.global_position.distance_to(Game.player.global_position)
+	check(absf(d2 - fig.global_position.distance_to(Game.player.global_position)) < 0.01 and d2 > 0.8, "and stop when you look")
+	await shot("drying_room")
+	check(use("Take the fuse", Vector3(-13.2, 0.9, -12.3)), "fuse from the drying room")
+	Game.player.teleport(Transform3D(Basis(), Vector3(2.5, 0.05, -20.5)))
+	await wait(0.3)
+	check(Game.has_flag("comp_fuses") and Game.counters.get("fuses") == 3, "three fuses")
+	print("== the freight elevator")
+	check(use("Put the fuses in") and Game.has_flag("comp_power"), "power to the elevator")
+	check(use("Call the elevator"), "called it")
+	await wait(1.8)
+	Game.player.teleport(Transform3D(Basis(), Vector3(1.0, 0.05, -23.2)))
+	await wait(4.0)
+	check(Game.has_flag("comp_elevator"), "riding up")
+	await shot("elevator_ride")
+	await wait(16.0)
+	check(Game.zone_type == "above" and Game.mode == "game", "arrived ABOVE")
+	check(Journal.is_unlocked("compression"), "journal entry COMPRESSION unlocked")
+
+
+func _above() -> void:
+	var az: AboveZone = Game.zone
+	Game.player.dread.set_values(20, 80)
+	await wait(1.0)
+	Game.player.teleport(Transform3D(Basis(), Vector3(0, 0.05, 1.5)))
+	await wait(0.5)
+	await shot("above_start")
+	print("== falling")
+	Game.player.teleport(Transform3D(Basis(), Vector3(0, 0.05, -9)))
+	await wait(2.5)
+	check(Game.in_sequence, "fell off the roof")
+	for i in 40:
+		await wait(1.0)
+		if Game.zone_type == "above" and Game.mode == "game":
+			break
+	check(Game.zone_type == "above" and Game.mode == "game", "woke up... and back on the roof")
+	az = Game.zone
+	Game.player.dread.set_values(20, 80)
+	print("== the plank")
+	Game.player.teleport(Transform3D(Basis(Vector3.UP, deg_to_rad(90)), Vector3(-12.5, 0.05, -3)))
+	await wait(0.6)
+	check(Game.player.global_position.y > -0.5, "the plank holds you")
+	await shot("the_plank")
+	check(use("Take the key"), "took the key")
+	print("== the beam and the wind")
+	az._gust_phase = 2
+	az._gust_t = 5.0
+	az._gust_dir = Vector3(0, 0, 1)
+	az._gust_strength = 1.8
+	check(az.wind_at(Vector3(12, 0, 0)).length() > 1.0, "gust pushes")
+	Game.player.teleport(Transform3D(Basis(Vector3.UP, deg_to_rad(-90)), Vector3(12, 0.05, 0)))
+	Game.player._set_crouch(true)
+	await wait(1.0)
+	check(absf(Game.player.global_position.z) < 0.1 and Game.player.global_position.y > -0.5, "crouched: the wind can't move you")
+	await shot("the_beam")
+	Game.player._set_crouch(false)
+	az._gust_phase = 0
+	az._gust_t = 30.0
+	Game.player.teleport(Transform3D(Basis(), Vector3(24, 0.05, 0)))
+	look_at_point(Vector3(30, 1, -10))
+	await wait(4.0)
+	check(Game.has_flag("above_cross") and az._beam_gone, "across, and the beam is gone")
+	print("== the bridge and the mast")
+	check(use("Use the key") and Game.has_flag("above_bridge"), "bridge extending")
+	await wait(4.5)
+	Game.player.teleport(Transform3D(Basis(), Vector3(24, 0.1, -11)))
+	await wait(0.8)
+	check(Game.player.global_position.y > -0.5, "the bridge holds you")
+	Game.player.teleport(Transform3D(Basis(), Vector3(24, 0.05, -20.6)))
+	await wait(0.3)
+	check(use("Climb the ladder"), "climbing")
+	await wait(9.5)
+	check(Game.has_flag("above_mast") and Game.player.global_position.y > 17.0, "at the top of the mast (y=%.1f)" % Game.player.global_position.y)
+	look_at_point(AboveZone.MAST + Vector3(0, AboveZone.MAST_H + 1.1, 0))
+	await wait(0.5)
+	await shot("the_light")
+	check(use("Touch the light"), "the light")
+	await wait(16.0)
+	check(Journal.is_unlocked("above"), "journal entry ABOVE unlocked")
