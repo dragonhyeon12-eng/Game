@@ -14,6 +14,30 @@ to the right size and stood on the ground automatically.
    `models/people/mina/` with the model (and its texture files) inside. The first model file in the folder is used.
 3. Open (or switch back to) Godot. It imports the file automatically. Press ▶.
 
+## Nature kits (trees, bushes, rocks, flowers, grass): just drop the folder in
+
+For a pack like **Quaternius Stylized Nature MegaKit**, nothing needs renaming:
+
+1. Make a folder `models/nature/`.
+2. Copy the pack's **glTF** folder into it (only one format: if you also copy the FBX and OBJ folders,
+   it's the same models three times and Godot takes three times longer to import).
+   You get something like `models/nature/glTF/CommonTree_1.gltf`, `Rock_Medium_2.gltf`, ...
+3. Open Godot and press ▶. The game sorts the files by their names:
+
+| Files with ... in the name | become | where |
+|---|---|---|
+| Tree, Pine, Birch, Willow, Oak, Palm (not Dead, Stump, Log, Twisted) | trees | the city streets and the park |
+| Bush, Shrub, Hedge | bushes | the park hedges |
+| Rock, Boulder, Stone (not Path, Pebble, Small) | rocks | the seabed |
+| Flower, Tulip, Daisy | flowers | the park lawn (new: there are none without a kit) |
+| Grass, Fern, Clover | grass | the park lawn (new) |
+
+Each spot picks one of the variants, always the same one, and sizes it to fit.
+To choose exactly which models are used for one kind, make a subfolder with that kind's name, e.g.
+`models/nature/trees/`, and put only the trees you want in it. Then that folder is used for trees
+and the names don't matter. (The dead and twisted trees are left out of the summer city on purpose;
+they might come back somewhere less friendly.)
+
 ## Slots
 
 | Put the file at | Replaces | Notes |

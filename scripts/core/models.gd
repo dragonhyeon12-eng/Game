@@ -9,6 +9,9 @@ class_name Models
 ## stood on the ground, so nothing has to be prepared in Blender. Optional per-slot tweaks
 ## (turn, height, offset, animation names, texture tiling) go in models/models.json.
 ## No file = the built-in procedural version, exactly as before.
+##
+## Nature kits (trees, bushes, rocks, flowers, grass) can be dropped anywhere under models/nature/
+## as a whole folder: files are sorted into kinds by name. Zones place them with Zone.nature().
 
 const ROOT := "res://models/"
 const EXTENSIONS := ["glb", "gltf", "fbx", "obj", "tscn", "scn"]
@@ -221,3 +224,107 @@ static func surface_material(surface: String, tint := Color.WHITE) -> Material:
 	m.uv1_scale = Vector3.ONE / maxf(float(opt.get("tile", 2.0)), 0.01)
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	return m
+
+
+# ---- nature kits (models/nature/): many variants per kind, sorted by file name
+
+## kind -> [words in the file name, words that rule it out]. A subfolder models/nature/<kind>/
+## takes precedence: then every model in it counts, whatever its name.
+const NATURE_KINDS := {
+	"trees": [["tree", "pine", "birch", "willow", "oak", "maple", "palm", "cypress"],
+		["dead", "stump", "log", "branch", "twisted", "trunk_only"]],
+	"bushes": [["bush", "shrub", "hedge"], ["dead"]],
+	"rocks": [["rock", "boulder", "stone", "cliff"], ["path", "pebble", "small", "tile"]],
+	"flowers": [["flower", "tulip", "daisy", "rose", "lily"], ["petal", "pad"]],
+	"grass": [["grass", "fern", "clover"], []],
+}
+
+static var _nature := {}   # kind -> Array of {"path", "meshes": [[Mesh, Transform3D]], "aabb"}
+
+
+## The variants of a nature kind ("trees", "rocks"...) found in models/nature, or [] if none.
+static func nature(kind: String) -> Array:
+	if _nature.has(kind):
+		return _nature[kind]
+	var paths: Array = []
+	var own := ROOT + "nature/" + kind + "/"
+	if DirAccess.dir_exists_absolute(own):
+		paths = _model_files(own)
+	else:
+		var words: Array = NATURE_KINDS.get(kind, [[kind], []])[0]
+		var nots: Array = NATURE_KINDS.get(kind, [[kind], []])[1]
+		for p in _model_files(ROOT + "nature/"):
+			var low := (p as String).get_file().to_lower()
+			if words.any(func(w): return low.contains(w)) and not nots.any(func(w): return low.contains(w)):
+				paths.append(p)
+	var out := []
+	for p in paths:
+		var v := _flatten(p)
+		if not v.is_empty():
+			out.append(v)
+	if not out.is_empty():
+		print("Models: %d %s from models/nature" % [out.size(), kind])
+	_nature[kind] = out
+	return out
+
+
+## Every model file under `dir` (recursive), one per name: the same model as .glb and .fbx counts once.
+static func _model_files(dir: String) -> Array:
+	var out := []
+	if not DirAccess.dir_exists_absolute(dir):
+		return out
+	var seen := {}
+	var files := Array(ResourceLoader.list_directory(dir))
+	files.sort()
+	for f in files:
+		var name := f as String
+		if name.ends_with("/"):
+			for sub in _model_files(dir + name):
+				var key := (sub as String).get_file().get_basename().to_lower()
+				if not seen.has(key):
+					seen[key] = true
+					out.append(sub)
+		elif name.get_extension().to_lower() in EXTENSIONS:
+			var key := name.get_basename().to_lower()
+			if not seen.has(key):
+				seen[key] = true
+				out.append(dir + name)
+	return out
+
+
+## A model as plain meshes with their transforms (for MultiMesh), plus its bounding box.
+static func _flatten(path: String) -> Dictionary:
+	var res := load(path)
+	var root: Node3D = null
+	if res is PackedScene:
+		root = (res as PackedScene).instantiate() as Node3D
+	elif res is Mesh:
+		root = MeshInstance3D.new()
+		(root as MeshInstance3D).mesh = res
+	if root == null:
+		return {}
+	var meshes := []
+	for mi in all_of(root, "MeshInstance3D"):
+		if (mi as MeshInstance3D).mesh == null:
+			continue
+		var xf := Transform3D.IDENTITY
+		var n: Node = mi
+		while n != root and n is Node3D:
+			xf = (n as Node3D).transform * xf
+			n = n.get_parent()
+		xf = root.transform * xf
+		var mesh: Mesh = (mi as MeshInstance3D).mesh
+		# per-instance material overrides from the import become the mesh's own materials
+		var mi3 := mi as MeshInstance3D
+		if mi3.material_override or range(mi3.get_surface_override_material_count()).any(func(i): return mi3.get_surface_override_material(i) != null):
+			mesh = mesh.duplicate()
+			for s in mesh.get_surface_count():
+				var m: Material = mi3.material_override if mi3.material_override else mi3.get_surface_override_material(s)
+				if m:
+					mesh.surface_set_material(s, m)
+		meshes.append([mesh, xf])
+	var box := bounds(root)
+	root.free()
+	if meshes.is_empty() or box.size.length() < 0.0001:
+		return {}
+	return {"path": path, "meshes": meshes, "aabb": box}

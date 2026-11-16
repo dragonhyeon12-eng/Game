@@ -79,8 +79,14 @@ func build() -> void:
 		if distance_to_path(p) < 3.0:
 			continue
 		var s := rng.randf_range(0.4, 3.5)
-		shape_at("sphere", p + Vector3(0, s * 0.2, 0), Vector3(s * 1.4, s * 0.8, s * 1.1), rock.lightened(rng.randf_range(0, 0.06)), s > 1.5,
-			Vector3(0, rng.randf_range(0, 360), 0), "concrete")
+		var tint := rock.lightened(rng.randf_range(0, 0.06))
+		var yaw := rng.randf_range(0, 360)   # (random numbers drawn in the same order either way)
+		if nature("rocks", p, s * 1.4, yaw, true):
+			if s > 1.5:
+				blocker(p + Vector3(0, s * 0.3, 0), Vector3(s * 1.1, s * 0.6, s * 0.9))
+			continue
+		shape_at("sphere", p + Vector3(0, s * 0.2, 0), Vector3(s * 1.4, s * 0.8, s * 1.1), tint, s > 1.5,
+			Vector3(0, yaw, 0), "concrete")
 	# pale drifting particles would need a particle system; instead: dead coral and bones on the floor
 	for i in 40:
 		var p := Vector3(rng.randf_range(-60, 60), 0, rng.randf_range(-140, 30))

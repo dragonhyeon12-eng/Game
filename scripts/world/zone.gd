@@ -40,6 +40,7 @@ func observer_event(_event: String) -> void: pass
 var _batches := {}           # shape|roughness -> Array[[Transform3D, Color]]
 var _body: StaticBody3D
 var _ambient: Array = []     # [player, base_db]
+var _nature := {}            # kind -> Array of [Transform3D, variant index]
 
 
 func _enter_tree() -> void:
@@ -125,6 +126,61 @@ func finish_batches() -> void:
 		mmi.material_override = Shapes.surface(parts[1])
 		add_child(mmi)
 	_batches.clear()
+	_finish_nature()
+
+
+## Places a nature model (kind: trees, bushes, rocks, flowers, grass) if models/nature has any;
+## returns false if not, so the caller builds its procedural version instead. `size` is the height
+## (or the largest side, when fit_largest). The variant is chosen from the position, so it is the
+## same every time. Collision is the caller's job (blocker()).
+func nature(kind: String, pos: Vector3, size: float, yaw_deg := 0.0, fit_largest := false) -> bool:
+	var variants := Models.nature(kind)
+	if variants.is_empty():
+		return false
+	var h := absi(hash(Vector3i(roundi(pos.x * 10.0), roundi(pos.y * 10.0), roundi(pos.z * 10.0))))
+	var vi := h % variants.size()
+	var box: AABB = variants[vi]["aabb"]
+	var extent := maxf(box.size.x, maxf(box.size.y, box.size.z)) if fit_largest else box.size.y
+	var s := size / maxf(extent, 0.0001)
+	var c := box.get_center()
+	var local := Transform3D(Basis.from_scale(Vector3.ONE * s), Vector3(-c.x, -box.position.y, -c.z) * s)
+	var xf := Transform3D(Basis(Vector3.UP, deg_to_rad(yaw_deg)), pos) * local
+	if not _nature.has(kind):
+		_nature[kind] = []
+	_nature[kind].append([xf, vi])
+	return true
+
+
+## One MultiMesh per variant mesh: hundreds of plants cost a handful of draw calls.
+func _finish_nature() -> void:
+	for kind in _nature:
+		var variants := Models.nature(kind)
+		var small: bool = kind in ["grass", "flowers"]
+		for vi in variants.size():
+			var xfs := []
+			for item in _nature[kind]:
+				if item[1] == vi:
+					xfs.append(item[0])
+			if xfs.is_empty():
+				continue
+			for m in variants[vi]["meshes"]:
+				var mm := MultiMesh.new()
+				mm.transform_format = MultiMesh.TRANSFORM_3D
+				mm.mesh = m[0]
+				mm.instance_count = xfs.size()
+				for i in xfs.size():
+					mm.set_instance_transform(i, xfs[i] * m[1])
+				var mmi := MultiMeshInstance3D.new()
+				mmi.name = "Nature_" + kind
+				mmi.multimesh = mm
+				if small:
+					# little things: no shadows, and not drawn far away
+					mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+					mmi.visibility_range_end = 45.0
+					mmi.visibility_range_end_margin = 5.0
+					mmi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+				add_child(mmi)
+	_nature.clear()
 
 
 ## An individual mesh (for things that change at runtime).

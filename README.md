@@ -80,7 +80,8 @@ reflections, volumetric fog, anti-aliasing - needs a strong GPU).
 project.godot            Godot project (open this)
 scenes/main.tscn         entry point - everything else is built in code (no binary assets)
 models/                  OPTIONAL real art: drop a .glb here to replace a built-in person, the Observer,
-                         an object or a surface texture (see models/README.md - no Blender needed)
+                         an object or a surface texture, or a whole nature kit into models/nature/
+                         (see models/README.md - no Blender needed)
 data/                    dialogue, notebook rules, manifestable objects, tutorial script (JSON)
 scripts/autoload/        Game (story flow, zones, checkpoints, sequences, DREAD director)
                          Settings, Data, Sfx (procedural audio), Notebook, Dialogue, Anomalies

@@ -164,11 +164,48 @@ func _skyline() -> void:
 
 
 func _tree(base: Vector3, s: float, variant: int) -> void:
+	if nature("trees", base, 5.6 * s, fmod(base.x * 37.0 + base.z * 11.0, 360.0)):
+		blocker(base + Vector3(0, 1.6 * s, 0), Vector3(0.4, 3.2, 0.4) * s)   # the trunk
+		return
 	var leaf: Color = LEAVES[variant]
 	shape_at("cylinder", base + Vector3(0, 1.6 * s, 0), Vector3(0.22, 3.2, 0.22) * s, BARK, true)
 	shape_at("sphere", base + Vector3(0, 4.0 * s, 0), Vector3(3.2, 2.6, 3.2) * s, leaf)
 	shape_at("sphere", base + Vector3(0.7, 5.0 * s, -0.4), Vector3(2.2, 2.0, 2.2) * s, leaf.lightened(0.1))
 	shape_at("sphere", base + Vector3(-0.6, 3.3 * s, 0.6), Vector3(2.0, 2.0, 2.0) * s, leaf.darkened(0.1))
+
+
+## A hedge: a row of bush models when there are some, otherwise a trimmed box.
+func _hedge(center: Vector3, size: Vector3) -> void:
+	var along_x := size.x > size.z
+	var length := size.x if along_x else size.z
+	var n := int(length / 1.1)
+	if n < 1 or Models.nature("bushes").is_empty():
+		box(center, size, LEAVES[2])
+		return
+	blocker(center, size)
+	for i in n:
+		var t := (i + 0.5) / n - 0.5
+		var p := center + (Vector3(t * length, 0, 0) if along_x else Vector3(0, 0, t * length))
+		p.y = GRASS_Y
+		nature("bushes", p, 1.0 + 0.15 * sin(i * 2.3), i * 47.0)
+
+
+## Grass tufts and flowers on the park lawn (only with a nature kit: there is no built-in version).
+func _lawn(inner: float) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2024
+	var half := inner * 0.5 - 1.0
+	for kind in ["grass", "flowers"]:
+		if Models.nature(kind).is_empty():
+			continue
+		for i in (160 if kind == "grass" else 60):
+			var p := Vector3(rng.randf_range(-half, half), GRASS_Y, rng.randf_range(-half, half))
+			# not on the paths, the fountain, or under the ice cream stand
+			if absf(p.x) < 1.8 or absf(p.z) < 1.8 or Vector2(p.x, p.z).length() < 3.6:
+				continue
+			if Vector2(p.x - 2.4, p.z + 9.0).length() < 3.0:
+				continue
+			nature(kind, p, rng.randf_range(0.25, 0.5) if kind == "grass" else rng.randf_range(0.3, 0.55), rng.randf() * 360.0)
 
 
 func _bench(center: Vector3, yaw: float) -> void:
@@ -236,10 +273,10 @@ func _park() -> void:
 	var length := e - 2.2
 	for s in [-1, 1]:
 		var mid: float = s * (2.2 + length * 0.5)
-		box(Vector3(mid, 0.5, e), Vector3(length, 0.8, 0.7), LEAVES[2])
-		box(Vector3(mid, 0.5, -e), Vector3(length, 0.8, 0.7), LEAVES[2])
-		box(Vector3(e, 0.53, mid), Vector3(0.68, 0.86, length - 0.02), LEAVES[2])
-		box(Vector3(-e, 0.53, mid), Vector3(0.68, 0.86, length - 0.02), LEAVES[2])
+		_hedge(Vector3(mid, 0.5, e), Vector3(length, 0.8, 0.7))
+		_hedge(Vector3(mid, 0.5, -e), Vector3(length, 0.8, 0.7))
+		_hedge(Vector3(e, 0.53, mid), Vector3(0.68, 0.86, length - 0.02))
+		_hedge(Vector3(-e, 0.53, mid), Vector3(0.68, 0.86, length - 0.02))
 	# fountain
 	shape_at("cylinder", Vector3(0, GRASS_Y + 0.25, 0), Vector3(5.2, 0.5, 5.2), STONE, true, Vector3.ZERO, "concrete")
 	shape_at("cylinder", Vector3(0, GRASS_Y + 0.48, 0), Vector3(4.8, 0.06, 4.8), WATER, false, Vector3.ZERO, 0.05)
@@ -257,6 +294,7 @@ func _park() -> void:
 		if Vector2(p.x - 9.5, p.z - 9.5).length() < 5.0 or Vector2(p.x - 2.4, p.z + 9.0).length() < 4.0:
 			continue
 		_tree(p, rng.randf_range(0.9, 1.35), rng.randi() % 3)
+	_lawn(inner)
 	# benches
 	_bench(Vector3(-9, GRASS_Y, 2.0), 180)
 	_bench(Vector3(-5, GRASS_Y, -2.0), 0)
