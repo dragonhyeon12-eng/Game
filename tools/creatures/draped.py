@@ -4,18 +4,21 @@ The sheet is a loft of horizontal rings from the crown to the floor. Each ring f
 underneath (head, shoulders, chest, then the cloth falling free), plus hanging folds that grow toward
 the hem, a ragged hem, and two dents where eyes press against the cloth. Woven, stained fabric texture.
 
-Faces Blender -Y (Godot +Z), stands on z = 0, 1.85 m tall. (Not wired into the game yet: the drying
-room's figures are built in its level script.)
+Under the sheet stands a thin dark body; the sheet is semi-transparent (glTF alpha blend), so its
+legs, arms and shoulders show faintly through the cloth.
+
+Faces Blender -Y (Godot +Z), stands on z = 0, 1.85 m tall. Used by COMPRESSION's drying room.
 """
 import math
 
 import numpy as np
-from mathutils import Vector
+from mathutils import Vector  # noqa: F401  (used by _body)
 
 from dp import geo, scene, tex
 from dp.geo import MeshBuilder, smoothstep, gauss, ang_diff
 
 HEIGHT = 1.85
+SHEET_ALPHA = 0.72     # semi-transparent: the shape underneath shows through, faintly
 
 
 # (height, half-width, half-depth) of the sheet where it rests on the body; below the shoulders it falls
@@ -91,7 +94,48 @@ def build(out_path):
     col = col * (1 - 0.3 * hem[..., None])
     alb = tex.to_image("draped_albedo", col)
     nrm = tex.to_image("draped_normal", tex.normal_from_height(weave * 0.05 + grime * 0.6, 1.5), non_color=True)
-    mat = scene.material("draped_sheet", alb, normal_tex=nrm, normal_strength=0.6, roughness=0.9, double_sided=True)
+    mat = scene.material("draped_sheet", alb, normal_tex=nrm, normal_strength=0.6, roughness=0.9, double_sided=True,
+                         alpha=SHEET_ALPHA)
     obj = mb.to_object("Draped", {"sheet": mat}, recalc_normals=False)
-    print(f"  draped: {len(mb.verts)} vertices, {mb.tri_count()} triangles")
-    scene.export_glb(out_path, [obj])
+    body = _body()
+    print(f"  draped: {len(mb.verts)} sheet vertices, {mb.tri_count()} sheet triangles, "
+          f"{sum(len(p.vertices) - 2 for p in body.data.polygons)} body triangles")
+    scene.export_glb(out_path, [obj, body])
+
+
+def _body():
+    """What stands under the sheet: thin, stooped, head bowed, arms hanging close. Only ever seen as a
+    dark shape through the cloth, so it is pure silhouette: matte, nearly black."""
+    pts = {}
+    edges = []
+
+    def p(n, xyz, r):
+        pts[n] = (Vector(xyz), r)
+
+    for a, b in (("pelvis", "waist"), ("waist", "chest"), ("chest", "upper"), ("upper", "neck"), ("neck", "head"),
+                 ("head", "crown")):
+        edges.append((a, b))
+    p("pelvis", (0, 0.0, 0.95), 0.11)
+    p("waist", (0, -0.01, 1.12), 0.08)
+    p("chest", (0, -0.03, 1.3), 0.125)
+    p("upper", (0, -0.02, 1.41), 0.11)
+    p("neck", (0, -0.015, 1.53), 0.04)
+    p("head", (0.01, -0.025, 1.645), 0.07)
+    p("crown", (0.015, -0.015, 1.72), 0.055)
+    for side in (-1, 1):
+        s = "L" if side < 0 else "R"
+        p("sh" + s, (side * 0.17, -0.01, 1.43), 0.05)
+        p("elb" + s, (side * 0.2, 0.0, 1.12), 0.035)
+        p("wri" + s, (side * 0.19, -0.05, 0.8), 0.03)
+        p("fin" + s, (side * 0.18, -0.07, 0.66), 0.022)
+        p("hip" + s, (side * 0.09, 0.0, 0.92), 0.06)
+        p("knee" + s, (side * 0.085, -0.02, 0.5), 0.042)
+        p("ank" + s, (side * 0.09, 0.0, 0.07), 0.032)
+        for a, b in (("upper", "sh" + s), ("sh" + s, "elb" + s), ("elb" + s, "wri" + s), ("wri" + s, "fin" + s),
+                     ("pelvis", "hip" + s), ("hip" + s, "knee" + s), ("knee" + s, "ank" + s)):
+            edges.append((a, b))
+    body = scene.skin_body("DrapedBody", pts, edges, "pelvis", flat=("chest", "upper", "pelvis"), subsurf=1)
+    for poly in body.data.polygons:
+        poly.use_smooth = True
+    body.data.materials.append(scene.material("draped_body", base_color=(0.01, 0.009, 0.008), roughness=0.95))
+    return body

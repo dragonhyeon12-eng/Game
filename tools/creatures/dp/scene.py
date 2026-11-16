@@ -10,7 +10,7 @@ def reset():
 
 def material(name, base_tex=None, base_color=(0.02, 0.02, 0.02), normal_tex=None, normal_strength=1.0,
              emission_tex=None, emission_color=None, emission_strength=0.0, roughness=0.5, metallic=0.0,
-             double_sided=False):
+             double_sided=False, alpha=1.0):
     """A Principled BSDF the glTF exporter maps 1:1 to glTF PBR (+ emissive strength extension)."""
     m = bpy.data.materials.new(name)
     m.use_nodes = True
@@ -20,6 +20,12 @@ def material(name, base_tex=None, base_color=(0.02, 0.02, 0.02), normal_tex=None
     out = nt.nodes.get("Material Output")
     bsdf.inputs["Roughness"].default_value = roughness
     bsdf.inputs["Metallic"].default_value = metallic
+    if alpha < 1.0:   # exported as glTF alphaMode BLEND
+        bsdf.inputs["Alpha"].default_value = alpha
+        if hasattr(m, "surface_render_method"):
+            m.surface_render_method = 'BLENDED'
+        else:
+            m.blend_method = 'BLEND' 
     if base_tex is not None:
         n = nt.nodes.new("ShaderNodeTexImage")
         n.image = base_tex
@@ -100,3 +106,24 @@ def export_glb(path, objects):
     )
     size = os.path.getsize(path) / 1024 / 1024
     print(f"  wrote {path} ({size:.1f} MB)")
+
+
+def skin_body(name, pts, edges, root, flat=(), subsurf=2):
+    """An organic body from a stick skeleton: pts {name: (Vector, radius)}, edges [(a, b)], via the Skin
+    modifier + Subdivision Surface (applied). `flat` names get a flatter cross-section (torso)."""
+    names = list(pts)
+    mesh = bpy.data.meshes.new(name + "Skel")
+    mesh.from_pydata([tuple(pts[n][0]) for n in names], [(names.index(a), names.index(b)) for a, b in edges], [])
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    skin = obj.modifiers.new("Skin", 'SKIN')
+    skin.use_smooth_shade = True
+    for i, n in enumerate(names):
+        r = pts[n][1]
+        mesh.skin_vertices[0].data[i].radius = (r, r * (0.8 if n in flat else 1.0))
+    mesh.skin_vertices[0].data[names.index(root)].use_root = True
+    sub = obj.modifiers.new("Subsurf", 'SUBSURF')
+    sub.levels = subsurf
+    sub.render_levels = subsurf
+    apply_modifiers(obj)
+    return obj

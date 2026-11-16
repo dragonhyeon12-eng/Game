@@ -492,13 +492,24 @@ func _update_vent(delta: float, p: Vector3) -> void:
 func _drying_room() -> void:
 	# x -14..-5, z -13..-2. Lines of sheets, a bare bulb on a cord.
 	var rows := [-11.0, -8.6, -6.2, -3.8]
+	# thin, worn cotton: light passes through it, and so do the shapes of whatever stands behind
+	var cloth: Array[StandardMaterial3D] = []
+	for k in 3:
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(SHEET.darkened(k * 0.06), 0.55)
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		m.roughness = 0.95
+		cloth.append(m)
 	for ri in rows.size():
 		var z: float = rows[ri]
 		box(Vector3(-9.5, 2.75, z), Vector3(9, 0.015, 0.015), Color(0.2, 0.2, 0.2), false)
 		var x := -13.6 + (0.9 if ri % 2 == 1 else 0.0)
 		while x < -5.6:
 			var s := group(Vector3(x + 0.75, 2.75, z))
-			part("box", Vector3(0, -1.15, 0), Vector3(1.45, 2.3, 0.02), SHEET.darkened(randf_range(0.0, 0.15)), s, Vector3.ZERO, 0.0, "fabric")
+			var sheet := part("box", Vector3(0, -1.15, 0), Vector3(1.45, 2.3, 0.02), SHEET, s, Vector3.ZERO, 0.0, "fabric")
+			sheet.material_override = cloth[randi() % cloth.size()]
+			sheet.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			_sheets.append(s)
 			x += 2.3
 	_sheet_bulb = group(Vector3(-9.5, 3.2, -7.5))
@@ -521,6 +532,13 @@ func _drying_room() -> void:
 		var f := Node3D.new()
 		f.position = p
 		add_child(f)
+		f.set_meta("home", p)
+		_figures.append(f)
+		# the custom model (models/creatures/draped.glb, made by tools/creatures): a body under a thin sheet
+		var model := Models.instance(["creatures/draped"])
+		if model:
+			f.add_child(Models.fit(model, 1.85))
+			continue
 		part("capsule", Vector3(0, 0.95, 0), Vector3(0.62, 1.0, 0.5), SHEET.darkened(0.08), f, Vector3.ZERO, 0.0, "fabric")
 		part("sphere", Vector3(0, 1.72, 0.02), Vector3(0.3, 0.34, 0.3), SHEET.darkened(0.05), f, Vector3.ZERO, 0.0, "fabric")
 		part("cone", Vector3(0, 0.3, 0), Vector3(0.85, 0.6, 0.75), SHEET.darkened(0.12), f, Vector3.ZERO, 0.0, "fabric")

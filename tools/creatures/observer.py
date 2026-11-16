@@ -84,21 +84,7 @@ def build(out_path):
         e("knee" + s, "ank" + s)
         e("ank" + s, "toe" + s)
 
-    names = list(pts)
-    mesh = bpy.data.meshes.new("ObserverSkel")
-    mesh.from_pydata([tuple(pts[n][0]) for n in names], [(names.index(a), names.index(b)) for a, b in edges], [])
-    obj = bpy.data.objects.new("Observer", mesh)
-    bpy.context.scene.collection.objects.link(obj)
-    skin = obj.modifiers.new("Skin", 'SKIN')
-    skin.use_smooth_shade = True
-    for i, n in enumerate(names):
-        r = pts[n][1]
-        mesh.skin_vertices[0].data[i].radius = (r, r * (0.8 if n in ("chest", "upper", "pelvis") else 1.0))
-    mesh.skin_vertices[0].data[names.index("pelvis")].use_root = True
-    sub = obj.modifiers.new("Subsurf", 'SUBSURF')
-    sub.levels = 2
-    sub.render_levels = 2
-    scene.apply_modifiers(obj)
+    obj = scene.skin_body("Observer", pts, edges, "pelvis", flat=("chest", "upper", "pelvis"))
 
     # gaunt, bony surface: sunken between ribs, knobbly joints, a little wrong everywhere
     bm = bmesh.new()

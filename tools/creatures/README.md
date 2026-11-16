@@ -12,7 +12,7 @@ exported `.glb` files, through the optional-model slots in `models/README.md`.
 |---|---|---|---|---|
 | `leviathan` | `models/creatures/leviathan.glb` | THE DEEP, the seabed | ~35k (Godot adds LODs on import) | skinned: 34 spine bones + jaw |
 | `observer` | `models/observer.glb` | everywhere he appears | ~12.5k | static; the game turns him black and glitchy |
-| `draped` | `models/creatures/draped.glb` | not used yet | ~9k | the sheeted figures of COMPRESSION's drying room (wiring them in means editing that level's script) |
+| `draped` | `models/creatures/draped.glb` | COMPRESSION's drying room | ~9k sheet + ~2k body | a dark body under a semi-transparent sheet (alpha blend): its shape shows faintly through the cloth |
 
 ## Running it
 
