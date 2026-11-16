@@ -171,6 +171,9 @@ func _run() -> void:
 	print("== the observer")
 	var obs: Observer = Game.zone.observer
 	Game.player.teleport(Transform3D(Basis(), Vector3(16, CityZone.CURB, -21)))
+	# put him back at his first spot (rule breaks above may have moved him somewhere out of sight)
+	obs._pending_move = false
+	obs.global_position = Vector3(69.75, CityZone.CURB, -27.8)
 	await wait(1.0)
 	look_at_point(obs.global_position + Vector3(0, 1.2, 0))
 	await wait(1.5)

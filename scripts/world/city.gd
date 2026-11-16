@@ -487,6 +487,8 @@ func _find_spot_near(ppos: Vector3, min_d: float, max_d: float) -> Vector3:
 		if absf(p.x) > BOUNDS - 3 or absf(p.z) > BOUNDS - 3:
 			continue
 		p.y = ground_y(p, CURB)
+		if p.y > CURB + 0.3:
+			continue   # landed on a roof, a car or a bench: he stands on the ground
 		var body := p + Vector3.UP * 0.95
 		# unobserved now, but in plain sight the moment you turn around
 		if not Observation.is_observed(body, 0.6) and Observation.has_line_of_sight(body):

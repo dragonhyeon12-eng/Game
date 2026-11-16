@@ -1,7 +1,7 @@
 # DREAM PROTOCOL
 
 First-person psychological horror about lucid dreaming, unstable reality and subconscious fear.
-Made with **Godot 4.5** (free, open source, no account needed). Runs on Mac, Windows and Linux.
+Made with **Godot 4.7** (free, open source, no account needed). Runs on Mac, Windows and Linux.
 
 This is **Milestone 1: the vertical slice**: bedroom → tutorial video → notebook → summer dream city
 (ice cream, people, the Observer) → falling into the yellow maze → DREAD → the ending of the slice.
@@ -10,7 +10,7 @@ This is **Milestone 1: the vertical slice**: bedroom → tutorial video → note
 
 ## How to play it (Mac)
 
-1. Download **Godot 4.5** (the normal version, not ".NET"): https://godotengine.org/download/macos/
+1. Download **Godot 4.7** (the normal version, not ".NET"): https://godotengine.org/download/macos/
    Unzip it and drag **Godot.app** into *Applications*.
 2. Download this project: on GitHub click **Code → Download ZIP** (branch `claude/dream-protocol-dev-eom8wy`), and unzip it.
 3. Open Godot. The first time macOS may say it can't verify the app: right-click Godot.app → **Open** → **Open**.
