@@ -86,6 +86,20 @@ func _run() -> void:
 			Game.set_mode("game")
 			_look(Vector3(0, 1.6, 4), Vector3(4, 0.8, -14))
 			Game.player.manifestation.try_manifest(),
+		"lev_head": func():
+			_zone("seabed")
+			var z: SeabedZone = Game.zone
+			z.leviathan.speed = 0.0
+			z.leviathan.place_head(Vector3(0, 6, -30), Vector3(0.35, -0.05, 1))
+			_look(Vector3(7, 4.5, -15), Vector3(0, 5, -32)),
+		"lev_side": func():
+			_zone("deep")
+			var z: DeepZone = Game.zone
+			for l in z.leviathans:
+				l.speed = 0.0
+			z.leviathans[0].place_head(Vector3(45, -100, 0), Vector3(1, 0.05, 0))
+			Game.player.global_position = Vector3(5, -100, 48)
+			_look(Vector3(5, -99, 48), Vector3(5, -101, 0)),
 		"cave": func():
 			_zone("seabed")
 			Game.set_mode("game")
