@@ -16,6 +16,7 @@ var visual_intensity := 1.0
 ## 0..1: drone, knocks, hum intensity.
 var audio_intensity := 1.0
 var master_volume := 0.8
+var music_volume := 0.6
 var text_scale := 1.0
 var show_dread_meter := true
 var menu_corruption := true
@@ -24,7 +25,7 @@ var self_unpause := true
 var quality := 1.0
 
 const KEYS := ["mouse_sensitivity", "invert_y", "fov", "head_bob", "camera_effects", "visual_intensity",
-	"audio_intensity", "master_volume", "text_scale", "show_dread_meter", "menu_corruption", "self_unpause", "quality"]
+	"audio_intensity", "master_volume", "music_volume", "text_scale", "show_dread_meter", "menu_corruption", "self_unpause", "quality"]
 
 
 func _ready() -> void:

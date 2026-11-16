@@ -20,7 +20,7 @@ var ray: RayCast3D
 var controls_locked := true
 var walk_speed := 2.6
 var sprint_speed := 4.3
-var soft_floor := false
+var surface := "concrete"   # footstep sound set, chosen by the zone
 var phasing := false
 
 var focused: Object = null
@@ -118,10 +118,10 @@ func teleport(xf: Transform3D) -> void:
 		_set_crouch(false)
 
 
-func set_movement(walk: float, sprint: float, soft: bool) -> void:
+func set_movement(walk: float, sprint: float, floor_surface: String) -> void:
 	walk_speed = walk
 	sprint_speed = sprint
-	soft_floor = soft
+	surface = floor_surface
 
 
 ## Fall through the world (used when the dream drops you).
@@ -262,7 +262,10 @@ func _update_footsteps(delta: float) -> void:
 	var stride := 2.1 if flat > 3.5 else 1.65
 	if _step_acc >= stride:
 		_step_acc = 0.0
-		Sfx.play("step_soft" if soft_floor else "step_hard", linear_to_db(clampf(flat / 3.5, 0.4, 1.2)) - 4.0, randf_range(0.9, 1.1))
+		var surf := surface
+		if Game.zone and Game.zone.has_method("surface_at"):
+			surf = Game.zone.surface_at(global_position)
+		Sfx.play("step_%s_%d" % [surf, randi() % 4], linear_to_db(clampf(flat / 3.5, 0.5, 1.2)) - 6.0, randf_range(0.93, 1.07))
 
 
 func _update_holds(delta: float) -> void:

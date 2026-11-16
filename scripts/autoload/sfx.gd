@@ -9,6 +9,17 @@ var _rng := RandomNumberGenerator.new()
 var _foley_pool: Array[AudioStreamPlayer] = []
 var _next_foley := 0
 
+# ---- music: generated on a background thread, crossfaded between two players
+var music := {}                   # name -> AudioStreamWAV
+var music_gain := 1.0             # extra multiplier (the maze raises it with DREAD)
+var _music_players: Array[AudioStreamPlayer] = []
+var _music_current := 0
+var _music_target_name := ""
+var _music_fade_speed := 0.5
+var _music_levels := [0.0, 0.0]
+var _music_targets := [0.0, 0.0]
+var _music_thread: Thread
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -19,6 +30,159 @@ func _ready() -> void:
 		p.bus = "Master"
 		add_child(p)
 		_foley_pool.append(p)
+	for i in 2:
+		var m := AudioStreamPlayer.new()
+		m.volume_db = -80.0
+		add_child(m)
+		_music_players.append(m)
+	_music_thread = Thread.new()
+	_music_thread.start(_build_music)
+
+
+func _exit_tree() -> void:
+	if _music_thread and _music_thread.is_started():
+		_music_thread.wait_to_finish()
+
+
+# ------------------------------------------------------------------ music
+
+## Crossfade to a track ("title", "city", "maze") or "" for silence.
+func play_music(track: String, fade_seconds := 2.5) -> void:
+	_music_fade_speed = 1.0 / maxf(fade_seconds, 0.01)
+	if track == _music_target_name and (track == "" or _music_players[_music_current].playing):
+		return
+	_music_target_name = track
+	_music_targets[_music_current] = 0.0
+	if track == "" or not music.has(track):
+		return  # silence now; if the track is still being generated it starts when ready
+	_music_current = 1 - _music_current
+	var p := _music_players[_music_current]
+	p.stream = music[track]
+	p.play()
+	_music_levels[_music_current] = 0.0
+	_music_targets[_music_current] = 1.0
+
+
+func stop_music(fade_seconds := 2.0) -> void:
+	play_music("", fade_seconds)
+
+
+func _music_ready(track: String, stream: AudioStreamWAV) -> void:
+	music[track] = stream
+	if track == _music_target_name and not _music_players[_music_current].playing:
+		_music_target_name = ""
+		play_music(track, 3.0)
+
+
+func _process(delta: float) -> void:
+	var vol := Settings.music_volume * music_gain
+	for i in 2:
+		_music_levels[i] = move_toward(_music_levels[i], _music_targets[i], _music_fade_speed * delta)
+		var v: float = _music_levels[i] * vol
+		_music_players[i].volume_db = -80.0 if v <= 0.001 else linear_to_db(v) - 8.0
+		if _music_levels[i] <= 0.0 and _music_targets[i] <= 0.0 and _music_players[i].playing:
+			_music_players[i].stop()
+
+
+func _build_music() -> void:
+	var t0 := Time.get_ticks_msec()
+	call_deferred("_music_ready", "title", _to_wav(_track_title(), true))
+	call_deferred("_music_ready", "city", _to_wav(_track_city(), true))
+	call_deferred("_music_ready", "maze", _to_wav(_track_maze(), true))
+	print("Sfx: music generated in %d ms (background thread)" % (Time.get_ticks_msec() - t0))
+
+
+static func _hz(midi: float) -> float:
+	return 440.0 * pow(2.0, (midi - 69.0) / 12.0)
+
+
+## Adds a soft bell / celesta note into a buffer.
+static func _bell(buf: PackedFloat32Array, start: float, midi: float, gain: float, length := 3.0) -> void:
+	var f := _hz(midi)
+	var i0 := int(start * RATE)
+	var n := int(length * RATE)
+	for i in n:
+		var k := i0 + i
+		if k >= buf.size():
+			k -= buf.size()   # wrap around: the loop stays seamless
+		var t := float(i) / RATE
+		var env := minf(1.0, t * 300.0) * exp(-t * 1.6)
+		buf[k] += (sin(TAU * f * t) + 0.25 * sin(TAU * f * 2.0 * t) * exp(-t * 3.0) + 0.12 * sin(TAU * f * 3.01 * t) * exp(-t * 6.0)) * env * gain
+
+
+## Warm pad over a chord progression. chords: Array of Array[midi]; each chord lasts `bar` seconds.
+static func _pad(buf: PackedFloat32Array, chords: Array, bar: float, gain: float) -> void:
+	var n := buf.size()
+	var count := chords.size()
+	for i in n:
+		var t := float(i) / RATE
+		var idx := int(t / bar) % count
+		var u := fmod(t, bar)
+		var mix := smoothstep(bar - 1.6, bar, u)
+		var v := 0.0
+		for pass_i in 2:
+			var c: Array = chords[idx if pass_i == 0 else (idx + 1) % count]
+			var w := (1.0 - mix) if pass_i == 0 else mix
+			if w <= 0.001:
+				continue
+			for m in c:
+				var f := _hz(m)
+				v += (sin(TAU * f * t) + sin(TAU * f * 1.004 * t) + 0.18 * sin(TAU * f * 2.0 * t)) * w
+		buf[i] += v * gain * (0.85 + 0.15 * sin(TAU * t / 7.0))
+
+
+func _track_city() -> PackedFloat32Array:
+	var length := 32.0
+	var buf := PackedFloat32Array()
+	buf.resize(int(length * RATE))
+	# Cmaj7 - Am7 - Fmaj7 - G6, slow and warm
+	var chords := [[48, 55, 64, 71], [45, 52, 60, 67], [41, 48, 57, 64], [43, 50, 59, 64]]
+	_pad(buf, chords, 8.0, 0.018)
+	var r := RandomNumberGenerator.new()
+	r.seed = 2024
+	var scale := [72, 74, 76, 79, 81, 84, 86, 88]   # C major pentatonic, high
+	var beat := 0.0
+	while beat < length:
+		if r.randf() < 0.62:
+			var note: int = scale[r.randi() % scale.size()]
+			_bell(buf, beat, note, r.randf_range(0.05, 0.09))
+		beat += [0.5, 1.0, 1.0, 1.5][r.randi() % 4]
+	# a soft root bass on each chord
+	for c in 4:
+		_bell(buf, c * 8.0, chords[c][0] - 12, 0.12, 6.0)
+	return buf
+
+
+func _track_title() -> PackedFloat32Array:
+	var length := 24.0
+	var buf := PackedFloat32Array()
+	buf.resize(int(length * RATE))
+	_pad(buf, [[57, 64, 72], [53, 60, 69], [55, 62, 71], [52, 60, 67]], 6.0, 0.012)
+	# a simple music-box lullaby
+	var melody := [76, 74, 72, 74, 76, 79, 76, 74, 72, 69, 72, 74, 76, 74, 72, 67]
+	for i in melody.size():
+		_bell(buf, i * 1.5, melody[i], 0.07, 3.5)
+		if i % 4 == 0:
+			_bell(buf, i * 1.5 + 0.75, melody[i] + 12, 0.025, 2.5)
+	return buf
+
+
+func _track_maze() -> PackedFloat32Array:
+	var length := 40.0
+	var n := int(length * RATE)
+	var buf := PackedFloat32Array()
+	buf.resize(n)
+	var lp := 0.0
+	for i in n:
+		var t := float(i) / RATE
+		# two low notes a semitone apart beating against each other, a hollow fifth, and a thin high whine
+		var swell := 0.6 + 0.4 * sin(TAU * t / length)
+		var v := sin(TAU * 55.0 * t) * 0.5 + sin(TAU * 58.27 * t) * 0.35 + sin(TAU * 82.4 * t) * 0.18
+		v += sin(TAU * 1396.9 * t) * 0.025 * (0.5 + 0.5 * sin(TAU * t / 10.0))
+		lp += (_noise() - lp) * 0.01
+		v += lp * 0.6
+		buf[i] = v * 0.14 * swell
+	return buf
 
 
 ## Play a non-positional one-shot (footsteps, page, chime...).
@@ -107,8 +271,9 @@ func _build_all() -> void:
 	streams["water"] = _to_wav(_water(3.0), true)
 	streams["hum"] = _to_wav(_hum(2.0), true)
 	streams["drone"] = _to_wav(_drone(6.0), true)
-	streams["step_hard"] = _to_wav(_step(false), false)
-	streams["step_soft"] = _to_wav(_step(true), false)
+	for surface in ["concrete", "wood", "carpet", "grass"]:
+		for v in 4:
+			streams["step_%s_%d" % [surface, v]] = _to_wav(_footstep(surface, v), false)
 	streams["knock"] = _to_wav(_knock(), false)
 	streams["thud"] = _to_wav(_thud(), false)
 	streams["chime"] = _to_wav(_chime(), false)
@@ -202,8 +367,56 @@ func _env_noise(dur: float, decay: float, smooth: float, gain: float) -> PackedF
 	return s
 
 
-func _step(soft: bool) -> PackedFloat32Array:
-	return _env_noise(0.14, 38.0 if soft else 50.0, 0.12 if soft else 0.45, 0.6 if soft else 0.4)
+## A footstep: heel thump + a surface-specific scuff, with per-variant randomness so no two match.
+func _footstep(surface: String, variant: int) -> PackedFloat32Array:
+	var r := RandomNumberGenerator.new()
+	r.seed = hash(surface) + variant * 7919
+	var dur := 0.26
+	var n := int(dur * RATE)
+	var s := PackedFloat32Array()
+	s.resize(n)
+	var thump_f := r.randf_range(70.0, 95.0)
+	var res_f := r.randf_range(260.0, 340.0)
+	var lp := 0.0
+	var lp2 := 0.0
+	var hp_prev := 0.0
+	var heel_to_toe := r.randf_range(0.035, 0.06)   # second, softer contact
+	for i in n:
+		var t := float(i) / RATE
+		var x := r.randf() * 2.0 - 1.0
+		var v := 0.0
+		match surface:
+			"concrete":
+				# firm heel click + gritty scrape
+				lp += (x - lp) * 0.5
+				var hp := x - lp
+				v += sin(TAU * thump_f * t) * exp(-t * 55.0) * 0.55
+				v += hp * exp(-t * 140.0) * 0.9
+				var t2 := t - heel_to_toe
+				if t2 > 0.0:
+					v += hp * exp(-t2 * 60.0) * 0.35 + sin(TAU * thump_f * 1.3 * t2) * exp(-t2 * 70.0) * 0.25
+			"wood":
+				# hollow floorboard knock with a little creak resonance
+				lp += (x - lp) * 0.3
+				v += sin(TAU * thump_f * 1.4 * t) * exp(-t * 35.0) * 0.6
+				v += sin(TAU * res_f * t) * exp(-t * 45.0) * 0.25
+				v += (x - lp) * exp(-t * 160.0) * 0.5
+				var t2 := t - heel_to_toe
+				if t2 > 0.0:
+					v += sin(TAU * res_f * 1.1 * t2) * exp(-t2 * 55.0) * 0.15
+			"carpet":
+				# muffled: low thud and a soft fabric brush, almost no highs
+				lp += (x - lp) * 0.06
+				lp2 += (lp - lp2) * 0.2
+				v += sin(TAU * thump_f * 0.85 * t) * exp(-t * 38.0) * 0.6
+				v += lp2 * 6.0 * exp(-t * 22.0) * minf(1.0, t * 120.0)
+			"grass":
+				# crunchy grains
+				lp += (x - lp) * 0.6
+				var grain := (x - lp) if r.randf() < 0.25 else 0.0
+				v += grain * exp(-t * 18.0) * 0.7 + sin(TAU * thump_f * t) * exp(-t * 50.0) * 0.35
+		s[i] = v * 0.7
+	return s
 
 
 func _knock() -> PackedFloat32Array:

@@ -153,11 +153,16 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 	zone.finish_batches()
 	player.teleport(zone.player_start())
 	player.dread.set_profile(zone.is_nightmare(), zone.fear_gain(), zone.fear_floor(), zone.fear_decay())
-	player.set_movement(zone.walk_speed(), zone.sprint_speed(), zone.soft_floor())
+	player.set_movement(zone.walk_speed(), zone.sprint_speed(), zone.floor_surface())
 	var pacing := zone.anomaly_pacing()
 	if pacing.x >= 0.0:
 		Anomalies.set_pacing(pacing.x, pacing.y)
 	zone.on_player_entered(from_save)
+	Sfx.music_gain = 1.0
+	match type:
+		"city": Sfx.play_music("city", 4.0)
+		"maze": Sfx.play_music("maze", 6.0)
+		_: Sfx.stop_music(1.5)   # the real bedroom stays quiet
 	print("Entered zone: ", type, " (waking)" if waking else "")
 
 
@@ -232,6 +237,7 @@ func show_title() -> void:
 	hud.fade_to(0.0, 2.0)
 	set_mode("menu")
 	hud.open_title(has_checkpoint())
+	Sfx.play_music("title", 3.0)
 
 
 func start_new_game() -> void:
@@ -405,6 +411,7 @@ func on_maze_exit() -> void:
 	hud.fade_to(1.0, 1.2)
 	if not await _wait(1.5, t): return
 	# Deliberate silence: everything stops at once.
+	Sfx.stop_music(0.01)
 	_leave_zone()
 	player.set_drone(0.0)
 	player.dread.set_profile(false, 0.0, 0.0, 10.0)
@@ -436,6 +443,7 @@ func _death_sequence() -> void:
 	if not await _wait(0.8, t): return
 	# You seem to wake up.
 	enter_zone("bedroom", false, true)
+	Sfx.stop_music(0.01)
 	player.dread.set_values(0.0, 100.0)
 	player.set_locked(true)
 	hud.fade_to(0.0, 2.5)
@@ -480,6 +488,8 @@ func _process(delta: float) -> void:
 	var v := clampf(Settings.visual_intensity, 0.0, 1.0)
 	hud.set_post(0.25 + 0.75 * s * v, maxf(0.0, s - 0.25) * 0.5 * v, 0.45 * s * v, maxf(0.0, s - 0.5) * 2.0 * v)
 	player.set_drone(smoothstep(0.2, 1.0, s) * 1.2 if d.nightmare else 0.0)
+	if zone_type == "maze":
+		Sfx.music_gain = lerpf(0.55, 1.1, s) * lerpf(0.6, 1.0, Settings.audio_intensity)
 	if zone:
 		zone.on_dread(s * 100.0, d.stage, delta)
 	if not in_sequence and d.nightmare and d.stage >= Dread.Stage.UNEASY and _clock > _next_distant:

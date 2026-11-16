@@ -14,7 +14,8 @@ func allows_manifestation() -> bool: return false
 func fear_gain() -> float: return 1.0
 func fear_floor() -> float: return 0.0
 func fear_decay() -> float: return 1.5
-func soft_floor() -> bool: return false
+## Footstep sound set: concrete | wood | carpet | grass
+func floor_surface() -> String: return "concrete"
 func walk_speed() -> float: return 2.6
 func sprint_speed() -> float: return 4.3
 ## Seconds between unobserved changes when stable / unstable. Negative = never.

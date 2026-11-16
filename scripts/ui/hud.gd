@@ -409,6 +409,7 @@ func _settings(back: Callable) -> void:
 		["Visual intensity", num.call("visual_intensity", 0.0, 1.0, 0.1, pct)],
 		["Horror audio intensity", num.call("audio_intensity", 0.0, 1.0, 0.1, pct)],
 		["Master volume", num.call("master_volume", 0.0, 1.0, 0.1, pct)],
+		["Music volume", num.call("music_volume", 0.0, 1.0, 0.1, pct)],
 		["Text size", num.call("text_scale", 1.0, 1.5, 0.25, pct)],
 		["DREAD meter", flag.call("show_dread_meter")],
 		["Menu corruption", flag.call("menu_corruption")],

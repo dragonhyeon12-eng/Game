@@ -16,6 +16,7 @@ const H := 12
 const CELL := 5.0
 const WALL_H := 2.9
 const THICK := 0.24
+const PILLAR := 0.28   # slightly thicker than walls
 
 const WALL_A := Color(0.78, 0.68, 0.33)
 const WALL_B := Color(0.74, 0.65, 0.3)
@@ -52,7 +53,7 @@ func zone_id() -> String: return "maze"
 func is_nightmare() -> bool: return true
 func fear_floor() -> float: return 10.0
 func fear_decay() -> float: return 1.2
-func soft_floor() -> bool: return true
+func floor_surface() -> String: return "carpet"
 func walk_speed() -> float: return 2.4
 func sprint_speed() -> float: return 4.0
 func anomaly_pacing() -> Vector2: return Vector2(35, 5)
@@ -221,13 +222,18 @@ func _geometry() -> void:
 	box(mid + Vector3(0, -0.05, 0), ext, CARPET, true, 0.0, 1.0)
 	box(mid + Vector3(0, WALL_H + 0.05, 0), ext, CEILING)
 	for x in W + 1:
-		box(Vector3((x - 0.5) * CELL, WALL_H - 0.005, mid.z), Vector3(0.04, 0.01, H * CELL), CEILING.darkened(0.2), false)
+		box(Vector3((x - 0.5) * CELL, WALL_H - 0.012, mid.z), Vector3(0.04, 0.02, H * CELL), CEILING.darkened(0.2), false)
 	for z in H + 1:
-		box(Vector3(mid.x, WALL_H - 0.005, (z - 0.5) * CELL), Vector3(W * CELL, 0.01, 0.04), CEILING.darkened(0.2), false)
+		box(Vector3(mid.x, WALL_H - 0.02, (z - 0.5) * CELL), Vector3(W * CELL, 0.02, 0.04), CEILING.darkened(0.2), false)
+	# A pillar at every wall junction. Walls end *inside* the pillars, so no two faces ever share a plane
+	# (coplanar faces flicker - "z-fighting").
+	for x in W + 1:
+		for z in H + 1:
+			box(Vector3((x - 0.5) * CELL, WALL_H * 0.5, (z - 0.5) * CELL), Vector3(PILLAR, WALL_H, PILLAR), WALL_A)
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value + 7
-	var length := CELL + THICK
+	var length := CELL - PILLAR + 0.04
 	for x in W:
 		for z in H:
 			for d in [0, 2]:
@@ -330,7 +336,7 @@ func _exit() -> void:
 	var center := Vector3((W - 0.5) * CELL, 0, _exit_cell.y * CELL) if _exit_dir == 0 else Vector3(_exit_cell.x * CELL, 0, (H - 0.5) * CELL)
 	var inward := Vector3(-1, 0, 0) if _exit_dir == 0 else Vector3(0, 0, -1)
 	var along := Vector3(0, 0, 1) if along_z else Vector3(1, 0, 0)
-	var length := CELL + THICK
+	var length := CELL - PILLAR + 0.04
 	var door_half := 0.6
 	var side_len := length * 0.5 - door_half
 	_wall(center + along * (door_half + side_len * 0.5), along_z, side_len, WALL_A)

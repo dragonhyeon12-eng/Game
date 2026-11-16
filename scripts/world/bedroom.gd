@@ -20,6 +20,7 @@ const PLASTIC := Color(0.03, 0.03, 0.035)
 
 
 func zone_id() -> String: return "bedroom"
+func floor_surface() -> String: return "wood"
 func fear_gain() -> float: return 0.5
 func fear_decay() -> float: return 4.0
 func walk_speed() -> float: return 2.0
@@ -56,8 +57,8 @@ func _room() -> void:
 	box(Vector3(0.6, 2.0, -2.3), Vector3(1.46, 0.05, 0.08), TRIM, false)
 	box(Vector3(-0.12, 1.45, -2.3), Vector3(0.05, 1.15, 0.08), TRIM, false)
 	box(Vector3(1.32, 1.45, -2.3), Vector3(0.05, 1.15, 0.08), TRIM, false)
-	box(Vector3(0.6, 1.45, -2.3), Vector3(0.03, 1.1, 0.06), TRIM, false)
-	box(Vector3(0.6, 1.45, -2.3), Vector3(1.4, 0.03, 0.06), TRIM, false)
+	box(Vector3(0.6, 1.45, -2.3), Vector3(0.03, 1.1, 0.07), TRIM, false)
+	box(Vector3(0.6, 1.45, -2.3), Vector3(1.4, 0.03, 0.05), TRIM, false)
 	# curtains, half drawn
 	box(Vector3(-0.3, 1.5, -2.14), Vector3(0.4, 1.3, 0.06), Color(0.25, 0.12, 0.15), false)
 	box(Vector3(1.5, 1.5, -2.14), Vector3(0.3, 1.3, 0.06), Color(0.25, 0.12, 0.15), false)
@@ -73,7 +74,7 @@ func _room() -> void:
 	box(Vector3(0, 0.05, 2.19), Vector3(5.2, 0.1, 0.02), TRIM, false)
 	box(Vector3(0, 0.006, 0), Vector3(2.3, 0.012, 1.7), Color(0.38, 0.16, 0.14), false)
 	box(Vector3(-0.8, 1.6, 2.185), Vector3(0.6, 0.85, 0.02), Color(0.12, 0.2, 0.35), false)
-	box(Vector3(-0.8, 1.75, 2.175), Vector3(0.4, 0.3, 0.01), Color(0.8, 0.55, 0.2), false)
+	box(Vector3(-0.8, 1.75, 2.17), Vector3(0.4, 0.3, 0.01), Color(0.8, 0.55, 0.2), false)
 	box(Vector3(2.585, 1.7, 0.9), Vector3(0.02, 0.4, 0.55), Color(0.5, 0.6, 0.45), false)
 	# door on +Z wall
 	box(Vector3(1.5, 1.0, 2.19), Vector3(0.92, 2.02, 0.04), Color(0.52, 0.47, 0.42))
@@ -90,11 +91,11 @@ func _furniture() -> void:
 	box(Vector3(-2.44, 0.86, -0.8), Vector3(0.04, 0.16, 0.04), PLASTIC, false)
 	box(Vector3(-2.43, 1.13, -0.8), Vector3(0.05, 0.38, 0.64), PLASTIC)
 	if waking:
-		part("box", Vector3(-2.403, 1.13, -0.8), Vector3(0.005, 0.33, 0.58), Color(0.01, 0.01, 0.012))
+		part("box", Vector3(-2.398, 1.13, -0.8), Vector3(0.01, 0.33, 0.58), Color(0.01, 0.01, 0.012))
 	else:
-		part("box", Vector3(-2.403, 1.13, -0.8), Vector3(0.005, 0.33, 0.58), Color(0.35, 0.45, 0.65), null, Vector3.ZERO, 1.2)
-		label(Vector3(-2.398, 1.17, -0.8), 90, "HOW TO LUCID DREAM TONIGHT!\n(100% WORKING)", 0.03, Color(1, 1, 1))
-		label(Vector3(-2.398, 1.03, -0.8), 90, "LucidLarry  -  2.1M views", 0.016, Color(0.8, 0.85, 1.0))
+		part("box", Vector3(-2.398, 1.13, -0.8), Vector3(0.01, 0.33, 0.58), Color(0.35, 0.45, 0.65), null, Vector3.ZERO, 1.2)
+		label(Vector3(-2.388, 1.17, -0.8), 90, "HOW TO LUCID DREAM TONIGHT!\n(100% WORKING)", 0.03, Color(1, 1, 1))
+		label(Vector3(-2.388, 1.03, -0.8), 90, "LucidLarry  -  2.1M views", 0.016, Color(0.8, 0.85, 1.0))
 	# keyboard, mouse, mug
 	box(Vector3(-2.13, 0.77, -0.8), Vector3(0.16, 0.02, 0.44), PLASTIC, false)
 	box(Vector3(-2.12, 0.77, -0.4), Vector3(0.1, 0.025, 0.06), PLASTIC, false)
@@ -119,9 +120,9 @@ func _furniture() -> void:
 	box(Vector3(2.25, 0.28, 0.3), Vector3(0.5, 0.56, 0.45), WOOD)
 	# wardrobe with the covered mirror
 	box(Vector3(2.25, 1.0, 1.4), Vector3(0.7, 2.0, 1.3), WOOD)
-	box(Vector3(1.895, 1.15, 1.4), Vector3(0.015, 1.0, 0.56), Color(0.55, 0.6, 0.62), false, 0.0, 0.1)
-	box(Vector3(1.88, 1.28, 1.4), Vector3(0.02, 0.82, 0.62), Color(0.82, 0.8, 0.74), false)
-	box(Vector3(1.875, 1.68, 1.4), Vector3(0.03, 0.06, 0.64), Color(0.78, 0.76, 0.7), false)
+	box(Vector3(1.893, 1.15, 1.4), Vector3(0.016, 1.0, 0.56), Color(0.55, 0.6, 0.62), false, 0.0, 0.1)
+	box(Vector3(1.872, 1.28, 1.4), Vector3(0.02, 0.82, 0.62), Color(0.82, 0.8, 0.74), false)
+	box(Vector3(1.86, 1.69, 1.4), Vector3(0.04, 0.06, 0.66), Color(0.78, 0.76, 0.7), false)
 
 
 func _lighting() -> void:

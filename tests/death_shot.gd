@@ -41,4 +41,9 @@ func _run() -> void:
 	await get_tree().create_timer(1.0).timeout
 	print("near observer: ", obs.global_position, " children=", obs.get_child_count(), " vis=", obs.is_visible_in_tree())
 	await _shot(dir + "/observer_near.png")
+	Game.enter_zone("maze")
+	Game.set_mode("game")
+	Game.hud.set_fade(0.0)
+	await get_tree().create_timer(2.0).timeout
+	await _shot(dir + "/maze_corners.png")
 	get_tree().quit()

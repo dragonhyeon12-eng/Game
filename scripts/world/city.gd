@@ -47,6 +47,14 @@ var _water: Node3D
 func zone_id() -> String: return "city"
 func allows_manifestation() -> bool: return true
 func fear_gain() -> float: return 0.35
+
+
+## Grass inside the park (away from the paths), concrete everywhere else.
+func surface_at(p: Vector3) -> String:
+	var inner := (BLOCK - 2.0 * SIDEWALK) * 0.5
+	if absf(p.x) < inner and absf(p.z) < inner and absf(p.x) > 1.3 and absf(p.z) > 1.3 and Vector2(p.x, p.z).length() > 2.7:
+		return "grass"
+	return "concrete"
 func fear_decay() -> float: return 5.0
 func walk_speed() -> float: return 3.0
 func sprint_speed() -> float: return 5.4
@@ -83,8 +91,8 @@ func _ground() -> void:
 		var mid := (k + 0.5) * PITCH
 		var t := -90.0
 		while t <= 90.0:
-			box(Vector3(t, 0.005, mid), Vector3(3, 0.01, 0.14), Color(0.85, 0.75, 0.3), false)
-			box(Vector3(mid, 0.005, t), Vector3(0.14, 0.01, 3), Color(0.85, 0.75, 0.3), false)
+			box(Vector3(t, 0.015, mid), Vector3(3, 0.02, 0.14), Color(0.85, 0.75, 0.3), false)
+			box(Vector3(mid, 0.015, t), Vector3(0.14, 0.02, 3), Color(0.85, 0.75, 0.3), false)
 			t += 6.0
 
 
@@ -175,7 +183,7 @@ func _car(center: Vector3, yaw: float, color: Color) -> void:
 	var r := Basis(Vector3.UP, deg_to_rad(yaw))
 	box(center + r * Vector3(0, 0.55, 0), Vector3(4.2, 0.7, 1.8), color, true, yaw, 0.35)
 	box(center + r * Vector3(-0.2, 1.15, 0), Vector3(2.3, 0.55, 1.65), color, true, yaw, 0.35)
-	box(center + r * Vector3(-0.2, 1.16, 0), Vector3(2.34, 0.4, 1.68), GLASS, false, yaw, 0.1)
+	box(center + r * Vector3(-0.2, 1.16, 0), Vector3(2.36, 0.38, 1.71), GLASS, false, yaw, 0.1)
 	for w in [Vector3(1.3, 0.32, 0.9), Vector3(1.3, 0.32, -0.9), Vector3(-1.3, 0.32, 0.9), Vector3(-1.3, 0.32, -0.9)]:
 		shape_at("cylinder", center + r * w, Vector3(0.64, 0.24, 0.64), Color(0.03, 0.03, 0.03), false, Vector3(90, yaw, 0))
 
@@ -189,8 +197,8 @@ func _lamp(base: Vector3) -> void:
 func _crosswalk(center: Vector3, along_x: bool) -> void:
 	for k in range(-4, 5):
 		var off := Vector3(0, 0, k * 1.05) if along_x else Vector3(k * 1.05, 0, 0)
-		var sz := Vector3(3, 0.01, 0.55) if along_x else Vector3(0.55, 0.01, 3)
-		box(center + off + Vector3(0, 0.006, 0), sz, Color(0.85, 0.85, 0.82), false)
+		var sz := Vector3(3, 0.02, 0.55) if along_x else Vector3(0.55, 0.02, 3)
+		box(center + off + Vector3(0, 0.035, 0), sz, Color(0.85, 0.85, 0.82), false)
 
 
 func _streets() -> void:
@@ -220,8 +228,8 @@ func _streets() -> void:
 func _park() -> void:
 	var inner := BLOCK - 2.0 * SIDEWALK
 	box(Vector3(0, GRASS_Y - 0.01, 0), Vector3(inner, 0.02, inner), GRASS, false)
-	box(Vector3(0, GRASS_Y - 0.005, 0), Vector3(inner, 0.02, 2.6), PATH, false)
-	box(Vector3(0, GRASS_Y - 0.005, 0), Vector3(2.6, 0.02, inner), PATH, false)
+	box(Vector3(0, GRASS_Y + 0.005, 0), Vector3(inner, 0.02, 2.6), PATH, false)
+	box(Vector3(0, GRASS_Y + 0.02, 0), Vector3(2.6, 0.02, inner), PATH, false)
 	# low hedges with gaps for the paths
 	var e := inner * 0.5
 	var length := e - 2.2
@@ -229,11 +237,11 @@ func _park() -> void:
 		var mid: float = s * (2.2 + length * 0.5)
 		box(Vector3(mid, 0.5, e), Vector3(length, 0.8, 0.7), LEAVES[2])
 		box(Vector3(mid, 0.5, -e), Vector3(length, 0.8, 0.7), LEAVES[2])
-		box(Vector3(e, 0.5, mid), Vector3(0.7, 0.8, length), LEAVES[2])
-		box(Vector3(-e, 0.5, mid), Vector3(0.7, 0.8, length), LEAVES[2])
+		box(Vector3(e, 0.53, mid), Vector3(0.68, 0.86, length - 0.02), LEAVES[2])
+		box(Vector3(-e, 0.53, mid), Vector3(0.68, 0.86, length - 0.02), LEAVES[2])
 	# fountain
 	shape_at("cylinder", Vector3(0, GRASS_Y + 0.25, 0), Vector3(5.2, 0.5, 5.2), STONE, true)
-	shape_at("cylinder", Vector3(0, GRASS_Y + 0.45, 0), Vector3(4.8, 0.06, 4.8), WATER, false, Vector3.ZERO, 0.05)
+	shape_at("cylinder", Vector3(0, GRASS_Y + 0.48, 0), Vector3(4.8, 0.06, 4.8), WATER, false, Vector3.ZERO, 0.05)
 	shape_at("cylinder", Vector3(0, GRASS_Y + 1.0, 0), Vector3(0.6, 1.6, 0.6), STONE, true)
 	shape_at("cylinder", Vector3(0, GRASS_Y + 1.75, 0), Vector3(2.0, 0.2, 2.0), STONE)
 	shape_at("cylinder", Vector3(0, GRASS_Y + 1.86, 0), Vector3(1.8, 0.04, 1.8), WATER, false, Vector3.ZERO, 0.05)
@@ -260,7 +268,7 @@ func _park() -> void:
 	var cart := Vector3(2.4, GRASS_Y, -9.0)
 	box(cart + Vector3(0, 0.7, 0), Vector3(2.8, 0.9, 1.2), Color(0.98, 0.95, 0.88))
 	box(cart + Vector3(0, 1.08, 0), Vector3(2.84, 0.14, 1.24), Color(0.95, 0.5, 0.6), false)
-	box(cart + Vector3(0, 1.18, 0), Vector3(2.0, 0.06, 1.0), Color(0.75, 0.85, 0.9), false, 0.0, 0.3)
+	box(cart + Vector3(0, 1.19, 0), Vector3(2.0, 0.06, 1.0), Color(0.75, 0.85, 0.9), false, 0.0, 0.3)
 	shape_at("cylinder", cart + Vector3(-1.0, 0.22, 0), Vector3(0.44, 1.3, 0.44), Color(0.1, 0.1, 0.1), false, Vector3(90, 0, 0))
 	shape_at("cylinder", cart + Vector3(1.1, 2.0, -0.3), Vector3(0.05, 2.2, 0.05), TRIM)
 	shape_at("cone", cart + Vector3(1.1, 3.3, -0.3), Vector3(2.8, 0.55, 2.8), Color(0.98, 0.62, 0.7))
