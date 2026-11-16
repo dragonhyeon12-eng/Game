@@ -114,6 +114,7 @@ func build() -> void:
 	_vent()
 	_drying_room()
 	_props()
+	_vermin()
 
 	var env := make_env(Color(0.35, 0.32, 0.27), 0.05)
 	env.background_mode = Environment.BG_COLOR
@@ -661,3 +662,29 @@ func _hints(p: Vector3) -> void:
 		_hint = maxi(_hint, 2)
 		Game.set_flag("comp_saw_box")
 		Game.hud.show_thought("A freight elevator. Dead. And the fuse box beside it is empty.", 4.0)
+
+
+## Optional creatures (models/creatures/): rats that bolt when you come near (one runs into the vent
+## ahead of you), spiders on the duct ceiling, a snake by the fuse in the drying room.
+func _vermin() -> void:
+	var runs := [
+		[Vector3(-3.4, 0, -21.4), Vector3(-7.0, 0, -16.5)],    # hub corner -> into the vent
+		[Vector3(0.5, 0, -7.0), Vector3(0.5, 0, -13.4)],       # down the corridor
+		[Vector3(-4.5, 0, -14.6), Vector3(-4.5, 0, -11.3)],    # towards the drying room
+		[Vector3(12.5, 0, -16.3), Vector3(6.4, 0, -19.6)],     # across the press
+	]
+	for r in runs:
+		var rat := Critter.create(["creatures/rat"], 0.32)
+		if rat:
+			add_child(rat)
+			rat.scurry(r[0], r[1], 3.2, 4.5)
+	for r in [[Vector3(-10.5, 1.38, -19.0), Vector3(-10.5, 1.38, -25.5)], [Vector3(-9.8, 1.38, -26.5), Vector3(-5.5, 1.38, -26.5)]]:
+		var spider := Critter.create(["creatures/spider"], 0.4)
+		if spider:
+			add_child(spider)
+			spider.scurry(r[0], r[1], 1.2, 3.0)
+			spider.get_child(0).rotation_degrees.z = 180.0   # on the ceiling
+	var snake := Critter.create(["creatures/snake"], 1.1)
+	if snake:
+		add_child(snake)
+		snake.idle_at(Vector3(-12.4, 0, -12.6), 200)

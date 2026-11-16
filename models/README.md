@@ -29,6 +29,14 @@ to the right size and stood on the ground automatically.
 | `objects/beach_ball.glb` | the beach ball | |
 | `objects/flashlight.glb` | the flashlight (in the seabed) | the light shines along the model's **-Z**; use `"turn": 180` if it shines out of the back |
 | `textures/<surface>/` | a whole surface type, everywhere | see *Textures* below |
+| `creatures/rat.fbx` | rats that bolt when you come close (COMPRESSION) | extra: nothing appears without the file |
+| `creatures/spider.fbx` | spiders on the vent ceiling (COMPRESSION) | extra |
+| `creatures/snake.fbx` | a snake by the fuse in the drying room (COMPRESSION) | extra |
+| `sea/whale.fbx`, `sea/shark.fbx`, `sea/manta.fbx` | dark shapes far down in the sea (THE DEEP, the seabed) | extra; shown as silhouettes |
+| `sea/fish1.fbx` | a fish in the swimming pool; fish around the glowing stones | extra |
+
+**Included now** (CC0, by [Quaternius](https://quaternius.com), see `LICENSE-Quaternius.txt`): the people,
+the Observer, rat, spider, snake, whale, shark, manta and fish. Delete any of them to get the built-in version back.
 
 People and the Observer play the model's own animations if it has them (without an "idle" one they stand in
 the pose they were modelled in, often a T-pose). They are found by name:

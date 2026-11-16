@@ -129,6 +129,7 @@ func build() -> void:
 	_pump_room()
 	_props()
 	_objectives()
+	_sea_life()
 	_lighting()
 	_register_anomalies()
 	_characters()
@@ -795,3 +796,26 @@ func _open_gate(instant: bool) -> void:
 		Sfx.play("thud", -8.0, 1.5)
 		create_tween().tween_property(_gate, "rotation_degrees:y", 100.0, 1.2).set_trans(Tween.TRANS_SINE)
 		Game.hud.show_thought("Open. Now there's nothing between me and it.", 3.0)
+
+
+## Optional creatures (only if their model files are in models/sea/). A fish in a swimming pool, and
+## far below, in the sea, shapes too big to be fish: dark, slow, never close.
+func _sea_life() -> void:
+	var fish := Critter.create(["sea/fish1"], 0.35)
+	if fish:
+		add_child(fish)
+		fish.orbit(Vector3(-9, -1.5, 1), 3.5, 0.7, 0.25)
+	for i in 2:
+		var whale := Critter.create(["sea/whale"], 28.0, true)
+		if whale:
+			add_child(whale)
+			whale.orbit(OCEAN_CENTER + Vector3(0, -95.0 - i * 30.0, 0), 75.0 + i * 25.0, 4.5 * (1 if i == 0 else -1), 4.0)
+	for i in 3:
+		var shark := Critter.create(["sea/shark"], 4.0, true)
+		if shark:
+			add_child(shark)
+			shark.orbit(OCEAN_CENTER + Vector3(0, -50.0 - i * 14.0, 0), 22.0 + i * 9.0, 4.0 + i, 2.0)
+	var manta := Critter.create(["sea/manta"], 6.0, true)
+	if manta:
+		add_child(manta)
+		manta.orbit(OCEAN_CENTER + Vector3(0, -75, 0), 38.0, -3.0, 5.0)

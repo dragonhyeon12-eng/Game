@@ -153,6 +153,7 @@ func build() -> void:
 	leviathan.speed = 9.0
 	add_child(leviathan)
 
+	_sea_life()
 	ambient("drone", Vector3.ZERO, false, -16.0)
 	ambient("water_lap", Vector3(0, 10, 0), false, -24.0)
 
@@ -236,3 +237,23 @@ func _hints() -> void:
 	elif _hint == 2 and _t > 16.0:
 		Game.hud.show_thought("The glowing stones... they're in a line. Stay close to them.", 4.0)
 		_hint = 3
+
+
+## Optional creatures (models/sea/): something enormous passing far overhead, and small pale fish
+## that circle the glowing stones like moths.
+func _sea_life() -> void:
+	var whale := Critter.create(["sea/whale"], 34.0, true)
+	if whale:
+		add_child(whale)
+		whale.orbit(Vector3(0, 45, -60), 70.0, 5.0, 6.0)
+	var manta := Critter.create(["sea/manta"], 5.0, true)
+	if manta:
+		add_child(manta)
+		manta.orbit(Vector3(-6, 9, -50), 18.0, -2.5, 2.0)
+	for i in [1, 4, 8]:
+		var p: Vector3 = PATH[i]
+		for k in 2:
+			var fish := Critter.create(["sea/fish1"], 0.3)
+			if fish:
+				add_child(fish)
+				fish.orbit(p + Vector3(1.6, 0.9 + k * 0.4, 0), 1.2 + k * 0.5, 0.6 * (1 if k == 0 else -1), 0.2)
