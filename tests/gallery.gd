@@ -121,6 +121,39 @@ func _run() -> void:
 		"deep_under": func():
 			_zone("deep")
 			_look(Vector3(-5, -1.2, 2), Vector3(-19, -1.5, 0)),
+		"comp_start": func():
+			_zone("compression")
+			_look(Vector3(0.5, 1.6, -2.0), Vector3(0.5, 1.2, -12)),
+		"comp_hub": func():
+			_zone("compression")
+			_look(Vector3(2.0, 1.6, -15.0), Vector3(1.0, 1.2, -22)),
+		"comp_press": func():
+			_zone("compression")
+			_look(Vector3(5.5, 1.6, -18.0), Vector3(14, 1.0, -18)),
+		"comp_vent": func():
+			_zone("compression")
+			_look(Vector3(-10.5, 0.9, -18.0), Vector3(-10.5, 0.7, -28)),
+		"comp_drying": func():
+			_zone("compression")
+			_look(Vector3(-5.6, 1.6, -12.0), Vector3(-12, 1.2, -7)),
+		"above_start": func():
+			_zone("above")
+			_look(Vector3(0, 1.6, 2.0), Vector3(12, -2, -6)),
+		"above_plank": func():
+			_zone("above")
+			_look(Vector3(-5.5, 1.6, -3.0), Vector3(-13, -1.5, -3)),
+		"above_beam": func():
+			_zone("above")
+			_look(Vector3(7.5, 1.6, 0.0), Vector3(19, 0, 0)),
+		"above_mast": func():
+			_zone("above")
+			_look(Vector3(24, 1.6, -3.0), Vector3(24, 6, -22)),
+		"deep_gate": func():
+			_zone("deep")
+			_look(Vector3(7.0, 1.6, 2.5), Vector3(14, 0.5, 0)),
+		"deep_locker": func():
+			_zone("deep")
+			_look(Vector3(-29.5, 1.6, -1.0), Vector3(-31.4, 1.2, -1.8)),
 		"death_hands": func():
 			_zone("city")
 			Game.set_mode("game")

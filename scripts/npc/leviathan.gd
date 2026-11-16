@@ -73,6 +73,7 @@ func _ready() -> void:
 			l.light_energy = 2.0 * thickness
 			l.omni_range = r * 4.0 + 4.0
 			l.position = Vector3(0, -r * 0.6, 0)
+			Zone._fade_with_distance(l, l.omni_range)
 			seg.add_child(l)
 		_segs.append(seg)
 

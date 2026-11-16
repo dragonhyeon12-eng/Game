@@ -4,7 +4,8 @@ First-person psychological horror about lucid dreaming, unstable reality and sub
 Made with **Godot 4.7** (free, open source, no account needed). Runs on Mac, Windows and Linux.
 
 Playable now: bedroom → tutorial video → notebook → summer dream city (ice cream, people, the Observer)
-→ falling into the yellow maze → **THE DEEP**, the first fear realm (aquaphobia).
+→ falling into the yellow maze → **THE DEEP** (aquaphobia) → **COMPRESSION** (claustrophobia)
+→ **ABOVE** (fear of heights). Every area has an **objectives** list in the top-right corner.
 
 ---
 
@@ -48,13 +49,26 @@ It takes effect when you enter the next area.
   He never moves while you watch him. Hold T to wake up.
 - **THE DEEP** (aquaphobia). The maze's exit door leads to a night-time swimming complex.
   1. The PUMP ROOM door is jammed. Swim through the dark hole under the water at the far end of the main pool.
-  2. Pull the DRAIN lever. The water only goes down **while you watch the well** - look away and it refills.
-  3. Leave through the pump room door and step into the empty well. It has no bottom: below it is an
+  2. The DRAIN lever's handle has been snapped off. It's lying on the bottom of the main pool (dive for it).
+  3. Pull the DRAIN lever. The water only goes down **while you watch the well** - look away and it refills.
+  4. The deep pool is fenced off and padlocked. The key is in locker 13. There are twelve lockers.
+  5. Unlock the gate and step into the empty well. It has no bottom: below it is an
      impossibly vast sea, a trench walled by cliffs, where leviathans circle. **Looking down fills DREAD fast.**
      Near the sea floor, black hands come up and pull you under (if DREAD overwhelms you here, they kill you).
-  4. **The seabed** (part two): pitch dark, you walk slowly. Hold Q to picture a flashlight. The path is
+  6. **The seabed** (part two): pitch dark, you walk slowly. Hold Q to picture a flashlight. The path is
      invisible - only glowing stones mark it. Stray from it and the leviathan comes for you.
-  5. At the cliff, get into the sea cave before it catches you - it can't fit through. Step through the glowing doorway.
+  7. At the cliff, get into the sea cave before it catches you - it can't fit through. Step through the glowing doorway.
+- **COMPRESSION** (claustrophobia). A basement under a building: narrow corridors, low ceilings, bare bulbs.
+  The way you came in turns into wall. Tight spaces raise DREAD by themselves. The freight elevator needs 3 fuses:
+  1. **The vent** - crouch (C / Ctrl) and crawl. Something breathes behind you. Fingers come through the slats.
+  2. **The press** - the walls move in whenever you're *not* looking at them. Look left, look right, keep going.
+  3. **The drying room** - sheets on lines, and shapes under three of them that come closer while you look away.
+  Put the fuses in the box, call the elevator (max 1 person), get in. It gets smaller on the way up.
+- **ABOVE** (fear of heights). A rooftop above the clouds at night; the towers go down forever.
+  1. Walk out along the plank over the drop to get the key at the end.
+  2. Cross the steel beam to the next roof. **When the wind comes, crouch** or it pushes you off. The beam won't be there behind you.
+  3. Use the key on the bridge controls, cross to the last roof, climb the mast, touch the light.
+  Looking down fills DREAD. Sometimes, far away, someone falls.
   Swimming: Space up, C dive, watch your breath. Space at the surface next to the edge climbs out.
 - **Dream journal** (title screen, or Pause > MENU): an entry for every part of the dream you have made it through.
 - **The yellow maze.** You fall through the floor instead. Fluorescent hum, stained carpet, a maze that
@@ -71,7 +85,7 @@ It takes effect when you enter the next area.
 
 Mouse sensitivity, invert look, field of view, head bob, camera jolts, **visual intensity** (flicker,
 vignette, distortion, red flash), **horror audio intensity**, master volume, text size, DREAD meter,
-menu corruption on/off, self-unpause on/off, graphics quality, and **super duper shaders** (global illumination,
+menu corruption on/off, self-unpause on/off, show objectives, graphics quality, and **super duper shaders** (global illumination,
 reflections, volumetric fog, anti-aliasing - needs a strong GPU).
 
 ## Project layout
@@ -84,10 +98,12 @@ scripts/autoload/        Game (story flow, zones, checkpoints, sequences, DREAD 
                          Settings, Data, Sfx (procedural audio), Notebook, Dialogue, Anomalies
 scripts/core/            Observation ("is the player looking at this?"), Effects, Shapes, Interactable
 scripts/player/          Player controller (incl. swimming/breath), FPHands, Dread, Manifestation, ManifestedObject
-scripts/world/           Zone (base + geometry builder), BedroomZone, CityZone, MazeZone, DeepZone, water shader
+scripts/world/           Zone (base + geometry builder), BedroomZone, CityZone, MazeZone, DeepZone, SeabedZone,
+                         CompressionZone, AboveZone, water shader
+data/Objectives.json     the objective list for every area
 scripts/npc/             Human (procedural people), NPC, Observer (+ glitch shader)
 scripts/ui/              HUD, menus, notebook, tutorial video, DREAD post-process shader
-tests/flow_test.tscn     automated playthrough of everything, title to the end of THE DEEP
+tests/flow_test.tscn     automated playthrough of everything, title to the top of ABOVE
 tests/gallery.tscn       renders review screenshots of each area
 unreal/                  the earlier Unreal Engine 5 version (archived, ignored by Godot)
 ```

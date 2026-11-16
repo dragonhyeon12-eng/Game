@@ -18,14 +18,14 @@ const CEILING := {".": 2.6, ",": 2.3, "_": 1.45, "v": 1.2, "w": 1.4, "P": 2.6, "
 const PRESS_CENTER_Z := -18.0
 const PRESS_X0 := 6.0
 const PRESS_X1 := 14.0
-const PRESS_OPEN := 2.0          # half-width of the press room
+const PRESS_OPEN := 1.95         # half-width of the press room
 const PRESS_SPEED := 0.38        # m/s per wall while unwatched
 const FIGURE_SPEED := 1.7
 
 const CONCRETE := Color(0.42, 0.41, 0.38)
 const DIRTY := Color(0.33, 0.31, 0.27)
 const METAL := Color(0.38, 0.4, 0.42)
-const SHEET := Color(0.86, 0.85, 0.8)
+const SHEET := Color(0.95, 0.94, 0.9)
 
 var grid: Array[PackedByteArray] = []
 var _press_walls: Array[StaticBody3D] = []
@@ -185,8 +185,8 @@ static func _set_body(b: StaticBody3D, on: bool) -> void:
 
 
 func _bulb(pos: Vector3, energy: float, rng: float, flicker := false, shadows := false, col := Color(1.0, 0.78, 0.5)) -> OmniLight3D:
-	part("sphere", pos, Vector3.ONE * 0.09, col, null, Vector3.ZERO, 3.0)
-	part("cylinder", pos + Vector3(0, 0.2, 0), Vector3(0.01, 0.3, 0.01), Color(0.05, 0.05, 0.05))
+	part("sphere", pos, Vector3.ONE * 0.09, col, null, Vector3.ZERO, 3.0).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	part("cylinder", pos + Vector3(0, 0.2, 0), Vector3(0.01, 0.3, 0.01), Color(0.05, 0.05, 0.05)).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var l := omni(pos + Vector3(0, -0.1, 0), col, energy, rng, shadows)
 	_bulbs.append([l, energy, flicker])
 	return l
@@ -380,12 +380,13 @@ func _press() -> void:
 	for side in [-1.0, 1.0]:
 		var w := solid_box(Vector3((PRESS_X0 + PRESS_X1) * 0.5, 1.3, PRESS_CENTER_Z + side * (PRESS_OPEN + 0.15)), Vector3(length, 2.6, 0.3),
 			CONCRETE.darkened(0.1), null, "concrete")
+		(w.get_child(1) as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_press_walls.append(w)
 		# rusted rails along the floor, the only sign they can move
 		box(Vector3((PRESS_X0 + PRESS_X1) * 0.5, 0.01, PRESS_CENTER_Z + side * 1.0), Vector3(length, 0.02, 0.06), Color(0.35, 0.2, 0.12), false, 0.0, "metal")
 	# harsh strip light
 	part("box", Vector3(10, 2.55, PRESS_CENTER_Z), Vector3(6.0, 0.05, 0.15), Color(0.9, 0.95, 1.0), null, Vector3.ZERO, 3.0)
-	var l := omni(Vector3(10, 2.3, PRESS_CENTER_Z), Color(0.85, 0.92, 1.0), 1.2, 9.0, true)
+	var l := omni(Vector3(10, 2.3, PRESS_CENTER_Z), Color(0.85, 0.92, 1.0), 1.2, 9.0, false)
 	_bulbs.append([l, 1.2, true])
 	label(Vector3(4.98, 1.9, -16.5), -90, "THE PRESS\nDO NOT ENTER\nWHILE IN OPERATION", 0.05, Color(0.85, 0.2, 0.1), false)
 	# the shelf with the fuse, at the far end
@@ -499,11 +500,11 @@ func _drying_room() -> void:
 			x += 2.3
 	_sheet_bulb = group(Vector3(-9.5, 3.2, -7.5))
 	part("cylinder", Vector3(0, -0.4, 0), Vector3(0.01, 0.8, 0.01), Color(0.05, 0.05, 0.05), _sheet_bulb)
-	part("sphere", Vector3(0, -0.85, 0), Vector3.ONE * 0.1, Color(1.0, 0.85, 0.6), _sheet_bulb, Vector3.ZERO, 3.0)
+	part("sphere", Vector3(0, -0.85, 0), Vector3.ONE * 0.1, Color(1.0, 0.85, 0.6), _sheet_bulb, Vector3.ZERO, 3.0).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var l := OmniLight3D.new()
 	l.light_color = Color(1.0, 0.82, 0.55)
-	l.light_energy = 1.1
-	l.omni_range = 10.0
+	l.light_energy = 2.2
+	l.omni_range = 12.0
 	l.shadow_enabled = true
 	l.position = Vector3(0, -1.0, 0)
 	_sheet_bulb.add_child(l)

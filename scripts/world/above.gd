@@ -347,12 +347,14 @@ func _skyline(rng: RandomNumberGenerator) -> void:
 
 
 func _clouds(rng: RandomNumberGenerator) -> void:
-	for i in 70:
+	# a floor of cloud far below: one sheet, and heaped billows on it
+	box(Vector3(12, -46, -8), Vector3(600, 0.5, 600), Color(0.17, 0.18, 0.24), false, 0.0, 1.0)
+	for i in 160:
 		var ang := rng.randf() * TAU
-		var dist := rng.randf_range(10.0, 220.0)
-		var p := Vector3(cos(ang) * dist + 12, rng.randf_range(-48.0, -38.0), sin(ang) * dist - 8)
-		var s := rng.randf_range(10.0, 30.0)
-		shape_at("sphere", p, Vector3(s, s * 0.25, s * 0.8), Color(0.32, 0.34, 0.42), false, Vector3(0, rng.randf_range(0, 360), 0), 1.0)
+		var dist := sqrt(rng.randf()) * 260.0
+		var s := rng.randf_range(18.0, 55.0)
+		var p := Vector3(cos(ang) * dist + 12, rng.randf_range(-47.0, -42.0), sin(ang) * dist - 8)
+		shape_at("sphere", p, Vector3(s, s * 0.16, s * 0.9), Color(0.19, 0.2, 0.27).lightened(rng.randf_range(0.0, 0.06)), false, Vector3(0, rng.randf_range(0, 360), 0), 1.0)
 
 
 func _sky() -> void:

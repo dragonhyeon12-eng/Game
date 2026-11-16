@@ -202,8 +202,17 @@ func omni(pos: Vector3, color: Color, energy: float, rng: float, shadows := true
 	l.omni_range = rng
 	l.omni_attenuation = 1.2
 	l.shadow_enabled = shadows
+	_fade_with_distance(l, rng)
 	add_child(l)
 	return l
+
+
+## Lights far from the camera are skipped entirely (performance); shadows stop even sooner.
+static func _fade_with_distance(l: Light3D, rng: float) -> void:
+	l.distance_fade_enabled = true
+	l.distance_fade_begin = maxf(40.0, rng * 3.0)
+	l.distance_fade_length = 12.0
+	l.distance_fade_shadow = 22.0
 
 
 func spot(pos: Vector3, look_at_pos: Vector3, color: Color, energy: float, rng: float, angle: float, shadows := true) -> SpotLight3D:
@@ -215,6 +224,7 @@ func spot(pos: Vector3, look_at_pos: Vector3, color: Color, energy: float, rng: 
 	l.spot_range = rng
 	l.spot_angle = angle
 	l.shadow_enabled = shadows
+	_fade_with_distance(l, rng)
 	l.look_at_from_position(pos, look_at_pos, Vector3.UP if absf((look_at_pos - pos).normalized().y) < 0.99 else Vector3.FORWARD)
 	return l
 

@@ -174,6 +174,10 @@ func freeze_pose() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	# nobody can see the details of a person 35 m away: don't animate them
+	var cam := get_viewport().get_camera_3d()
+	if cam and walk_speed <= 0.05 and cam.global_position.distance_squared_to(global_position) > 1225.0:
+		return
 	var h := height
 
 	# breathing
