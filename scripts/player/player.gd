@@ -282,7 +282,7 @@ func _physics_process(delta: float) -> void:
 		_update_focus()
 		return
 	var sprinting := Input.is_action_pressed("sprint") and not controls_locked and not _crouched
-	var speed := (1.4 if _crouched else (sprint_speed if sprinting else walk_speed))
+	var speed := (1.8 if _crouched else (sprint_speed if sprinting else walk_speed))
 	var dir := (transform.basis * Vector3(input.x, 0, input.y))
 	dir.y = 0
 	dir = dir.normalized() * minf(input.length(), 1.0)

@@ -12,6 +12,7 @@ var _hold_box: VBoxContainer
 var _hold_label: Label
 var _hold_bar: ProgressBar
 var _hint_panel: PanelContainer
+var _skip_label: Label
 var _obj_panel: PanelContainer
 var _obj_label: Label
 var _obj_text := ""
@@ -215,6 +216,15 @@ func _build() -> void:
 	_card_box.modulate.a = 0.0
 	root.add_child(_card_box)
 
+	_skip_label = UIStyle.label("[Space / E]  skip", 15, UIStyle.DIM)
+	_skip_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_skip_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_skip_label.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_skip_label.offset_right = -40
+	_skip_label.offset_bottom = -30
+	_skip_label.visible = false
+	root.add_child(_skip_label)
+
 	_menu_layer = _full(Control.new())
 	_menu_layer.mouse_filter = Control.MOUSE_FILTER_PASS
 	root.add_child(_menu_layer)
@@ -341,6 +351,10 @@ func show_card(big: String, small := "", seconds := 1.0) -> void:
 	_card_small.text = small
 	_card_target = 1.0
 	_card_speed = 1000.0 if seconds <= 0.0 else 1.0 / seconds
+
+
+func show_skip(on: bool) -> void:
+	_skip_label.visible = on
 
 
 func hide_card(seconds := 1.0) -> void:

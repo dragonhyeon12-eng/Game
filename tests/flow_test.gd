@@ -18,6 +18,7 @@ func _ready() -> void:
 	DirAccess.remove_absolute(Game.SAVE_PATH)
 	DirAccess.remove_absolute(Journal.PATH)
 	Journal.unlocked.clear()
+	Settings.deaths_seen = 0
 	Game.boot(self)
 	_run.call_deferred()
 
@@ -256,6 +257,7 @@ func _run() -> void:
 	Game.player.dread.set_values(100, 0)
 	await wait(0.5)
 	check(Game.in_sequence, "overwhelmed starts the waking sequence")
+	check(not Game._death_skippable, "the first time, it can't be skipped")
 	await wait(7.3)
 	await shot("death_hands")
 	await wait(4.0)
@@ -378,7 +380,13 @@ func _run() -> void:
 	Game.player.teleport(Transform3D(Basis(), Vector3(14, 0.05, -20)))
 	await wait(4.0)
 	check(Game.in_sequence, "the leviathan came")
-	await wait(19.0)
+	await wait(4.0)
+	check(Game._death_skippable, "seen it before: skippable")
+	var ev := InputEventAction.new()
+	ev.action = "jump"
+	ev.pressed = true
+	Input.parse_input_event(ev)
+	await wait(1.0)
 	check(Game.zone_type == "seabed" and Game.mode == "game", "woke up... and back on the seabed")
 	sb = Game.zone
 	print("== the cave")
@@ -454,7 +462,7 @@ func _compression() -> void:
 	Game.player._set_crouch(false)
 	check(Game.player._crouched, "can't stand up inside the duct")
 	await shot("the_vent")
-	check(use("Take the fuse", Vector3(-6, 0.1, -32.5)), "fuse from the vent")
+	check(use("Take the fuse", Vector3(-6, 0.1, -29.0)), "fuse from the vent")
 	Game.player._crouched = false
 	print("== the drying room")
 	Game.player.dread.set_values(20, 80)

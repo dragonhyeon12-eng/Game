@@ -26,9 +26,11 @@ var quality := 1.0
 ## Every expensive effect on: global illumination, reflections, volumetric fog, MSAA + TAA. Needs a strong GPU.
 var super_shaders := false
 var show_objectives := true
+## How many times the waking-up sequence has been seen (after the first, it can be skipped).
+var deaths_seen := 0
 
 const KEYS := ["mouse_sensitivity", "invert_y", "fov", "head_bob", "camera_effects", "visual_intensity",
-	"audio_intensity", "master_volume", "music_volume", "text_scale", "show_dread_meter", "menu_corruption", "self_unpause", "quality", "super_shaders", "show_objectives"]
+	"audio_intensity", "master_volume", "music_volume", "text_scale", "show_dread_meter", "menu_corruption", "self_unpause", "quality", "super_shaders", "show_objectives", "deaths_seen"]
 
 
 func _ready() -> void:

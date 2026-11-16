@@ -106,6 +106,10 @@ func exit_dialogue_mode() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if player == null:
 		return
+	if _death_skippable and mode == "cinematic" and (event.is_action_pressed("jump") or event.is_action_pressed("interact")):
+		skip_death()
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("pause"):
 		if mode in ["game", "dialogue", "cinematic"]:
 			open_pause()
@@ -620,9 +624,16 @@ func fall_death() -> void:
 	_death_sequence("wake")
 
 
+var _death_skippable := false
+
+
 func _death_sequence(prelude := "fade") -> void:
 	in_sequence = true
 	var t := _seq
+	# you've seen it before: you may skip it
+	_death_skippable = Settings.deaths_seen > 0
+	hud.show_skip(_death_skippable)
+	Settings.set_value("deaths_seen", Settings.deaths_seen + 1)
 	hud.close_overlay()
 	hud.clear_text()
 	set_mode("cinematic")
@@ -662,12 +673,28 @@ func _death_sequence(prelude := "fade") -> void:
 	if not await _wait(2.8, t): return
 	hud.hide_card(0.8)
 	if not await _wait(1.2, t): return
+	_end_death()
+
+
+func _end_death() -> void:
+	_death_skippable = false
+	hud.show_skip(false)
 	player.reset_presentation()
 	if not _restore_checkpoint(30.0, 60.0):
 		show_title()
 		return
+	hud.hide_card(0.0)
+	hud.set_fade(1.0)
 	hud.fade_to(0.0, 2.0)
 	set_mode("game")
+
+
+func skip_death() -> void:
+	if not _death_skippable:
+		return
+	_cancel_sequences()   # stops the running sequence where it is
+	Sfx.stop_music(0.01)
+	_end_death()
 
 
 # ------------------------------------------------------------------ the DREAD director

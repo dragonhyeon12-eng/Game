@@ -13,7 +13,7 @@ extends Zone
 const W := 30
 const H := 36
 const WALL_H := 3.4
-const CEILING := {".": 2.6, ",": 2.3, "_": 1.45, "v": 1.2, "w": 1.4, "P": 2.6, "S": 3.2, "E": 2.4}
+const CEILING := {".": 2.6, ",": 2.3, "_": 1.45, "v": 1.4, "w": 1.6, "P": 2.6, "S": 3.2, "E": 2.4}
 
 const PRESS_CENTER_Z := -18.0
 const PRESS_X0 := 6.0
@@ -101,9 +101,9 @@ func build() -> void:
 	_paint(20, 20, 17, 18, ",")   # to the press
 	_paint(21, 28, 16, 19, "P")   # the press
 	_paint(4, 10, 19, 19, "v")    # the vent: west...
-	_paint(4, 4, 5, 19, "v")      # ...north...
-	_paint(4, 9, 5, 5, "v")       # ...east
-	_paint(7, 10, 2, 5, "w")      # vent junction (fuse)
+	_paint(4, 4, 9, 19, "v")      # ...north...
+	_paint(4, 9, 9, 9, "v")       # ...east
+	_paint(7, 10, 6, 9, "w")      # vent junction (fuse)
 	_paint(10, 10, 21, 24, ",")   # to the drying room
 	_paint(1, 9, 23, 33, "S")     # the drying room
 
@@ -201,9 +201,9 @@ func _lights() -> void:
 	_bulb(Vector3(-4.5, 1.95, -12.5), 0.4, 4.0, true)   # drying-room corridor
 	_bulb(Vector3(1.0, 2.1, -23.0), 0.3, 3.0, false, false, Color(0.7, 0.8, 1.0))   # inside the elevator
 	# vent: a few slats of light, nearly nothing
-	for p in [Vector3(-8, 0.9, -16.5), Vector3(-10.5, 0.9, -24), Vector3(-7, 0.9, -30.5)]:
-		omni(p, Color(0.8, 0.7, 0.55), 0.25, 3.0, false)
-	omni(Vector3(-6, 1.1, -32), Color(0.9, 0.8, 0.6), 0.4, 4.0, false)
+	for p in [Vector3(-8, 1.0, -16.5), Vector3(-10.5, 1.0, -22), Vector3(-9.5, 1.0, -26.5)]:
+		omni(p, Color(0.8, 0.7, 0.55), 0.45, 4.0, false)
+	omni(Vector3(-6, 1.3, -28.5), Color(0.9, 0.8, 0.6), 0.6, 5.0, false)
 
 
 # ------------------------------------------------------------------ fuse box and freight elevator
@@ -438,7 +438,7 @@ func _update_press(delta: float, p: Vector3) -> void:
 func _vent() -> void:
 	label(Vector3(-3.98, 1.6, -16.5), 90, "VENT", 0.08, Color(0.6, 0.6, 0.55), false)
 	# slats with light behind them, and fingers in three of them
-	var slats := [Vector3(-7.5, 0.7, -16.04), Vector3(-10.96, 0.7, -22.5), Vector3(-10.96, 0.7, -27.0), Vector3(-8.0, 0.7, -30.96)]
+	var slats := [Vector3(-7.5, 0.7, -16.04), Vector3(-10.96, 0.7, -20.5), Vector3(-10.96, 0.7, -24.5), Vector3(-9.5, 0.7, -26.96)]
 	for i in slats.size():
 		var s: Vector3 = slats[i]
 		var along_x := absf(s.z - roundf(s.z)) < 0.1
@@ -454,7 +454,7 @@ func _vent() -> void:
 			f.position = (Vector3(k * 0.035 - 0.05, 0.02, 0) if along_x else Vector3(0, 0.02, k * 0.035 - 0.05)) + inward * 0.05
 			f.rotation_degrees = Vector3(90, 0, 0) if along_x else Vector3(0, 0, 90)
 		_fingers.append([g, 0.0])
-	_fuse_pickup("comp_fuse_vent", Vector3(-6.0, 0.12, -32.5), "Two. Don't think about what was breathing.")
+	_fuse_pickup("comp_fuse_vent", Vector3(-6.0, 0.12, -29.0), "Two. Don't think about what was breathing.")
 
 
 func _update_vent(delta: float, p: Vector3) -> void:
@@ -468,7 +468,8 @@ func _update_vent(delta: float, p: Vector3) -> void:
 		if _knock_t <= 0.0:
 			_knock_t = randf_range(5.0, 9.0)
 			Sfx.play_at("knock", self, p + back * randf_range(1.5, 4.0) + Vector3(0, 1.2, 0), 0.0, 12.0)
-			Game.player.dread.add_fear(3.0, "knocking in the duct")
+			if Game.player.dread.fear < 60.0:
+				Game.player.dread.add_fear(1.5, "knocking in the duct")
 	else:
 		_breath.volume_db = lerpf(_breath.volume_db, -80.0, clampf(delta * 2.0, 0.0, 1.0))
 	for f in _fingers:
@@ -480,7 +481,7 @@ func _update_vent(delta: float, p: Vector3) -> void:
 			if f[1] > 0.5:
 				g.visible = false
 				Sfx.play_at("knock", self, g.global_position, -2.0, 10.0)
-				Game.player.dread.add_fear(7.0, "fingers")
+				Game.player.dread.add_fear(4.0, "fingers")
 				Game.hud.show_thought("Fingers. There were fingers.", 2.5)
 
 
@@ -630,8 +631,9 @@ func _update_tightness(delta: float, p: Vector3) -> void:
 		var uh := space.intersect_ray(up)
 		var room := (total / 6.0) * 0.75 + ((origin.distance_to(uh.position) if uh else 2.0) / 2.0) * 0.25
 		_tight = clampf(1.0 - room, 0.0, 1.0)
-	if _tight > 0.45:
-		Game.player.dread.add_fear((_tight - 0.45) * 12.0 * delta, "tight")
+	# unsettling, but tight spaces alone never push you over the edge
+	if _tight > 0.45 and Game.player.dread.fear < 55.0:
+		Game.player.dread.add_fear((_tight - 0.45) * 6.0 * delta, "tight")
 
 
 func _update_seal(delta: float, p: Vector3) -> void:
