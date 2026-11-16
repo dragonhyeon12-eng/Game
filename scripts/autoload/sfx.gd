@@ -43,8 +43,11 @@ func _ready() -> void:
 		m.volume_db = -80.0
 		add_child(m)
 		_music_players.append(m)
-	_music_thread = Thread.new()
-	_music_thread.start(_build_music)
+	if OS.has_feature("web") and not OS.has_feature("threads"):
+		_build_music_stepwise()   # browsers without threads: one track at a time, between frames
+	else:
+		_music_thread = Thread.new()
+		_music_thread.start(_build_music)
 	# underwater: everything muffled
 	var lowpass := AudioEffectLowPassFilter.new()
 	lowpass.cutoff_hz = 600.0
@@ -105,6 +108,19 @@ func _build_music() -> void:
 	call_deferred("_music_ready", "maze", _to_wav(_track_maze(), true))
 	call_deferred("_music_ready", "deep", _to_wav(_track_deep(), true))
 	print("Sfx: music generated in %d ms (background thread)" % (Time.get_ticks_msec() - t0))
+
+
+## No threads (web): build the tracks on the main thread, one per pause, the title theme first.
+func _build_music_stepwise() -> void:
+	for track in ["title", "city", "maze", "deep"]:
+		await get_tree().create_timer(0.5 if track == "title" else 2.0, true).timeout
+		var data: PackedFloat32Array
+		match track:
+			"title": data = _track_title()
+			"city": data = _track_city()
+			"maze": data = _track_maze()
+			_: data = _track_deep()
+		_music_ready(track, _to_wav(data, true))
 
 
 static func _hz(midi: float) -> float:
