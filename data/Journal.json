@@ -1,0 +1,34 @@
+{
+	"entries": [
+		{
+			"id": "video",
+			"title": "3:12 AM",
+			"unlock": "tutorial_done",
+			"text": "Couldn't sleep, so I watched one of those videos. \"HOW TO LUCID DREAM TONIGHT! (100% WORKING).\" The guy was so sure of himself it was almost funny.\n\nI wrote his rules down anyway. Five of them. Mirrors, scary thoughts, telling people, asking about the real world, pushing the walls around.\n\nThe towel is still over the mirror. I don't remember when I put it there."
+		},
+		{
+			"id": "summer",
+			"title": "The Summer Dream",
+			"unlock": "fell_through",
+			"text": "It worked. It actually worked.\n\nA city in the middle of summer, warm stone, a fountain, kids with kites. I thought of ice cream and it was in my hand. Cold. Real.\n\nThe people were kind. Strange, a little. Nobody remembered it ever raining. The pigeons stopped when I asked the old man the wrong question.\n\nThere was a man at the end of the street. I don't think he was a man.\n\nWhen I tried to wake up, the floor wasn't there anymore."
+		},
+		{
+			"id": "maze",
+			"title": "The Yellow Rooms",
+			"unlock": "maze_escaped",
+			"text": "Yellow walls. Wet carpet. A hum that never stops, coming from the lights, or the walls, or the inside of my head.\n\nThe rooms moved when I wasn't looking. Not much. A wall where there wasn't a wall. A chair I'd already passed, waiting for me again. A picture of the summer street, with something small and black standing in it.\n\nMy notebook had a sixth rule in it. My handwriting. I didn't write it.\n\nI found the door by following the hum."
+		},
+		{
+			"id": "deep_well",
+			"title": "The Deep End",
+			"unlock": "deep_grabbed",
+			"text": "A swimming pool at night, lit from under the water. The kind of quiet that has a sound.\n\nThe deep end had no bottom. The water only went down while I watched it. As if it needed a witness.\n\nUnder it, there was the sea. All of it. Cliffs going down forever, and things moving in the dark that were only lights until they weren't.\n\nI could breathe. I shouldn't have been able to.\n\nSomething took hold of my ankles."
+		},
+		{
+			"id": "deep",
+			"title": "THE DEEP",
+			"unlock": "deep_escaped",
+			"text": "The bottom of the sea is very quiet.\n\nI held a light I had imagined and followed stones that glowed, because something enormous was circling above me, waiting for me to step wrong.\n\nIt came for me at the cliff. It didn't fit through the opening. I keep thinking about that: that the dream had rules even for it.\n\nThere was a door at the back of the cave, full of light.\n\nI don't know what's on the other side of it yet."
+		}
+	]
+}

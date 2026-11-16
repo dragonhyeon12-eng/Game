@@ -16,6 +16,8 @@ func _ready() -> void:
 	if OS.get_cmdline_user_args().has("--low"):
 		Settings.quality = 0.0
 	DirAccess.remove_absolute(Game.SAVE_PATH)
+	DirAccess.remove_absolute(Journal.PATH)
+	Journal.unlocked.clear()
 	Game.boot(self)
 	_run.call_deferred()
 
@@ -314,31 +316,72 @@ func _run() -> void:
 	await wait(0.3)
 	check(not deep._pump_door.visible, "the pump room door opens from inside")
 
-	print("== down into the well")
+	print("== down the well, into the sea")
 	Game.player.teleport(Transform3D(Basis(), Vector3(18, 0.2, 2)))
-	await wait(4.0)
+	await wait(5.0)
 	var mid_y := Game.player.global_position.y
-	check(mid_y < -3.0 and mid_y > -25.0, "sinking slowly (y=%.1f)" % mid_y)
-	await wait(9.0)
-	check(Game.player.global_position.y < -28.0, "reached the bottom (y=%.1f)" % Game.player.global_position.y)
-	look_at_point(Vector3(18, -29, -7))
-	await wait(0.3)
-	await shot("well_bottom")
-	var deep_exit := false
-	for c in deep.get_children():
-		if c is Interactable and c.get_prompt() == "Open the door":
-			deep_exit = true
+	check(mid_y < -3.0 and mid_y > -29.0, "sinking slowly down the shaft (y=%.1f)" % mid_y)
+	await wait(8.0)
+	check(Game.player.global_position.y < DeepZone.OCEAN_TOP, "came out into the sea (y=%.1f)" % Game.player.global_position.y)
+	check(Game.player.breath > 0.99, "you can breathe in the sea")
+	var f0 := Game.player.dread.fear
+	look_at_point(Game.player.camera.global_position + Vector3(0.1, -5, 0))
+	await wait(1.0)
+	check(Game.player.dread.fear > f0 + 8.0, "looking down into the abyss fills DREAD (+%.1f)" % (Game.player.dread.fear - f0))
+	Game.player.dread.set_values(20, 80)
+	await shot("the_sea")
+	# speed the descent up for the test
+	Game.player.global_position.y = DeepZone.SEABED + 30.0
+	await wait(4.0)
+	check(Game.zone_type == "seabed" or Game.in_sequence, "hands from the sea floor took hold")
+	await wait(4.0)
+	check(Game.zone_type == "seabed", "pulled down into the second part")
+	check(Game.has_flag("deep_grabbed") and Journal.is_unlocked("deep_well"), "journal entry 'The Deep End' unlocked")
+
+	print("== the seabed")
+	var sb: SeabedZone = Game.zone
+	await wait(1.0)
+	Game.player.manifestation.try_manifest()
+	await wait(0.4)
+	check(Game.player.manifestation.is_holding("flashlight"), "pictured a flashlight")
+	await shot("seabed_light")
+	print("== straying from the path")
+	Game.player.dread.set_values(30, 70)
+	Game.player.teleport(Transform3D(Basis(), Vector3(14, 0.05, -20)))
+	await wait(4.0)
+	check(Game.in_sequence, "the leviathan came")
+	await wait(19.0)
+	check(Game.zone_type == "seabed" and Game.mode == "game", "woke up... and back on the seabed")
+	sb = Game.zone
+	print("== the cave")
+	Game.player.dread.set_values(30, 70)
+	Game.player.teleport(Transform3D(Basis(), Vector3(-3.5, 0.05, -120)))
+	await wait(0.6)
+	check(sb._chase, "it is coming")
+	Game.player.teleport(Transform3D(Basis(), Vector3(2, 0.05, -147)))
+	await wait(1.0)
+	check(sb._safe and sb.leviathan.mode == Leviathan.Mode.BLOCKED, "it cannot fit through the opening")
+	look_at_point(Vector3(2, 1.8, -138))
+	await wait(1.2)
+	await shot("it_doesnt_fit")
+	var out := false
+	for c in sb.get_children():
+		if c is Interactable and c.get_prompt() == "Step through":
+			out = true
 			c.interact()
-	check(deep_exit, "found the way out")
+	check(out, "the glowing doorway")
 	await wait(8.0)
 	await shot("deep_end")
 	await wait(8.0)
 	check(Game.zone_type == "bedroom" and Game.hud.menu_open(), "returned to title")
+	check(Journal.is_unlocked("deep"), "journal entry THE DEEP unlocked")
+	for e in ["video", "summer", "maze"]:
+		check(Journal.is_unlocked(e), "journal entry %s unlocked" % e)
 
 	print("== continue from checkpoint")
 	Game.continue_game()
 	await wait(1.0)
-	check(Game.zone_type == "deep", "continue restores THE DEEP")
+	check(Game.zone_type == "seabed", "continue restores the seabed checkpoint")
 
 	if failures.is_empty():
 		print("FLOW TEST PASSED")

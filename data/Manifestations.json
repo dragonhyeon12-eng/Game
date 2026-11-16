@@ -1,7 +1,7 @@
 {
 	"_units": "meters, Y up. Shapes are 1m primitives (box / sphere / cylinder / cone). rotation = degrees [x, y, z].",
-	"startUnlocked": [ "ice_cream" ],
-	"unlockAfterFirst": [ "balloon", "beach_ball" ],
+	"startUnlocked": ["ice_cream"],
+	"unlockAfterFirst": ["balloon", "beach_ball"],
 	"manifestations": [
 		{
 			"id": "ice_cream",
@@ -11,10 +11,10 @@
 			"radius": 0.06,
 			"mass": 0.2,
 			"parts": [
-				{ "shape": "cone", "offset": [0, -0.03, 0], "scale": [0.06, 0.13, 0.06], "rotation": [180, 0, 0], "color": [0.76, 0.5, 0.24] },
-				{ "shape": "sphere", "offset": [0, 0.045, 0], "scale": [0.075, 0.07, 0.075], "color": [1.0, 0.58, 0.68], "edible": 1 },
-				{ "shape": "sphere", "offset": [0, 0.095, 0], "scale": [0.065, 0.06, 0.065], "color": [1.0, 0.94, 0.8], "edible": 1 },
-				{ "shape": "sphere", "offset": [0, 0.133, 0], "scale": [0.02, 0.02, 0.02], "color": [0.8, 0.05, 0.08], "edible": 1 }
+				{"shape": "cone", "offset": [0, -0.03, 0], "scale": [0.06, 0.13, 0.06], "rotation": [180, 0, 0], "color": [0.76, 0.5, 0.24]},
+				{"shape": "sphere", "offset": [0, 0.045, 0], "scale": [0.075, 0.07, 0.075], "color": [1.0, 0.58, 0.68], "edible": 1},
+				{"shape": "sphere", "offset": [0, 0.095, 0], "scale": [0.065, 0.06, 0.065], "color": [1.0, 0.94, 0.8], "edible": 1},
+				{"shape": "sphere", "offset": [0, 0.133, 0], "scale": [0.02, 0.02, 0.02], "color": [0.8, 0.05, 0.08], "edible": 1}
 			]
 		},
 		{
@@ -25,8 +25,8 @@
 			"radius": 0.14,
 			"mass": 0.05,
 			"parts": [
-				{ "shape": "sphere", "offset": [0, 0.22, 0], "scale": [0.28, 0.34, 0.28], "color": [0.85, 0.06, 0.08] },
-				{ "shape": "cylinder", "offset": [0, 0, 0], "scale": [0.004, 0.3, 0.004], "color": [0.95, 0.95, 0.95] }
+				{"shape": "sphere", "offset": [0, 0.22, 0], "scale": [0.28, 0.34, 0.28], "color": [0.85, 0.06, 0.08]},
+				{"shape": "cylinder", "offset": [0, 0, 0], "scale": [0.004, 0.3, 0.004], "color": [0.95, 0.95, 0.95]}
 			]
 		},
 		{
@@ -36,9 +36,22 @@
 			"radius": 0.2,
 			"mass": 0.3,
 			"parts": [
-				{ "shape": "sphere", "offset": [0, 0, 0], "scale": [0.4, 0.4, 0.4], "color": [0.95, 0.95, 0.95] },
-				{ "shape": "cylinder", "offset": [0, 0, 0], "scale": [0.405, 0.12, 0.405], "color": [0.1, 0.45, 0.9] },
-				{ "shape": "cylinder", "offset": [0, 0, 0], "scale": [0.405, 0.12, 0.405], "rotation": [90, 0, 0], "color": [0.95, 0.3, 0.2] }
+				{"shape": "sphere", "offset": [0, 0, 0], "scale": [0.4, 0.4, 0.4], "color": [0.95, 0.95, 0.95]},
+				{"shape": "cylinder", "offset": [0, 0, 0], "scale": [0.405, 0.12, 0.405], "color": [0.1, 0.45, 0.9]},
+				{"shape": "cylinder", "offset": [0, 0, 0], "scale": [0.405, 0.12, 0.405], "rotation": [90, 0, 0], "color": [0.95, 0.3, 0.2]}
+			]
+		},
+		{
+			"id": "flashlight",
+			"name": "a flashlight",
+			"thought": "Light. Thank God, light.",
+			"radius": 0.05,
+			"mass": 0.3,
+			"light": {"range": 32, "angle": 24, "energy": 7.0},
+			"parts": [
+				{"shape": "cylinder", "offset": [0, 0, 0.04], "scale": [0.034, 0.2, 0.034], "rotation": [90, 0, 0], "color": [0.12, 0.12, 0.13]},
+				{"shape": "cylinder", "offset": [0, 0, -0.08], "scale": [0.05, 0.05, 0.05], "rotation": [90, 0, 0], "color": [0.2, 0.2, 0.22]},
+				{"shape": "cylinder", "offset": [0, 0, -0.106], "scale": [0.042, 0.004, 0.042], "rotation": [90, 0, 0], "color": [1.0, 0.95, 0.8]}
 			]
 		}
 	]

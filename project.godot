@@ -20,6 +20,7 @@ Sfx="*res://scripts/autoload/sfx.gd"
 Notebook="*res://scripts/autoload/notebook.gd"
 Dialogue="*res://scripts/autoload/dialogue.gd"
 Anomalies="*res://scripts/autoload/anomalies.gd"
+Journal="*res://scripts/autoload/journal.gd"
 Game="*res://scripts/autoload/game.gd"
 
 [display]

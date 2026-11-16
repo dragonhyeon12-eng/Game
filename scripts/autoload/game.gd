@@ -55,6 +55,8 @@ func has_flag(f: String) -> bool:
 
 func set_flag(f: String) -> void:
 	flags[f] = true
+	if Journal.on_flag(f) and hud:
+		hud.show_hint("Your dream journal has a new entry.\n(Pause > MENU > DREAM JOURNAL)", 6.0)
 
 
 func clear_flag(f: String) -> void:
@@ -146,6 +148,8 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 			zone = m
 		"deep":
 			zone = DeepZone.new()
+		"seabed":
+			zone = SeabedZone.new()
 		_:
 			zone_type = ""
 			return
@@ -166,6 +170,7 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 		"city": Sfx.play_music("city", 4.0)
 		"maze": Sfx.play_music("maze", 6.0)
 		"deep": Sfx.play_music("deep", 8.0)
+		"seabed": Sfx.play_music("deep", 4.0)
 		_: Sfx.stop_music(1.5)   # the real bedroom stays quiet
 	print("Entered zone: ", type, " (waking)" if waking else "")
 
@@ -463,17 +468,75 @@ func on_deep_exit() -> void:
 func _on_overwhelmed() -> void:
 	if in_sequence or zone == null or not zone.is_nightmare():
 		return
-	_death_sequence()
+	# in the sea, it comes from below
+	if zone_type == "seabed" or (zone_type == "deep" and player.global_position.y < DeepZone.OCEAN_TOP):
+		ankle_grab(true)
+	else:
+		_death_sequence("fade")
 
 
-func _death_sequence() -> void:
+## Black hands rise from the sea floor and take your ankles. `death` = wake up (lose);
+## otherwise this is the way down into the second part of THE DEEP.
+func ankle_grab(death: bool) -> void:
+	if in_sequence and death:
+		return
+	in_sequence = true
+	var t := _seq
+	set_mode("cinematic")
+	hud.clear_text()
+	player.play_ankle_grab()
+	Sfx.play("thud", 0.0, 0.6)
+	player.jolt(Vector3(-6, 0, 2))
+	if not await _wait(1.0, t): return
+	player.pulled_down = true
+	Sfx.play("whoosh", 2.0, 0.6)
+	hud.fade_to(1.0, 0.8)
+	if not await _wait(1.2, t): return
+	player.reset_presentation()
+	if death:
+		_death_sequence("wake")
+		return
+	set_flag("deep_grabbed")
+	enter_zone("seabed")
+	save_checkpoint()
+	hud.fade_to(0.0, 4.0)
+	in_sequence = false
+	set_mode("game")
+
+
+## The leviathan comes out of the dark. (Straying from the path on the seabed.)
+func leviathan_kill(lev: Leviathan) -> void:
+	if in_sequence:
+		return
+	in_sequence = true
+	var t := _seq
+	set_mode("cinematic")
+	hud.clear_text()
+	var cam := player.camera.global_position
+	var fwd := -player.camera.global_transform.basis.z
+	lev.place_head(cam + fwd * 45.0 + Vector3(0, 3, 0), -fwd)
+	lev.rush(cam, 34.0)
+	Sfx.play("thud", 4.0, 0.4)
+	for i in 30:
+		if not await _wait(0.05, t): return
+		if lev.head_position().distance_to(cam) < 6.0:
+			break
+	player.jolt(Vector3(-10, 6, -6))
+	hud.set_fade(1.0)
+	Sfx.play("thud", 6.0, 0.5)
+	_death_sequence("wake")
+
+
+func _death_sequence(prelude := "fade") -> void:
 	in_sequence = true
 	var t := _seq
 	hud.close_overlay()
 	hud.clear_text()
 	set_mode("cinematic")
-	hud.fade_to(1.0, 0.15)
+	if prelude == "fade":
+		hud.fade_to(1.0, 0.15)
 	if not await _wait(0.8, t): return
+	player.reset_presentation()
 	# You seem to wake up.
 	enter_zone("bedroom", false, true)
 	Sfx.stop_music(0.01)

@@ -46,13 +46,17 @@ It takes effect when you enter the next area.
   Mina (the ice cream vendor with no ice cream), Mr. Halvorsen and his pigeons, Theo and his kite, the jogger.
   Some questions break the notebook's rules. The **Observer** stands at the far end of the avenue.
   He never moves while you watch him. Hold T to wake up.
-- **THE DEEP** (aquaphobia). The maze's exit door leads to a night-time swimming complex. The way out is a
-  door at the bottom of the diving well, which goes down much further than it should.
+- **THE DEEP** (aquaphobia). The maze's exit door leads to a night-time swimming complex.
   1. The PUMP ROOM door is jammed. Swim through the dark hole under the water at the far end of the main pool.
   2. Pull the DRAIN lever. The water only goes down **while you watch the well** - look away and it refills.
-  3. Leave through the pump room door, step into the empty well and sink to the EXIT at the bottom.
-  Swimming: Space up, C dive, watch your breath. The main pool's water level changes when you aren't looking,
-  and the water sometimes shows a figure standing where nobody stands.
+  3. Leave through the pump room door and step into the empty well. It has no bottom: below it is an
+     impossibly vast sea, a trench walled by cliffs, where leviathans circle. **Looking down fills DREAD fast.**
+     Near the sea floor, black hands come up and pull you under (if DREAD overwhelms you here, they kill you).
+  4. **The seabed** (part two): pitch dark, you walk slowly. Hold Q to picture a flashlight. The path is
+     invisible - only glowing stones mark it. Stray from it and the leviathan comes for you.
+  5. At the cliff, get into the sea cave before it catches you - it can't fit through. Step through the glowing doorway.
+  Swimming: Space up, C dive, watch your breath.
+- **Dream journal** (title screen, or Pause > MENU): an entry for every part of the dream you have made it through.
 - **The yellow maze.** You fall through the floor instead. Fluorescent hum, stained carpet, a maze that
   is always solvable but rearranges itself when you aren't looking. Your notebook has a sixth rule now.
 - **The Observer** glitches - slices of him shear and drop out. Spotting him raises DREAD by 25, and he

@@ -49,6 +49,13 @@ func try_manifest() -> bool:
 		else:
 			Game.hud.show_thought("Nothing happens. Of course nothing happens. You're awake.", 3.5)
 		return false
+	# some places only let you picture certain things
+	if zone.has_method("manifest_allowlist"):
+		var allow: Array = zone.manifest_allowlist()
+		for id in allow:
+			unlock(id)
+		if not allow.has(unlocked[clampi(selected, 0, unlocked.size() - 1)]):
+			selected = unlocked.find(allow[0])
 	if unlocked.is_empty():
 		return false
 	selected = clampi(selected, 0, unlocked.size() - 1)
@@ -75,7 +82,8 @@ func try_manifest() -> bool:
 		Game.set_flag("manifest_first")
 		for u in Data.manifest_after_first:
 			unlock(u)
-		Game.hud.show_hint("Left mouse: take a bite    Right mouse: let go / toss\nMouse wheel: picture something else", 9.0)
+		if id != "flashlight":
+			Game.hud.show_hint("Left mouse: take a bite    Right mouse: let go / toss\nMouse wheel: picture something else", 9.0)
 
 	_recent.append(_t)
 	_recent = _recent.filter(func(x): return _t - x <= FORCE_WINDOW)

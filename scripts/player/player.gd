@@ -43,6 +43,9 @@ var _crouched := false
 var _shape: CollisionShape3D
 var _hands: Array[Node3D] = []
 var _hands_t := -1.0
+var _ankle_hands: Array[Node3D] = []
+var _ankle_t := -1.0
+var pulled_down := false
 var _drone: AudioStreamPlayer
 
 
@@ -140,6 +143,10 @@ func set_phasing(on: bool) -> void:
 
 func reset_presentation() -> void:
 	hands.conjuring = false
+	_ankle_t = -1.0
+	pulled_down = false
+	for h in _ankle_hands:
+		h.visible = false
 	_hands_t = -1.0
 	for h in _hands:
 		h.visible = false
@@ -152,6 +159,32 @@ func reset_presentation() -> void:
 func jolt(kick_deg: Vector3) -> void:
 	if Settings.camera_effects:
 		_jolt += kick_deg
+
+
+## Two black hands come up out of the floor beneath you and close around your ankles.
+## The view is dragged down to look at them.
+func play_ankle_grab() -> void:
+	if _ankle_hands.is_empty():
+		var mat := Shapes.void_material()
+		for side in [-1.0, 1.0]:
+			var h := Node3D.new()
+			add_child(h)
+			var parts := [["sphere", Vector3(0, 0, 0), Vector3(0.13, 0.05, 0.16)],
+				["capsule", Vector3(0, -0.45, 0.02), Vector3(0.09, 0.45, 0.09)]]   # palm, a long forearm reaching up from below
+			for f in 4:
+				parts.append(["capsule", Vector3((-0.045 + f * 0.03), 0.07, -0.1), Vector3(0.022, 0.11, 0.022)])
+			for pinfo in parts:
+				var mi := MeshInstance3D.new()
+				mi.mesh = Shapes.mesh(pinfo[0])
+				mi.material_override = mat
+				mi.position = pinfo[1]
+				mi.scale = pinfo[2]
+				h.add_child(mi)
+			h.set_meta("side", side)
+			_ankle_hands.append(h)
+	_ankle_t = 0.0
+	for h in _ankle_hands:
+		h.visible = true
 
 
 func play_shoulder_grab() -> void:
@@ -226,6 +259,12 @@ func _physics_process(delta: float) -> void:
 			head.rotation.x = _pitch
 
 	var input := Vector2.ZERO if controls_locked else Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	if pulled_down:
+		velocity = Vector3(0, -9.0, 0)
+		global_position += velocity * delta   # straight through the floor
+		_update_camera(delta)
+		_update_hands(delta)
+		return
 	if _update_water(delta, input):
 		_update_camera(delta)
 		_update_holds(delta)
@@ -265,10 +304,12 @@ func _physics_process(delta: float) -> void:
 func _update_water(delta: float, input: Vector2) -> bool:
 	var level: float = Game.zone.water_level_at(global_position + Vector3.UP * 0.9) if Game.zone and not phasing else -INF
 	var was := swimming
-	swimming = global_position.y + 1.0 < level
+	var walking_under: bool = Game.zone != null and Game.zone.has_method("walk_underwater") and Game.zone.walk_underwater()
+	swimming = global_position.y + 1.0 < level and not walking_under
 	underwater = camera.global_position.y < level
 	# breath
-	if underwater:
+	var can_breathe: bool = Game.zone != null and Game.zone.has_method("breathable_at") and Game.zone.breathable_at(camera.global_position)
+	if underwater and not can_breathe:
 		breath = maxf(0.0, breath - delta / BREATH_SECONDS)
 		if breath < 0.3:
 			dread.add_fear((22.0 if breath <= 0.0 else 4.0) * delta, "drowning")
@@ -290,11 +331,15 @@ func _update_water(delta: float, input: Vector2) -> bool:
 		if Input.is_action_pressed("jump"): vert += 1.0
 		if Input.is_action_pressed("crouch"): vert -= 1.0
 	var wish: Vector3 = camera.global_transform.basis * Vector3(input.x, 0, input.y) + Vector3.UP * vert
-	var target := wish.limit_length(1.0) * SWIM_SPEED
+	var spd := minf(SWIM_SPEED, sprint_speed if Input.is_action_pressed("sprint") else walk_speed)
+	var target := wish.limit_length(1.0) * spd
 	var eye_depth := level - camera.global_position.y
-	if vert == 0.0 and input.length() < 0.1:
-		target.y += 0.8  # you float up, slowly
-	if eye_depth < 0.35 and vert >= 0.0:
+	var drift: float = Game.zone.swim_drift_at(global_position) if Game.zone and Game.zone.has_method("swim_drift_at") else 0.8
+	if drift < 0.0:
+		target.y = minf(target.y, 0.0) + drift   # sinking: you cannot swim against it
+	elif vert == 0.0 and input.length() < 0.1:
+		target.y += drift  # you float up, slowly
+	if drift >= 0.0 and eye_depth < 0.35 and vert >= 0.0:
 		# at the surface: keep the head out of the water
 		target.y = clampf((level - 1.25 - global_position.y) * 3.0, -1.0, 1.0)
 		if not controls_locked and Input.is_action_just_pressed("jump"):
@@ -319,6 +364,21 @@ func _update_camera(delta: float) -> void:
 	var eye := (1.05 if _crouched else EYE_HEIGHT)
 	head.position.y = lerpf(head.position.y, eye, clampf(delta * 10.0, 0.0, 1.0))
 	camera.position = Vector3(cos(_bob_phase) * amp * 0.8, (absf(sin(_bob_phase)) * 2.0 - 1.0) * amp, 0)
+
+
+func _update_ankle_hands(delta: float) -> void:
+	if _ankle_t < 0.0:
+		return
+	_ankle_t += delta
+	var a := clampf(_ankle_t / 0.7, 0.0, 1.0)
+	var e := 1.0 - pow(1.0 - a, 3.0)
+	for h in _ankle_hands:
+		var side: float = h.get_meta("side")
+		h.position = Vector3(0.14 * side, lerpf(-1.4, 0.12, e), -0.08)
+		h.rotation_degrees = Vector3(lerpf(-40.0, 10.0, e), 0, 25.0 * side * (1.0 - e))
+	# the view is pulled down to see them
+	_pitch = lerpf(_pitch, deg_to_rad(-72.0), clampf(delta * 3.0, 0.0, 1.0))
+	head.rotation.x = _pitch
 
 
 func _update_footsteps(delta: float) -> void:
@@ -402,6 +462,7 @@ func _build_hands() -> void:
 
 
 func _update_hands(delta: float) -> void:
+	_update_ankle_hands(delta)
 	if _hands_t < 0.0:
 		return
 	_hands_t += delta

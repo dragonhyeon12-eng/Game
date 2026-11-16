@@ -67,6 +67,39 @@ func _run() -> void:
 			obs.try_appear_at(Vector3(10, 0, 0))
 			obs._glitch = 0.5
 			_look(Vector3(5, 1.6, 0), Vector3(10, 1.4, 0)),
+		"abyss": func():
+			_zone("deep")
+			var z: DeepZone = Game.zone
+			z.drained = true
+			z.well_level = DeepZone.OCEAN_TOP
+			z._well_water.visible = false
+			_look(Vector3(18, 1.7, 4.5), Vector3(18, -60, -1)),
+		"ocean": func():
+			_zone("deep")
+			Game.player.global_position = Vector3(18, -80, 0)
+			_look(Vector3(18, -78, 0), Vector3(70, -100, 30)),
+		"ocean_down": func():
+			_zone("deep")
+			_look(Vector3(18, -60, 0), Vector3(30, -170, 10)),
+		"seabed": func():
+			_zone("seabed")
+			Game.set_mode("game")
+			_look(Vector3(0, 1.6, 4), Vector3(4, 0.8, -14))
+			Game.player.manifestation.try_manifest(),
+		"cave": func():
+			_zone("seabed")
+			Game.set_mode("game")
+			var z: SeabedZone = Game.zone
+			# seen from inside the cave, looking back out at the opening
+			Game.player.global_position = Vector3(2, 0, -150)
+			_look(Vector3(2, 1.6, -150), Vector3(2, 2.0, -136))
+			Game.player.manifestation.try_manifest()
+			z.leviathan.place_head(Vector3(-10, 4, -126), Vector3(1, 0, 0))
+			z.leviathan.block_at(SeabedZone.MOUTH + Vector3(0, 1.8, 3.0 + z.leviathan.thickness * 4.0)),
+		"journal": func():
+			for e in Data.journal:
+				Journal.unlocked[e.id] = true
+			Game.hud._set_menu(JournalUI.create(func(): pass)),
 		"theo": func():
 			_zone("city")
 			_look(Vector3(9.0, 1.4, 12.0), Vector3(9.5, 0.8, 9.5)),

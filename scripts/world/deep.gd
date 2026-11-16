@@ -9,6 +9,10 @@ extends Zone
 ##
 ## Also: the main pool's water level changes when unobserved, and the water sometimes shows a figure
 ## standing where nobody stands.
+##
+## The well has no bottom. Below it is an impossibly vast ocean - a trench walled by cliffs, where
+## leviathans circle. Once drained, you sink into it. Looking down fills DREAD fast. Near the sea floor
+## two black hands come up out of it and pull you down: into the second part (SeabedZone).
 
 const HALL_X := 32.0
 const HALL_Z := 18.0
@@ -17,6 +21,9 @@ const MAIN := Rect2(-22, -8, 28, 16)     # x, z, width, depth (x: -22..6, z: -8.
 const MAIN_DEPTH := 2.2
 const WELL := Rect2(12, -7, 12, 14)      # x: 12..24, z: -7..7
 const WELL_DEPTH := 30.0
+const OCEAN_TOP := -30.0     # the sea's surface, where the well's floor should have been
+const SEABED := -175.0
+const OCEAN_CENTER := Vector3(18, 0, 0)
 const REST := -0.15                      # normal water level
 const DRAIN_RATE := 1.6                  # m/s while watched
 const REFILL_RATE := 0.7                 # m/s while unobserved
@@ -47,6 +54,12 @@ var _hint := 0
 var _drip := 2.0
 var _in_tunnel := false
 var _saw_well := false
+var _env_hall: Environment
+var _env_ocean: Environment
+var _world_env: WorldEnvironment
+var _in_ocean := false
+var _grabbed := false
+var leviathans: Array[Leviathan] = []
 
 
 func zone_id() -> String: return "deep"
@@ -67,6 +80,8 @@ func player_start() -> Transform3D:
 # ------------------------------------------------------------------ water queries (used by the player)
 
 func water_level_at(p: Vector3) -> float:
+	if p.y < OCEAN_TOP and Vector2(p.x - OCEAN_CENTER.x, p.z - OCEAN_CENTER.z).length() < 400.0:
+		return OCEAN_TOP + 0.1  # the sea
 	if _in_rect(MAIN, p) and p.y > -MAIN_DEPTH - 1.0:
 		return main_level
 	if _in_rect(WELL, p) and not drained:
@@ -74,6 +89,16 @@ func water_level_at(p: Vector3) -> float:
 	if p.x < MAIN.position.x and p.x > -26.5 and absf(p.z) < 0.7 and p.y < -0.6:
 		return 0.0  # the flooded tunnel
 	return -INF
+
+
+## In the sea you can breathe. You shouldn't be able to.
+func breathable_at(p: Vector3) -> bool:
+	return p.y < OCEAN_TOP
+
+
+## In water you normally float up; in the sea you sink, and cannot swim against it.
+func swim_drift_at(p: Vector3) -> float:
+	return -3.2 if p.y < OCEAN_TOP else 0.8
 
 
 func gravity_scale_at(p: Vector3) -> float:
@@ -155,9 +180,10 @@ func _hall() -> void:
 		func(): Game.hud.show_thought("They don't open. There's only water on the other side of the glass anyway.", 3.5))
 
 
-func _basin(r: Rect2, depth: float, hole := false) -> void:
+func _basin(r: Rect2, depth: float, hole := false, has_floor := true) -> void:
 	var c := Vector3(r.position.x + r.size.x * 0.5, 0, r.position.y + r.size.y * 0.5)
-	box(Vector3(c.x, -depth - 0.15, c.z), Vector3(r.size.x, 0.3, r.size.y), TILE, true, 0.0, "tiles_pool")
+	if has_floor:
+		box(Vector3(c.x, -depth - 0.15, c.z), Vector3(r.size.x, 0.3, r.size.y), TILE, true, 0.0, "tiles_pool")
 	var y := -depth * 0.5 - 0.15
 	var hgt := depth + 0.0
 	box(Vector3(c.x, y, r.position.y - 0.15), Vector3(r.size.x + 0.6, hgt, 0.3), TILE, true, 0.0, "tiles_pool")
@@ -240,20 +266,68 @@ func _tunnel() -> void:
 
 
 func _well() -> void:
-	_basin(WELL, WELL_DEPTH)
+	_basin(WELL, WELL_DEPTH, false, false)   # no floor: the tiles just... end
 	_well_water = _water(WELL, well_level)
 	# a few lights down the walls, then nothing
 	omni(Vector3(18, -2.0, -6.6), Color(0.3, 0.85, 1.0), 1.4, 8.0, false)
 	omni(Vector3(18, -2.0, 6.6), Color(0.3, 0.85, 1.0), 1.4, 8.0, false)
 	omni(Vector3(18, -9.0, 0), Color(0.2, 0.6, 0.8), 0.6, 8.0, false)
-	# the way out, at the very bottom
-	var bottom := -WELL_DEPTH
-	door(Vector3(18, bottom, WELL.position.y + 0.05), 0, Color(0.4, 0.45, 0.48), 1.0, 2.1, "metal")
-	part("box", Vector3(18, bottom + 2.5, WELL.position.y + 0.04), Vector3(0.64, 0.24, 0.06), Color(0.05, 0.62, 0.25), null, Vector3.ZERO, 1.8)
-	label(Vector3(18, bottom + 2.5, WELL.position.y + 0.08), 0, "EXIT", 0.18, Color(1, 1, 1))
-	omni(Vector3(18, bottom + 2.4, WELL.position.y + 0.6), Color(0.2, 1.0, 0.45), 0.8, 5.0, false)
-	interactable(Vector3(18, bottom + 1.1, WELL.position.y + 0.2), Vector3(1.2, 2.1, 0.3), func(): return "Open the door",
-		func(): Game.on_deep_exit())
+	_ocean()
+
+
+func _ocean() -> void:
+	var c := OCEAN_CENTER
+	var rock := Color(0.05, 0.06, 0.075)
+	# the rock ceiling over the sea, with the well opening through it
+	var top := OCEAN_TOP + 1.0
+	var span := 900.0
+	box(Vector3(c.x, top, WELL.position.y - span * 0.5), Vector3(span, 2.0, span), rock, false, 0.0, "concrete")
+	box(Vector3(c.x, top, WELL.end.y + span * 0.5), Vector3(span, 2.0, span), rock, false, 0.0, "concrete")
+	box(Vector3(WELL.position.x - span * 0.5, top, 0), Vector3(span, 2.0, WELL.size.y), rock, false, 0.0, "concrete")
+	box(Vector3(WELL.end.x + span * 0.5, top, 0), Vector3(span, 2.0, WELL.size.y), rock, false, 0.0, "concrete")
+	# the surface of the sea, seen from above through the well
+	var surface := _water(Rect2(c.x - 450, -450, 900, 900), OCEAN_TOP)
+	var sm: ShaderMaterial = surface.get_child(0).material_override
+	sm.set_shader_parameter("shallow", Color(0.02, 0.12, 0.18))
+	sm.set_shader_parameter("deep", Color(0.0, 0.02, 0.05))
+	sm.set_shader_parameter("clarity", 0.35)
+	# the trench: cliffs all around, falling away into the dark
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1312
+	for i in 30:
+		var a := i * TAU / 30.0 + rng.randf_range(-0.05, 0.05)
+		var radius := rng.randf_range(115.0, 150.0)
+		var h := rng.randf_range(140.0, 230.0)
+		var w := rng.randf_range(28.0, 45.0)
+		var pos := c + Vector3(cos(a) * radius, SEABED + h * 0.5 - 20.0, sin(a) * radius)
+		box(pos, Vector3(w, h, rng.randf_range(20.0, 40.0)), rock.lightened(rng.randf_range(0.0, 0.08)), false, rad_to_deg(-a) + 90.0, "concrete")
+		# ledges and overhangs
+		for k in 2:
+			var ly := SEABED + rng.randf_range(20.0, h - 30.0)
+			box(c + Vector3(cos(a) * (radius - 14.0), ly, sin(a) * (radius - 14.0)), Vector3(w * 0.7, rng.randf_range(4.0, 9.0), 14.0),
+				rock.lightened(0.05), false, rad_to_deg(-a) + 90.0, "concrete")
+	# the sea floor, far below, with faint living lights on it
+	box(Vector3(c.x, SEABED - 1.0, c.z), Vector3(320, 2.0, 320), Color(0.06, 0.07, 0.07), true, 0.0, "concrete")
+	for i in 60:
+		var a := rng.randf() * TAU
+		var r := rng.randf_range(5.0, 110.0)
+		part("sphere", c + Vector3(cos(a) * r, SEABED + 0.2, sin(a) * r), Vector3.ONE * rng.randf_range(0.3, 1.2),
+			Color(0.1, 0.5, 0.9), null, Vector3.ZERO, rng.randf_range(1.0, 3.0))
+	# a cold shaft of light from the well, falling into the sea
+	spot(Vector3(18, OCEAN_TOP - 1.0, 0), Vector3(18, SEABED, 0), Color(0.4, 0.75, 0.9), 3.0, 120.0, 14.0, false)
+	# leviathans, circling in the murk
+	for spec in [[48.0, -80.0, 1.0, 1.2, 8.0], [80.0, -115.0, -1.0, 1.7, 7.0], [40.0, -145.0, 1.0, 1.3, 6.0]]:
+		var lev := Leviathan.new()
+		lev.orbit_center = c
+		lev.orbit_radius = spec[0]
+		lev.orbit_height = spec[1]
+		lev.orbit_dir = spec[2]
+		lev.thickness = spec[3]
+		lev.speed = spec[4]
+		add_child(lev)
+		leviathans.append(lev)
+
+
 	# diving boards and a platform tower on the south side
 	box(Vector3(16, 0.6, 7.6), Vector3(0.6, 0.12, 3.0), Color(0.85, 0.85, 0.82), true)
 	box(Vector3(16, 0.3, 8.8), Vector3(0.4, 0.6, 0.4), CONCRETE, true, 0.0, "concrete")
@@ -343,7 +417,21 @@ func _lighting() -> void:
 		env.volumetric_fog_enabled = true
 		env.volumetric_fog_density = 0.012
 		env.volumetric_fog_albedo = Color(0.7, 0.9, 1.0)
-	environment(env)
+	_env_hall = env
+	_world_env = WorldEnvironment.new()
+	_world_env.environment = env
+	add_child(_world_env)
+	# under the sea: black-blue murk that swallows everything past a few dozen metres
+	var sea := make_env(Color(0.05, 0.12, 0.18), 0.12)
+	sea.background_mode = Environment.BG_COLOR
+	sea.background_color = Color(0.0, 0.015, 0.03)
+	sea.fog_enabled = true
+	sea.fog_light_color = Color(0.02, 0.085, 0.13)
+	sea.fog_density = 0.009
+	sea.glow_enabled = true
+	sea.glow_intensity = 1.4
+	sea.glow_bloom = 0.15
+	_env_ocean = sea
 	# underwater lights make the pool the brightest thing in the room
 	for i in 6:
 		var x := MAIN.position.x + 2.0 + i * 4.8
@@ -415,13 +503,13 @@ func _update_drain(delta: float) -> void:
 	else:
 		well_level = minf(REST, well_level + REFILL_RATE * delta)
 		_gurgle.volume_db = -14.0
-	if well_level <= -WELL_DEPTH + 0.6:
+	if well_level <= OCEAN_TOP + 0.6:
 		drained = true
 		Game.set_flag("deep_drained")
 		_well_water.visible = false
 		_gurgle.volume_db = -80.0
 		Sfx.play("whoosh", -6.0, 0.6)
-		Game.hud.show_thought("It's empty. It goes down further than it should.", 4.0)
+		Game.hud.show_thought("It's empty. There is no bottom. There's... the sea.", 4.5)
 
 
 # ------------------------------------------------------------------ runtime
@@ -437,7 +525,7 @@ func on_player_entered(from_save: bool) -> void:
 		_open_pump_door()
 	if Game.has_flag("deep_drained"):
 		drained = true
-		well_level = -WELL_DEPTH
+		well_level = OCEAN_TOP
 		_well_water.visible = false
 
 
@@ -446,7 +534,10 @@ func _process(delta: float) -> void:
 	_main_water.position.y = lerpf(_main_water.position.y, main_level, clampf(delta * 0.8, 0.0, 1.0))
 	_well_water.position.y = well_level
 	_update_drain(delta)
-	if Game.in_sequence or Game.player == null:
+	if Game.player == null:
+		return
+	_update_sea(delta)
+	if Game.in_sequence:
 		return
 	var p: Vector3 = Game.player.global_position
 
@@ -463,6 +554,28 @@ func _process(delta: float) -> void:
 
 	_hints()
 	_update_observers(delta)
+
+
+func _update_sea(delta: float) -> void:
+	var pl: Player = Game.player
+	var cam_y := pl.camera.global_position.y
+	var in_sea := cam_y < OCEAN_TOP
+	if in_sea != _in_ocean:
+		_in_ocean = in_sea
+		_world_env.environment = _env_ocean if in_sea else _env_hall
+		if in_sea:
+			Game.hud.show_thought("I can breathe. I shouldn't be able to breathe.", 4.0)
+	if not in_sea or Game.in_sequence:
+		return
+	# looking down into the abyss: DREAD climbs fast
+	var down := clampf((-pl._pitch - 0.35) / 0.9, 0.0, 1.0)
+	if down > 0.0:
+		pl.dread.add_fear(16.0 * down * delta, "looking down")
+		pl.dread.add_stability(-5.0 * down * delta)
+	# near the sea floor, something takes hold
+	if not _grabbed and pl.global_position.y < SEABED + 22.0:
+		_grabbed = true
+		Game.ankle_grab(false)
 
 
 func _through_tunnel() -> void:

@@ -240,7 +240,8 @@ func _process(delta: float) -> void:
 
 	if player:
 		_underwater.visible = player.underwater
-		_underwater.color.a = 0.55 + 0.25 * (1.0 - player.breath)
+		var sea: bool = Game.zone != null and Game.zone.has_method("breathable_at") and Game.zone.breathable_at(player.camera.global_position)
+		_underwater.color.a = (0.18 if sea else 0.55) + 0.25 * (1.0 - player.breath)
 		_breath_bar.visible = gameplay and player.breath < 0.999
 		_breath_bar.value = player.breath
 		(_breath_bar.get_theme_stylebox("fill") as StyleBoxFlat).bg_color = Color(0.6, 0.9, 1.0, 0.9) if player.breath > 0.3 else Color(0.9, 0.2, 0.15, 0.95)
@@ -354,7 +355,7 @@ func menu_open() -> bool:
 	return _menu_layer.get_child_count() > 0
 
 
-func _set_menu(m: DPMenu) -> void:
+func _set_menu(m: Control) -> void:
 	for c in _menu_layer.get_children():
 		_menu_layer.remove_child(c)
 		c.queue_free()
@@ -372,6 +373,7 @@ func open_title(has_save: bool) -> void:
 	if has_save:
 		items.append({"label": "CONTINUE", "action": Game.continue_game})
 	items.append({"label": "NEW GAME", "action": Game.start_new_game})
+	items.append({"label": "DREAM JOURNAL", "action": func(): _set_menu(JournalUI.create(func(): open_title(Game.has_checkpoint())))})
 	items.append({"label": "SETTINGS", "action": func(): _settings(func(): open_title(Game.has_checkpoint()))})
 	items.append({"label": "QUIT", "action": Game.quit_game})
 	_set_menu(DPMenu.create("DREAM PROTOCOL", "a lucid dream", items, "Vertical slice - work in progress"))
@@ -403,6 +405,7 @@ func _normal_pause() -> void:
 
 func _pause_submenu() -> void:
 	var m := DPMenu.create("MENU", "Progress is saved at the start of each area.", [
+		{"label": "DREAM JOURNAL", "action": func(): _set_menu(JournalUI.create(_pause_submenu))},
 		{"label": "SETTINGS", "action": func(): _settings(_pause_submenu)},
 		{"label": "RETURN TO TITLE", "action": Game.return_to_title},
 		{"label": "BACK", "action": _normal_pause}])

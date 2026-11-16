@@ -9,6 +9,7 @@ var manifest := {}        # id -> manifestation dict
 var manifest_start: Array = []
 var manifest_after_first: Array = []
 var tutorial := {}
+var journal: Array = []
 var notebook_title := ""
 
 
@@ -45,6 +46,7 @@ func reload() -> void:
 	for item in m.get("manifestations", []):
 		manifest[item["id"]] = item
 	tutorial = _load("Tutorial.json")
+	journal = _load("Journal.json").get("entries", [])
 
 
 static func vec(a, fallback := Vector3.ZERO) -> Vector3:
