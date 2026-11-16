@@ -322,6 +322,7 @@ func _build_all() -> void:
 	streams["bite"] = _to_wav(_bite(), false)
 	streams["chirp"] = _to_wav(_chirps(), false)
 	streams["static"] = _to_wav(_static(2.0), true)
+	streams["static_burst"] = _to_wav(_static(0.9), false)   # one-shot (the looping one would never stop)
 	streams["water_lap"] = _to_wav(_water_lap(5.0), true)
 	streams["gurgle"] = _to_wav(_gurgle(3.0), true)
 	streams["drip"] = _to_wav(_drip(), false)

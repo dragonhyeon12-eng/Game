@@ -602,7 +602,7 @@ func sudden_death() -> void:
 	in_sequence = true
 	set_mode("cinematic")
 	hud.clear_text()
-	Sfx.play("static", 2.0)
+	Sfx.play("static_burst", 2.0)
 	Sfx.play("thud", 6.0, 0.5)
 	player.jolt(Vector3(-10, 8, -6))
 	hud.set_fade(1.0, Color(0.05, 0, 0))

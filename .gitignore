@@ -9,3 +9,10 @@ unreal/Intermediate/
 unreal/Saved/
 unreal/DerivedDataCache/
 .DS_Store
+
+# Python caches (tools/)
+__pycache__/
+# textures Godot extracts from the generated GLBs on import (regenerated automatically)
+models/creatures/leviathan_*.png
+models/creatures/draped_*.png
+models/observer_*.png

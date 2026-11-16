@@ -46,6 +46,15 @@ var _blocked_t := 0.0
 var _blocked_at := Vector3.ZERO
 var _eye_mat: StandardMaterial3D
 
+# the custom model (models/creatures/leviathan.glb, made by tools/creatures): when present it replaces the
+# built-in geometry below, and its bones simply follow the segments every frame
+var _model: Node3D
+var _sk: Skeleton3D
+var _bone_ids: Array[int] = []
+var _bone_rests: Array[Transform3D] = []
+var _jaw_bone := -1
+var _jaw_rest := Quaternion.IDENTITY
+
 # mesh building
 var _mats := {}
 var _kit := {}                    # material key -> SurfaceTool
@@ -93,6 +102,7 @@ func _make_skin(albedo: Color, rim: float, double_sided := false, rough := 0.4) 
 
 
 func _ready() -> void:
+	_model = Models.instance(["creatures/leviathan"])
 	_rng.seed = hash(get_instance_id())
 	_mats["skin"] = _make_skin(Color(0.01, 0.012, 0.016), 0.2)
 	_mats["membrane"] = _make_skin(Color(0.008, 0.01, 0.013), 0.25, true, 0.6)
@@ -188,7 +198,8 @@ func _ready() -> void:
 					_limb(Vector3(half_w * 0.98 * side, d * 0.22, -0.6 + k * 0.6), Vector3(half_w * 0.98 * side, -d * 0.18, -0.45 + k * 0.6), 0.06 * T, "glow_dim")
 
 		if i == 0:
-			_build_skull(seg, T)
+			if _model == null:
+				_build_skull(seg, T)
 		_flush(seg)
 
 		# its own light falls on its body: you glimpse black hide and bone, never the whole of it
@@ -202,6 +213,8 @@ func _ready() -> void:
 			seg.add_child(l)
 
 	_head = _segs[0]
+	if _model:
+		_setup_model()
 	var p := _orbit_point()
 	global_position = p
 	for i in int(segments * spacing / _step) + 2:
@@ -266,6 +279,8 @@ func _st(key: String) -> SurfaceTool:
 
 ## A primitive (Shapes.mesh kind) merged into the current segment's mesh.
 func _add(kind: String, pos: Vector3, scl: Vector3, key: String, rot := Vector3.ZERO) -> void:
+	if _model:
+		return   # the custom model is used instead
 	var xf := Transform3D(Basis.from_euler(rot * (PI / 180.0)) * Basis.from_scale(scl), pos)
 	_st(key).append_from(Shapes.mesh(kind), 0, xf)
 
@@ -280,6 +295,8 @@ static func _along(dir: Vector3) -> Basis:
 
 ## A capsule from a to b, `w` wide.
 func _limb(a: Vector3, b: Vector3, w: float, key: String) -> void:
+	if _model:
+		return   # the custom model is used instead
 	var ln := a.distance_to(b)
 	if ln < 0.001:
 		return
@@ -289,6 +306,8 @@ func _limb(a: Vector3, b: Vector3, w: float, key: String) -> void:
 
 ## A cone from base a to tip b, `w` wide at the base.
 func _spike(a: Vector3, b: Vector3, w: float, key: String) -> void:
+	if _model:
+		return   # the custom model is used instead
 	var ln := a.distance_to(b)
 	if ln < 0.001:
 		return
@@ -298,6 +317,8 @@ func _spike(a: Vector3, b: Vector3, w: float, key: String) -> void:
 
 ## A box from a to b, w wide and h high (a jawbone).
 func _beam(a: Vector3, b: Vector3, w: float, h: float, key: String) -> void:
+	if _model:
+		return   # the custom model is used instead
 	var dir := (b - a).normalized()
 	var z := -dir
 	var x := Vector3.UP.cross(z).normalized()
@@ -308,6 +329,8 @@ func _beam(a: Vector3, b: Vector3, w: float, h: float, key: String) -> void:
 
 ## A flat triangle (fin webbing), double sided via its material.
 func _tri(a: Vector3, b: Vector3, c: Vector3, key: String) -> void:
+	if _model:
+		return   # the custom model is used instead
 	var st := _st(key)
 	var n := (b - a).cross(c - a).normalized()
 	for v in [a, b, c]:
@@ -322,6 +345,8 @@ const _RING := [Vector2(0, 0.5), Vector2(0.3, 0.44), Vector2(0.5, 0.14), Vector2
 
 
 func _loft(sections: Array, unit: float, key: String) -> void:
+	if _model:
+		return   # the custom model is used instead
 	var rings := []
 	for sec in sections:
 		var ring := []
@@ -364,6 +389,8 @@ func _tri_solid(a: Vector3, b: Vector3, c: Vector3, key: String) -> void:
 
 ## Commit everything gathered so far into one mesh under `parent`.
 func _flush(parent: Node3D) -> void:
+	if _model:
+		return   # the custom model is used instead
 	if _kit.is_empty():
 		return
 	var am := ArrayMesh.new()
@@ -375,6 +402,44 @@ func _flush(parent: Node3D) -> void:
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
 	_kit = {}
+
+
+## Hook the custom model's skeleton up to the segments (rig contract: see tools/creatures/leviathan.py).
+func _setup_model() -> void:
+	add_child(_model)
+	var found := _model.find_children("*", "Skeleton3D", true, false)
+	if found.is_empty():
+		push_warning("Leviathan: the model has no skeleton; using it as a static mesh")
+		return
+	_sk = found[0]
+	for i in segments:
+		var b := _sk.find_bone("spine_%02d" % i)
+		_bone_ids.append(b)
+		_bone_rests.append(_sk.get_bone_global_rest(b) if b >= 0 else Transform3D.IDENTITY)
+	_jaw_bone = _sk.find_bone("jaw")
+	if _jaw_bone >= 0:
+		_jaw_rest = _sk.get_bone_rest(_jaw_bone).basis.get_rotation_quaternion()
+	for gi in _model.find_children("*", "GeometryInstance3D", true, false):
+		(gi as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_pose_model()
+
+
+## Each spine bone takes its segment's place: the model was built with segment i at z = i * spacing.
+func _pose_model() -> void:
+	if _sk == null:
+		return
+	var inv := _sk.global_transform.affine_inverse()
+	for i in _bone_ids.size():
+		var b := _bone_ids[i]
+		if b < 0:
+			continue
+		var sc := Vector3(thickness, thickness, thickness if i == 0 else 1.0)
+		var xf := inv * _segs[i].global_transform * Transform3D(Basis.from_scale(sc), Vector3(0, 0, -i * spacing * sc.z)) * _bone_rests[i]
+		_sk.set_bone_pose_position(b, xf.origin)
+		_sk.set_bone_pose_rotation(b, xf.basis.get_rotation_quaternion())
+		_sk.set_bone_pose_scale(b, xf.basis.get_scale())
+	if _jaw_bone >= 0:
+		_sk.set_bone_pose_rotation(_jaw_bone, _jaw_rest * Quaternion(Vector3.RIGHT, _jaw_open))
 
 
 func _orbit_point() -> Vector3:
@@ -452,6 +517,7 @@ func _process(delta: float) -> void:
 	_jaw_open = lerpf(_jaw_open, want, clampf(delta * 6.0, 0.0, 1.0))
 	if _jaw:
 		_jaw.rotation.x = -_jaw_open
+	_pose_model()
 
 
 func _advance(new_head: Vector3) -> void:

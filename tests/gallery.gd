@@ -92,6 +92,12 @@ func _run() -> void:
 			z.leviathan.speed = 0.0
 			z.leviathan.place_head(Vector3(0, 6, -30), Vector3(0.35, -0.05, 1))
 			_look(Vector3(7, 4.5, -15), Vector3(0, 5, -32)),
+		"lev_rush": func():
+			_zone("seabed")
+			var z: SeabedZone = Game.zone
+			z.leviathan.place_head(Vector3(0, 4, -24), Vector3(0.25, 0, 1))
+			z.leviathan.rush(Vector3(0, 4, -24), 0.0)
+			_look(Vector3(4, 3.5, -12), Vector3(0, 3.5, -25)),
 		"lev_side": func():
 			_zone("deep")
 			var z: DeepZone = Game.zone

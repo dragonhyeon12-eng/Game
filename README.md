@@ -109,6 +109,7 @@ scripts/npc/             Human (procedural people), ModelBody (people from model
 scripts/ui/              HUD, menus, notebook, tutorial video, DREAD post-process shader
 tests/flow_test.tscn     automated playthrough of everything, title to the top of ABOVE
 tests/gallery.tscn       renders review screenshots of each area
+tools/creatures/          Blender (bpy) generators for the custom creature models -> models/*.glb (not used by the game)
 unreal/                  the earlier Unreal Engine 5 version (archived, ignored by Godot)
 ```
 
