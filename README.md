@@ -79,13 +79,17 @@ reflections, volumetric fog, anti-aliasing - needs a strong GPU).
 ```
 project.godot            Godot project (open this)
 scenes/main.tscn         entry point - everything else is built in code (no binary assets)
+models/                  OPTIONAL real art: drop a .glb here to replace a built-in person, the Observer,
+                         an object or a surface texture (see models/README.md - no Blender needed)
 data/                    dialogue, notebook rules, manifestable objects, tutorial script (JSON)
 scripts/autoload/        Game (story flow, zones, checkpoints, sequences, DREAD director)
                          Settings, Data, Sfx (procedural audio), Notebook, Dialogue, Anomalies
-scripts/core/            Observation ("is the player looking at this?"), Effects, Shapes, Interactable
+scripts/core/            Observation ("is the player looking at this?"), Effects, Shapes, Interactable,
+                         Models (finds, sizes and animates optional model files)
 scripts/player/          Player controller (incl. swimming/breath), FPHands, Dread, Manifestation, ManifestedObject
 scripts/world/           Zone (base + geometry builder), BedroomZone, CityZone, MazeZone, DeepZone, water shader
-scripts/npc/             Human (procedural people), NPC, Observer (+ glitch shader)
+scripts/npc/             Human (procedural people), ModelBody (people from model files), NPC,
+                         Observer (+ glitch shader)
 scripts/ui/              HUD, menus, notebook, tutorial video, DREAD post-process shader
 tests/flow_test.tscn     automated playthrough of everything, title to the end of THE DEEP
 tests/gallery.tscn       renders review screenshots of each area
@@ -104,7 +108,10 @@ unreal/                  the earlier Unreal Engine 5 version (archived, ignored 
 - **No assets.** Geometry is built from primitives with procedural surface textures (tiles, wallpaper, wood,
   carpet, concrete, fabric), people are articulated procedural bodies with faces, the first-person hands are
   procedural too, all audio and music is synthesised at startup, all UI is code.
-  Everything can be read, diffed and reviewed as text. Real art can replace pieces later.
+  Everything can be read, diffed and reviewed as text.
+- **Real art is optional.** Put a model in `models/` (e.g. `models/people/mina.glb`, `models/observer.glb`,
+  `models/textures/wood/`) and it replaces the built-in version, sized and animated automatically.
+  Remove it and the built-in version is back. See **models/README.md**.
 
 ## Testing
 
