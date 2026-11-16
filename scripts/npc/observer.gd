@@ -47,31 +47,36 @@ func _ready() -> void:
 	add_child(_body)
 	_flip = -1.0 if reflected else 1.0
 	_body.scale.y = _flip
-	var head_tilt := Vector3(14, 0, 11)
-	var parts := [
-		# legs: long and thin, slightly knock-kneed
-		["capsule", Vector3(-0.08, 0.52, 0), Vector3(0.11, 0.53, 0.11), Vector3(0, 0, 2)],
-		["capsule", Vector3(0.08, 0.52, 0), Vector3(0.11, 0.53, 0.11), Vector3(0, 0, -2)],
-		# narrow torso, chest pushed forward, uneven hunched shoulders
-		["capsule", Vector3(0, 1.32, 0.02), Vector3(0.3, 0.33, 0.18), Vector3(8, 0, 0)],
-		["sphere", Vector3(-0.17, 1.66, 0.05), Vector3(0.16, 0.13, 0.15), Vector3.ZERO],
-		["sphere", Vector3(0.18, 1.62, 0.05), Vector3(0.15, 0.12, 0.15), Vector3.ZERO],
-		# arms that hang down to the knees
-		["capsule", Vector3(-0.25, 1.28, 0.04), Vector3(0.07, 0.4, 0.07), Vector3(0, 0, -4)],
-		["capsule", Vector3(-0.29, 0.66, 0.06), Vector3(0.06, 0.3, 0.06), Vector3(-6, 0, -3)],
-		["capsule", Vector3(0.26, 1.24, 0.04), Vector3(0.07, 0.42, 0.07), Vector3(0, 0, 5)],
-		["capsule", Vector3(0.31, 0.6, 0.07), Vector3(0.06, 0.31, 0.06), Vector3(-6, 0, 4)],
-		# a long, thin neck; a head slightly too small, pushed forward and tilted
-		["capsule", Vector3(0, 1.82, 0.08), Vector3(0.075, 0.14, 0.075), Vector3(22, 0, 6)],
-		["sphere", Vector3(0.04, 2.0, 0.15), Vector3(0.17, 0.23, 0.19), head_tilt],
-	]
-	for p in parts:
-		_part(p[0], p[1], p[2], p[3])
-	# long fingers
-	for side in [-1.0, 1.0]:
-		var hx: float = 0.31 * side + 0.005
-		for f in 4:
-			_part("capsule", Vector3(hx + (f - 1.5) * 0.018 * side, 0.27 - f * 0.004, 0.08), Vector3(0.016, 0.085, 0.016), Vector3(-4, 0, (f - 1.5) * 4.0))
+	# a real model (models/observer.glb) can replace the built-in figure; it gets his glitch all the same
+	var model := Models.instance(["observer"])
+	if model:
+		_use_model(model)
+	else:
+		var head_tilt := Vector3(14, 0, 11)
+		var parts := [
+			# legs: long and thin, slightly knock-kneed
+			["capsule", Vector3(-0.08, 0.52, 0), Vector3(0.11, 0.53, 0.11), Vector3(0, 0, 2)],
+			["capsule", Vector3(0.08, 0.52, 0), Vector3(0.11, 0.53, 0.11), Vector3(0, 0, -2)],
+			# narrow torso, chest pushed forward, uneven hunched shoulders
+			["capsule", Vector3(0, 1.32, 0.02), Vector3(0.3, 0.33, 0.18), Vector3(8, 0, 0)],
+			["sphere", Vector3(-0.17, 1.66, 0.05), Vector3(0.16, 0.13, 0.15), Vector3.ZERO],
+			["sphere", Vector3(0.18, 1.62, 0.05), Vector3(0.15, 0.12, 0.15), Vector3.ZERO],
+			# arms that hang down to the knees
+			["capsule", Vector3(-0.25, 1.28, 0.04), Vector3(0.07, 0.4, 0.07), Vector3(0, 0, -4)],
+			["capsule", Vector3(-0.29, 0.66, 0.06), Vector3(0.06, 0.3, 0.06), Vector3(-6, 0, -3)],
+			["capsule", Vector3(0.26, 1.24, 0.04), Vector3(0.07, 0.42, 0.07), Vector3(0, 0, 5)],
+			["capsule", Vector3(0.31, 0.6, 0.07), Vector3(0.06, 0.31, 0.06), Vector3(-6, 0, 4)],
+			# a long, thin neck; a head slightly too small, pushed forward and tilted
+			["capsule", Vector3(0, 1.82, 0.08), Vector3(0.075, 0.14, 0.075), Vector3(22, 0, 6)],
+			["sphere", Vector3(0.04, 2.0, 0.15), Vector3(0.17, 0.23, 0.19), head_tilt],
+		]
+		for p in parts:
+			_part(p[0], p[1], p[2], p[3])
+		# long fingers
+		for side in [-1.0, 1.0]:
+			var hx: float = 0.31 * side + 0.005
+			for f in 4:
+				_part("capsule", Vector3(hx + (f - 1.5) * 0.018 * side, 0.27 - f * 0.004, 0.08), Vector3(0.016, 0.085, 0.016), Vector3(-4, 0, (f - 1.5) * 4.0))
 
 	_static = AudioStreamPlayer3D.new()
 	_static.stream = Sfx.streams.get("static")
@@ -93,6 +98,27 @@ func _part(kind: String, pos: Vector3, scl: Vector3, rot: Vector3) -> void:
 	if reflected:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_body.add_child(mi)
+
+
+func _use_model(model: Node3D) -> void:
+	var fitted := Models.fit(model, 2.2)
+	if not Models.options("observer").has("thin"):
+		fitted.scale = Vector3(0.88, 1.0, 0.88)   # a little too thin, like the built-in one
+	else:
+		var thin := float(Models.options("observer")["thin"])
+		fitted.scale = Vector3(thin, 1.0, thin)
+	Models.override_material(fitted, _mat)
+	if reflected:
+		for gi in Models.all_of(fitted, "GeometryInstance3D"):
+			gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_body.add_child(fitted)
+	# he never walks: an idle pose (T-poses look silly), played so slowly it is almost still
+	var ap := Models.animation_player(model)
+	var idle := Models.pick_animation(ap, "idle", "observer")
+	if idle != "":
+		ap.get_animation(idle).loop_mode = Animation.LOOP_LINEAR
+		ap.play(idle)
+		ap.speed_scale = 0.15
 
 
 func body_center(ground: Vector3) -> Vector3:

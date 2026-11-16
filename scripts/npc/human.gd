@@ -168,8 +168,9 @@ func speak(seconds := 1.6) -> void:
 	_talk = seconds
 
 
-func freeze_pose() -> void:
-	set_process(false)
+## Frozen = perfectly, unnaturally still.
+func set_frozen(on: bool) -> void:
+	set_process(not on)
 
 
 func _process(delta: float) -> void:

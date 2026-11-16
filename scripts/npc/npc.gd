@@ -1,6 +1,6 @@
 class_name NPC
 extends StaticBody3D
-## A friendly dream character. The body is a procedural Human; this adds behaviour: looking at you,
+## A friendly dream character. The body is a procedural Human (or a ModelBody, when there is a model); this adds behaviour: looking at you,
 ## turning to face you while talking, jogging a loop and calling out one-liners (barks) from data.
 
 var dialogue_id := ""
@@ -34,9 +34,22 @@ func setup(id: String, name_known: String, name_unknown: String, look: Dictionar
 	cs.shape = cap
 	cs.position.y = cap.height * 0.5
 	add_child(cs)
-	body = Human.new()
-	add_child(body)
-	body.build(look)
+	# a real model in models/people/<id> (or models/people/default) replaces the procedural body
+	var model := Models.instance(["people/" + id, "people/default"])
+	if model and seated and Models.pick_animation(Models.animation_player(model), "sit", model.get_meta("slot")) == "":
+		# a model that can't sit would stand on the bench: keep the built-in body for this one
+		print("Models: %s has no sit animation, %s keeps the built-in body" % [model.get_meta("slot"), id])
+		model.free()
+		model = null
+	if model:
+		var mb := ModelBody.new()
+		add_child(mb)
+		mb.use_model(model, look)
+		body = mb
+	else:
+		body = Human.new()
+		add_child(body)
+		body.build(look)
 
 
 func get_hand() -> Node3D:
@@ -53,7 +66,7 @@ func speak() -> void:
 
 func set_frozen(on: bool) -> void:
 	frozen = on
-	body.set_process(not on)
+	body.set_frozen(on)
 
 
 func _process(delta: float) -> void:

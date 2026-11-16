@@ -1,0 +1,104 @@
+# models/ — real art for DREAM PROTOCOL (optional)
+
+Everything in the game is built in code. Any file you put here **replaces** one of those built-in
+pieces. Delete the file and the built-in version comes back. **No Blender needed**: models are scaled
+to the right size and stood on the ground automatically.
+
+## How to add a model (3 steps)
+
+1. Download a model (see *Where to get free models* below). Use **.glb** if you can choose.
+   .gltf, .fbx and .obj work too.
+2. Put it in this folder under the right name (the table below). For example, to replace Mina:
+   `models/people/mina.glb`
+   Or keep a downloaded folder as it is and just **name the folder** after the slot:
+   `models/people/mina/` with the model (and its texture files) inside. The first model file in the folder is used.
+3. Open (or switch back to) Godot. It imports the file automatically. Press ▶.
+
+## Slots
+
+| Put the file at | Replaces | Notes |
+|---|---|---|
+| `people/mina.glb` | Mina, the ice cream vendor | |
+| `people/halvorsen.glb` | Mr. Halvorsen, the old man on the bench | sits: needs a model with a "sit" animation, otherwise he keeps the built-in body |
+| `people/theo.glb` | Theo, the kid with the kite | |
+| `people/jogger.glb` | the jogger | runs a loop: uses "walk" / "run" animations |
+| `people/default.glb` | **everyone** above who has no file of their own | quickest way to try one character |
+| `observer.glb` | the Observer | any human-shaped model works: it is turned pure black and glitchy automatically |
+| `objects/ice_cream.glb` | the ice cream you picture (hold Q) | parts named "scoop" or "edible" shrink when you bite; otherwise the whole thing does |
+| `objects/balloon.glb` | the red balloon | |
+| `objects/beach_ball.glb` | the beach ball | |
+| `objects/flashlight.glb` | the flashlight (in the seabed) | the light shines along the model's **-Z**; use `"turn": 180` if it shines out of the back |
+| `textures/<surface>/` | a whole surface type, everywhere | see *Textures* below |
+
+People and the Observer play the model's own animations if it has them (without an "idle" one they stand in
+the pose they were modelled in, often a T-pose). They are found by name:
+*idle*, *walk*, *run*, *sit*, *talk*. People also turn their head to look at you and hold things in
+their real hand bones.
+
+## Textures
+
+Make a folder `textures/<surface>/` and put a texture set in it, e.g. from **Poly Haven**
+(download the *1k* version as JPG or PNG). Files are recognised by name:
+
+- colour: `..._diff_...`, `albedo`, `basecolor`, `color`  (**required**)
+- bumps: `..._nor_gl_...`, `normal`  (use the **GL** one, not DX)
+- roughness: `..._rough_...`
+
+Surfaces you can replace:
+
+| Surface | Used for |
+|---|---|
+| `wallpaper` | the yellow maze walls, the bedroom walls |
+| `carpet` | the maze carpet, the bedroom floor |
+| `tiles_pool` | the swimming pools in THE DEEP |
+| `tiles_floor`, `tiles_ceiling` | tiled floors, ceiling panels |
+| `concrete`, `plaster`, `pavers`, `grass` | the city and THE DEEP buildings, pavements, lawns |
+| `wood` | doors, furniture, benches |
+| `metal` | railings, lamp posts, pipes |
+| `fabric` | everyone's clothes (keeps each piece of clothing's colour) |
+
+## Tweaks without Blender: `models.json`
+
+If a model faces the wrong way, is the wrong size or plays the wrong animation, add an entry to
+`models/models.json` (the name on the left is the slot):
+
+```json
+{
+	"people/mina":      {"turn": 180},
+	"people/theo":      {"height": 1.3},
+	"people/jogger":    {"anim": {"walk": "Running_A", "idle": "Idle_B"}},
+	"observer":         {"height": 2.4, "thin": 0.8},
+	"objects/flashlight": {"turn": 180, "size": 0.25},
+	"textures/wood":    {"tile": 1.5, "tint": true}
+}
+```
+
+- `turn`: degrees to spin it around (180 = it was facing backwards)
+- `height`: how tall in metres (people are 1.75 × their height in the game, the Observer 2.2)
+- `size`: for objects, its largest side in metres
+- `offset`: `[x, y, z]` metres to nudge it after fitting
+- `anim`: the exact animation name to use for `idle`, `walk`, `run`, `sit`, `talk`
+- `thin`: the Observer only, how thin he is (1 = as modelled, default 0.88)
+- `tile`: textures only, metres one copy of the texture covers (default 2)
+- `tint`: textures only, also apply the game's colour for that surface (default: only for fabric)
+
+If Godot prints *"models.json is not valid JSON"*, look for a missing comma or quote.
+
+## Where to get free models
+
+All of these are free for games. **CC0** means no credit needed.
+
+- **Quaternius** (quaternius.com): CC0 packs of characters, rigged **and animated**
+  (idle, walk, run, sit...), plus props and buildings. Start here for the people.
+- **Kenney** (kenney.nl): CC0 props, furniture, city kits. Clean simple style.
+- **Poly Haven** (polyhaven.com): CC0 realistic textures, models and skies.
+- **ambientCG** (ambientcg.com): CC0 textures (same naming rules as above).
+- **Poly Pizza** (poly.pizza) and **Sketchfab** (sketchfab.com): huge libraries, **check each model's licence**;
+  CC-BY means you must credit the author (add them to the credits / README).
+- **Mixamo** (mixamo.com, free Adobe account): upload a character with no skeleton and it adds one and
+  gives you animations. Download as FBX, *With Skin*.
+- **AI generators** (Meshy, Tripo, Rodin): type a description or give a picture, get a model. Good for
+  odd creatures and props. Check the free tier's licence before using them in a release.
+
+Tip for a horror game: a model doesn't have to be realistic to be scary. A simple, slightly-wrong model
+in the game's lighting often works better than a detailed one.

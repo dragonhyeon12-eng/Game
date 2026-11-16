@@ -30,16 +30,21 @@ func setup(def: Dictionary) -> void:
 	add_child(shape)
 	add_child(_visual)
 	_visual.scale = Vector3.ONE * 0.01
-	for part in def.get("parts", []):
-		var mi := MeshInstance3D.new()
-		mi.mesh = Shapes.mesh(part.get("shape", "box"))
-		mi.material_override = Shapes.material(Data.col(part.get("color")), 0.55)
-		mi.position = Data.vec(part.get("offset"))
-		mi.rotation_degrees = Data.vec(part.get("rotation"))
-		mi.scale = Data.vec(part.get("scale"), Vector3.ONE * 0.1)
-		_visual.add_child(mi)
-		if int(part.get("edible", 0)) != 0:
-			_edible.append(mi)
+	# a real model in models/objects/<id> replaces the shape parts, at the same size
+	var model := Models.instance(["objects/" + def_id])
+	if model:
+		_use_model(model, def)
+	else:
+		for part in def.get("parts", []):
+			var mi := MeshInstance3D.new()
+			mi.mesh = Shapes.mesh(part.get("shape", "box"))
+			mi.material_override = Shapes.material(Data.col(part.get("color")), 0.55)
+			mi.position = Data.vec(part.get("offset"))
+			mi.rotation_degrees = Data.vec(part.get("rotation"))
+			mi.scale = Data.vec(part.get("scale"), Vector3.ONE * 0.1)
+			_visual.add_child(mi)
+			if int(part.get("edible", 0)) != 0:
+				_edible.append(mi)
 	if def.has("light"):
 		# a beam pointing where the object points (-Z)
 		var l := SpotLight3D.new()
@@ -59,6 +64,29 @@ func setup(def: Dictionary) -> void:
 		glow.position = Vector3(0, 0, -0.2)
 		add_child(glow)
 	set_held(true)
+
+
+func _use_model(model: Node3D, def: Dictionary) -> void:
+	# as big as the built-in version: the size of its parts' bounding box
+	var box := AABB()
+	var first := true
+	for part in def.get("parts", []):
+		var b := AABB(Data.vec(part.get("offset")) - Data.vec(part.get("scale"), Vector3.ONE * 0.1) * 0.5,
+			Data.vec(part.get("scale"), Vector3.ONE * 0.1))
+		box = b if first else box.merge(b)
+		first = false
+	var size := maxf(box.size.x, maxf(box.size.y, box.size.z)) if not first else 0.2
+	var fitted := Models.fit(model, size, true, true)
+	fitted.position = box.get_center() if not first else Vector3.ZERO
+	_visual.add_child(fitted)
+	# parts named "edible" / "scoop" shrink with each bite; otherwise the whole thing does
+	for mi in Models.all_of(fitted, "MeshInstance3D"):
+		var low := (mi.name as String).to_lower()
+		if low.contains("edible") or low.contains("scoop"):
+			_edible.append(mi)
+	if _edible.is_empty() and int(def.get("bites", 0)) > 0:
+		var all := Models.all_of(fitted, "MeshInstance3D")
+		_edible.assign(all)
 
 
 func set_held(held: bool) -> void:

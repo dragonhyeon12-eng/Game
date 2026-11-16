@@ -101,7 +101,7 @@ static var _surface_shader: Shader
 
 
 ## Material for a named surface. Colour comes from MultiMesh instance colours multiplied by `tint`.
-static func surface(name: String, tint := Color.WHITE) -> ShaderMaterial:
+static func surface(name: String, tint := Color.WHITE) -> Material:
 	var key := "surf|%s|%s" % [name, tint.to_html()]
 	if _materials.has(key):
 		return _materials[key]
@@ -112,6 +112,11 @@ static func surface(name: String, tint := Color.WHITE) -> ShaderMaterial:
 	if name.contains("@"):
 		base = name.get_slice("@", 0)
 		rough_override = name.get_slice("@", 1).to_float()
+	# real textures in models/textures/<surface>/ replace the procedural pattern
+	var textured := Models.surface_material(base, tint)
+	if textured:
+		_materials[key] = textured
+		return textured
 	var def: Array = SURFACES.get(base, SURFACES["plain"])
 	var m := ShaderMaterial.new()
 	m.shader = _surface_shader
