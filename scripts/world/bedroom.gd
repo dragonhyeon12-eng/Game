@@ -90,7 +90,9 @@ func _furniture() -> void:
 	box(Vector3(-2.44, 0.86, -0.8), Vector3(0.04, 0.16, 0.04), PLASTIC, false)
 	box(Vector3(-2.43, 1.13, -0.8), Vector3(0.05, 0.38, 0.64), PLASTIC)
 	if waking:
-		part("box", Vector3(-2.398, 1.13, -0.8), Vector3(0.01, 0.33, 0.58), Color(0.01, 0.01, 0.012))
+		# the monitor is on, showing nothing
+		part("box", Vector3(-2.398, 1.13, -0.8), Vector3(0.01, 0.33, 0.58), Color(0.25, 0.3, 0.4), null, Vector3.ZERO, 1.0)
+		label(Vector3(-2.388, 1.13, -0.8), 90, "NO SIGNAL", 0.03, Color(0.85, 0.9, 1.0))
 	else:
 		part("box", Vector3(-2.398, 1.13, -0.8), Vector3(0.01, 0.33, 0.58), Color(0.35, 0.45, 0.65), null, Vector3.ZERO, 1.2)
 		label(Vector3(-2.388, 1.17, -0.8), 90, "HOW TO LUCID DREAM TONIGHT!\n(100% WORKING)", 0.03, Color(1, 1, 1))
@@ -136,7 +138,7 @@ func _lighting() -> void:
 	omni(Vector3(2.5, -0.4, -7.0), Color(1.0, 0.6, 0.3), 1.0 if waking else 2.0, 9.0)
 	if not waking:
 		omni(Vector3(-2.3, 1.05, -1.42), Color(1.0, 0.72, 0.42), 1.1, 5.0, false)  # desk lamp (inside its shade: no shadows)
-		omni(Vector3(-2.2, 1.13, -0.8), Color(0.6, 0.72, 1.0), 0.6, 3.5, false)  # monitor glow
+	omni(Vector3(-2.2, 1.13, -0.8), Color(0.6, 0.72, 1.0), 0.6 if not waking else 0.9, 3.5 if not waking else 5.0, false)  # monitor glow
 
 
 func _interactables() -> void:

@@ -98,16 +98,16 @@ func breathable_at(p: Vector3) -> bool:
 
 ## In water you normally float up; in the sea you sink, and cannot swim against it.
 func swim_drift_at(p: Vector3) -> float:
-	return -3.2 if p.y < OCEAN_TOP else 0.8
+	return -8.0 if p.y < OCEAN_TOP else 0.8
 
 
 func gravity_scale_at(p: Vector3) -> float:
 	# dream gravity inside the drained well: you sink slowly down into it
-	return 0.18 if drained and _in_rect(WELL, p) and p.y < -0.5 else 1.0
+	return 0.5 if drained and _in_rect(WELL, p) and p.y < -0.5 else 1.0
 
 
 func max_fall_at(p: Vector3) -> float:
-	return 3.0 if drained and _in_rect(WELL, p) and p.y < -0.5 else 60.0
+	return 9.0 if drained and _in_rect(WELL, p) and p.y < -0.5 else 60.0
 
 
 static func _in_rect(r: Rect2, p: Vector3) -> bool:

@@ -277,7 +277,49 @@ func make_env(ambient_color: Color, ambient_energy: float) -> Environment:
 	if Settings.quality >= 1:
 		e.ssao_enabled = true
 		e.ssao_intensity = 1.5
+	if _envs.is_empty():
+		Settings.changed.connect(apply_super_shaders)
+		apply_super_shaders.call_deferred()  # after the zone has finished configuring its environments
+	_envs.append(e)
 	return e
+
+
+var _envs: Array[Environment] = []
+const _SUPER_PROPS := ["sdfgi_enabled", "ssil_enabled", "ssr_enabled", "ssao_enabled", "ssao_intensity",
+	"volumetric_fog_enabled", "volumetric_fog_density", "glow_intensity", "glow_bloom", "adjustment_enabled",
+	"adjustment_contrast", "adjustment_saturation"]
+
+
+## "Super duper shaders": every expensive effect Godot has, on top of whatever the zone set up.
+## Turning it off restores the zone's own settings.
+func apply_super_shaders() -> void:
+	for e in _envs:
+		if not e.has_meta("base"):
+			var base := {}
+			for k in _SUPER_PROPS:
+				base[k] = e.get(k)
+			e.set_meta("base", base)
+		var b: Dictionary = e.get_meta("base")
+		for k in _SUPER_PROPS:
+			e.set(k, b[k])
+		if not Settings.super_shaders:
+			continue
+		e.sdfgi_enabled = true
+		e.sdfgi_use_occlusion = true
+		e.ssil_enabled = true
+		e.ssr_enabled = true
+		e.ssr_max_steps = 64
+		e.ssao_enabled = true
+		e.ssao_intensity = maxf(b.ssao_intensity, 2.0)
+		e.volumetric_fog_enabled = true
+		if not b.volumetric_fog_enabled:
+			e.volumetric_fog_density = 0.004 if not e.fog_enabled else minf(e.fog_density * 0.4, 0.004)
+		e.volumetric_fog_albedo = e.fog_light_color if e.fog_enabled else Color(0.9, 0.9, 0.95)
+		e.glow_intensity = b.glow_intensity * 1.3
+		e.glow_bloom = b.glow_bloom + 0.05
+		e.adjustment_enabled = true
+		e.adjustment_contrast = 1.06
+		e.adjustment_saturation = 1.08
 
 
 func ground_y(pos: Vector3, fallback := 0.0) -> float:

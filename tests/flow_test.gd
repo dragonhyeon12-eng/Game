@@ -318,10 +318,10 @@ func _run() -> void:
 
 	print("== down the well, into the sea")
 	Game.player.teleport(Transform3D(Basis(), Vector3(18, 0.2, 2)))
-	await wait(5.0)
+	await wait(2.0)
 	var mid_y := Game.player.global_position.y
-	check(mid_y < -3.0 and mid_y > -29.0, "sinking slowly down the shaft (y=%.1f)" % mid_y)
-	await wait(8.0)
+	check(mid_y < -3.0 and mid_y > -29.0, "sinking down the shaft (y=%.1f)" % mid_y)
+	await wait(5.0)
 	check(Game.player.global_position.y < DeepZone.OCEAN_TOP, "came out into the sea (y=%.1f)" % Game.player.global_position.y)
 	check(Game.player.breath > 0.99, "you can breathe in the sea")
 	var f0 := Game.player.dread.fear

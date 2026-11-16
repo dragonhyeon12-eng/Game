@@ -121,6 +121,16 @@ func _run() -> void:
 		"deep_under": func():
 			_zone("deep")
 			_look(Vector3(-5, -1.2, 2), Vector3(-19, -1.5, 0)),
+		"death_hands": func():
+			_zone("city")
+			Game.set_mode("game")
+			Game._death_sequence("fade"),
+		"pool_climb": func():
+			_zone("deep")
+			Game.set_mode("game")
+			Game.player.set_locked(false)
+			Game.player.global_position = Vector3(-8, -1.2, 7.2)
+			Game.player.rotation.y = PI,
 		"hands": func():
 			_zone("bedroom")
 			Game.set_mode("game")
@@ -141,5 +151,16 @@ func _run() -> void:
 	for name in views:
 		if only.is_empty() or only.has(name):
 			views[name].call()
+			if name == "death_hands":
+				await get_tree().create_timer(6.6).timeout
+			if name == "pool_climb":
+				await get_tree().create_timer(1.5).timeout
+				print("pool_climb before y=%.2f swimming=%s" % [Game.player.global_position.y, Game.player.swimming])
+				Input.action_press("jump")
+				await get_tree().physics_frame
+				await get_tree().physics_frame
+				Input.action_release("jump")
+				await get_tree().create_timer(1.5).timeout
+				print("pool_climb after pos=%s swimming=%s floor=%s" % [Game.player.global_position, Game.player.swimming, Game.player.is_on_floor()])
 			await _shot(name)
 	get_tree().quit()

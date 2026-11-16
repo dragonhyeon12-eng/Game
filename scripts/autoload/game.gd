@@ -552,6 +552,11 @@ func _death_sequence(prelude := "fade") -> void:
 	if not await _wait(0.8, t): return
 	player.play_shoulder_grab()
 	player.jolt(Vector3(-7, 4, -3))
+	# a moment to see them, gripping
+	if not await _wait(1.3, t): return
+	player.jolt(Vector3(-4, -3, 2))
+	Sfx.play("thud", -2.0, 0.8)
+	if not await _wait(0.35, t): return
 	hud.set_fade(0.75 * clampf(Settings.visual_intensity, 0.3, 1.0), Color(0.55, 0, 0))
 	if not await _wait(0.2, t): return
 	hud.fade_to(1.0, 0.2)

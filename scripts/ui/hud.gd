@@ -439,6 +439,7 @@ func _settings(back: Callable) -> void:
 		["Menu corruption", flag.call("menu_corruption")],
 		["Game may unpause itself", flag.call("self_unpause")],
 		["Graphics quality (next area)", num.call("quality", 0.0, 1.0, 1.0, func(v): return "HIGH" if v >= 1 else "LOW")],
+		["Super duper shaders (strong GPU)", flag.call("super_shaders")],
 	]
 	var items := []
 	for r in rows:

@@ -26,6 +26,10 @@ var phasing := false
 
 var focused: Object = null
 var swimming := false
+var _climb_t := 0.0   # > 0 while hauling yourself out of the water onto a ledge
+var _climb_from := Vector3.ZERO
+var _climb_to := Vector3.ZERO
+const CLIMB_TIME := 0.55
 var underwater := false
 ## 1 = full lungs, 0 = nothing left
 var breath := 1.0
@@ -301,7 +305,40 @@ func _physics_process(delta: float) -> void:
 
 
 ## Swimming: returns true when it handled movement this frame.
+## A floor you could pull yourself onto: in front of you, just above the water, with room to stand.
+func _find_ledge(level: float):
+	var space := get_world_3d().direct_space_state
+	var fwd := -transform.basis.z
+	fwd.y = 0.0
+	fwd = fwd.normalized()
+	for reach in [0.6, 0.9, 1.2]:
+		var top: Vector3 = global_position + fwd * reach
+		var q := PhysicsRayQueryParameters3D.create(Vector3(top.x, level + 2.0, top.z), Vector3(top.x, level - 0.4, top.z), 1)
+		q.exclude = [get_rid()]
+		var hit := space.intersect_ray(q)
+		if hit.is_empty() or hit.normal.y < 0.7 or hit.position.y < level - 0.25:
+			continue
+		# headroom
+		var h := PhysicsRayQueryParameters3D.create(hit.position + Vector3.UP * 0.05, hit.position + Vector3.UP * 1.8, 1)
+		h.exclude = [get_rid()]
+		if not space.intersect_ray(h).is_empty():
+			continue
+		return hit.position
+	return null
+
+
 func _update_water(delta: float, input: Vector2) -> bool:
+	if _climb_t > 0.0:
+		# up and over: rise first, then forward onto the deck
+		_climb_t = maxf(_climb_t - delta, 0.0)
+		var k := 1.0 - _climb_t / CLIMB_TIME
+		var up := clampf(k / 0.6, 0.0, 1.0)
+		var over := clampf((k - 0.4) / 0.6, 0.0, 1.0)
+		global_position = Vector3(lerpf(_climb_from.x, _climb_to.x, over), lerpf(_climb_from.y, _climb_to.y + 0.05, ease(up, 0.5)), lerpf(_climb_from.z, _climb_to.z, over))
+		velocity = Vector3.ZERO
+		underwater = false
+		swimming = false
+		return true
 	var level: float = Game.zone.water_level_at(global_position + Vector3.UP * 0.9) if Game.zone and not phasing else -INF
 	var was := swimming
 	var walking_under: bool = Game.zone != null and Game.zone.has_method("walk_underwater") and Game.zone.walk_underwater()
@@ -339,14 +376,23 @@ func _update_water(delta: float, input: Vector2) -> bool:
 		target.y = minf(target.y, 0.0) + drift   # sinking: you cannot swim against it
 	elif vert == 0.0 and input.length() < 0.1:
 		target.y += drift  # you float up, slowly
+	if drift >= 0.0 and eye_depth < 0.6 and not controls_locked and Input.is_action_just_pressed("jump"):
+		var ledge = _find_ledge(level)
+		if ledge != null:
+			# haul yourself up and out over the edge
+			_climb_from = global_position
+			_climb_to = ledge
+			_climb_t = CLIMB_TIME
+			swimming = false
+			var cap := _shape.shape as CapsuleShape3D
+			cap.height = 1.76
+			_shape.position.y = 0.88
+			Sfx.play("splash", -8.0, 1.3)
+			jolt(Vector3(3, 0, 0))
+			return true
 	if drift >= 0.0 and eye_depth < 0.35 and vert >= 0.0:
 		# at the surface: keep the head out of the water
 		target.y = clampf((level - 1.25 - global_position.y) * 3.0, -1.0, 1.0)
-		if not controls_locked and Input.is_action_just_pressed("jump"):
-			velocity.y = 5.0  # pull yourself out
-			swimming = false
-			move_and_slide()
-			return true
 	velocity = velocity.lerp(target, clampf(delta * 4.0, 0.0, 1.0))
 	move_and_slide()
 	return true
@@ -472,6 +518,6 @@ func _update_hands(delta: float) -> void:
 		var side: float = h.get_meta("side")
 		# from behind the shoulders, fingers curling down over them into the bottom corners of view
 		var from := Vector3(0.36 * side, -0.5, 0.15)
-		var to := Vector3(0.25 * side, -0.225, -0.24)
+		var to := Vector3(0.24 * side, -0.19, -0.25)
 		h.position = from.lerp(to, e)
 		h.rotation_degrees = Vector3(-8.0 + 20.0 * (1.0 - e), -14.0 * side, -6.0 * side)

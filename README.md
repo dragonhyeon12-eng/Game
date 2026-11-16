@@ -55,7 +55,7 @@ It takes effect when you enter the next area.
   4. **The seabed** (part two): pitch dark, you walk slowly. Hold Q to picture a flashlight. The path is
      invisible - only glowing stones mark it. Stray from it and the leviathan comes for you.
   5. At the cliff, get into the sea cave before it catches you - it can't fit through. Step through the glowing doorway.
-  Swimming: Space up, C dive, watch your breath.
+  Swimming: Space up, C dive, watch your breath. Space at the surface next to the edge climbs out.
 - **Dream journal** (title screen, or Pause > MENU): an entry for every part of the dream you have made it through.
 - **The yellow maze.** You fall through the floor instead. Fluorescent hum, stained carpet, a maze that
   is always solvable but rearranges itself when you aren't looking. Your notebook has a sixth rule now.
@@ -71,7 +71,8 @@ It takes effect when you enter the next area.
 
 Mouse sensitivity, invert look, field of view, head bob, camera jolts, **visual intensity** (flicker,
 vignette, distortion, red flash), **horror audio intensity**, master volume, text size, DREAD meter,
-menu corruption on/off, self-unpause on/off, graphics quality.
+menu corruption on/off, self-unpause on/off, graphics quality, and **super duper shaders** (global illumination,
+reflections, volumetric fog, anti-aliasing - needs a strong GPU).
 
 ## Project layout
 

@@ -23,9 +23,11 @@ var menu_corruption := true
 var self_unpause := true
 ## 0 = low (fast, for older Macs), 1 = high (SDFGI, volumetric fog, SSAO).
 var quality := 1.0
+## Every expensive effect on: global illumination, reflections, volumetric fog, MSAA + TAA. Needs a strong GPU.
+var super_shaders := false
 
 const KEYS := ["mouse_sensitivity", "invert_y", "fov", "head_bob", "camera_effects", "visual_intensity",
-	"audio_intensity", "master_volume", "music_volume", "text_scale", "show_dread_meter", "menu_corruption", "self_unpause", "quality"]
+	"audio_intensity", "master_volume", "music_volume", "text_scale", "show_dread_meter", "menu_corruption", "self_unpause", "quality", "super_shaders"]
 
 
 func _ready() -> void:
@@ -52,6 +54,10 @@ func save_settings() -> void:
 func apply() -> void:
 	var bus := AudioServer.get_bus_index("Master")
 	AudioServer.set_bus_volume_db(bus, linear_to_db(maxf(master_volume, 0.0001)))
+	var vp := get_viewport()
+	if vp:
+		vp.msaa_3d = Viewport.MSAA_4X if super_shaders else Viewport.MSAA_DISABLED
+		vp.use_taa = super_shaders
 	changed.emit()
 
 
