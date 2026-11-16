@@ -20,7 +20,7 @@ const PRESS_X0 := 6.0
 const PRESS_X1 := 14.0
 const PRESS_OPEN := 1.95         # half-width of the press room
 const PRESS_SPEED := 0.38        # m/s per wall while unwatched
-const FIGURE_SPEED := 1.7
+const FIGURE_SPEED := 1.4
 
 const CONCRETE := Color(0.42, 0.41, 0.38)
 const DIRTY := Color(0.33, 0.31, 0.27)
@@ -34,6 +34,7 @@ var _press_moves := 0
 var _grind: AudioStreamPlayer3D
 var _figures: Array[Node3D] = []
 var _figure_hint := 0
+var _room_t := 0.0
 var _sheets: Array[Node3D] = []
 var _sheet_bulb: Node3D
 var _fingers: Array = []          # [group, seen_time]
@@ -516,7 +517,7 @@ func _drying_room() -> void:
 	for p in [Vector3(-6, 0.25, -12.4), Vector3(-12.8, 0.25, -2.6)]:
 		shape_at("cylinder", p, Vector3(0.6, 0.5, 0.45), Color(0.5, 0.45, 0.35), true, Vector3.ZERO, "fabric")
 	# the ones under the sheets
-	for p in [Vector3(-12.6, 0, -9.8), Vector3(-7.2, 0, -12.2), Vector3(-11.0, 0, -4.8)]:
+	for p in [Vector3(-12.6, 0, -9.8), Vector3(-9.0, 0, -5.6), Vector3(-11.0, 0, -3.4)]:
 		var f := Node3D.new()
 		f.position = p
 		add_child(f)
@@ -540,7 +541,11 @@ func _update_drying(delta: float, p: Vector3) -> void:
 	for i in _sheets.size():
 		_sheets[i].rotation_degrees.x = sin(_t * 1.3 + i * 0.7) * 2.5
 	if not _in_drying_room(p):
+		_room_t = 0.0
 		return
+	_room_t += delta
+	if _room_t < 2.0:
+		return   # a moment to see them before anything moves
 	if _figure_hint == 0:
 		_figure_hint = 1
 		Game.hud.show_thought("Sheets on the lines. And... shapes. Under the sheets. Standing.", 4.0)
@@ -573,11 +578,13 @@ func _props() -> void:
 	for i in 2:
 		shape_at("cylinder", Vector3(0.15 + i * 0.25, 2.05 - i * 0.12, -10), Vector3(0.12, 8.0, 0.12), Color(0.3, 0.33, 0.3), false, Vector3(90, 0, 0), "metal")
 	# hub junk
-	box(Vector3(-3.2, 0.5, -15.0), Vector3(1.0, 1.0, 1.0), Color(0.4, 0.3, 0.2), true, 12.0, "wood")
-	box(Vector3(-3.0, 1.25, -15.1), Vector3(0.6, 0.5, 0.6), Color(0.45, 0.33, 0.22), true, -20.0, "wood")
+	box(Vector3(-3.2, 0.5, -21.2), Vector3(1.0, 1.0, 1.0), Color(0.4, 0.3, 0.2), true, 12.0, "wood")
+	box(Vector3(-3.0, 1.25, -21.3), Vector3(0.6, 0.5, 0.6), Color(0.45, 0.33, 0.22), true, -20.0, "wood")
 	box(Vector3(4.6, 1.0, -15.0), Vector3(0.5, 2.0, 1.2), Color(0.3, 0.35, 0.35), true, 0.0, "metal")
 	label(Vector3(0.5, 1.9, -0.98), 180, "B3", 0.4, Color(0.6, 0.58, 0.5), false)
-	label(Vector3(-3.97, 2.0, -20.0), 90, "DRYING ROOM <", 0.06, Color(0.65, 0.62, 0.55), false)
+	# over the doorway to the drying room (hub, back-left corner), with a bulb so it can't be missed
+	label(Vector3(-3.97, 2.55, -14.5), 90, "DRYING ROOM", 0.09, Color(0.8, 0.76, 0.66), false)
+	_bulb(Vector3(-3.4, 2.25, -14.5), 0.6, 4.0)
 
 
 # ------------------------------------------------------------------ runtime
@@ -651,7 +658,13 @@ func _update_seal(delta: float, p: Vector3) -> void:
 		Game.hud.show_thought("The corridor. The corridor I came down. It's wall.", 3.5)
 
 
+var _fuse_hint := false
+
+
 func _hints(p: Vector3) -> void:
+	if not _fuse_hint and _fuses_found() == 2 and not Game.has_flag("comp_fuse_sheets") and p.z < -14.0:
+		_fuse_hint = true
+		Game.hud.show_hint("The last fuse: the DRYING ROOM.\nIts doorway is on your left as you come in from the corridor, under the sign.", 8.0)
 	if _hint == 0 and _t > 2.5:
 		_hint = 1
 		Game.hud.show_thought("...Concrete. Pipes. A basement. It's so close in here.", 4.0)
@@ -668,7 +681,7 @@ func _hints(p: Vector3) -> void:
 ## ahead of you), spiders on the duct ceiling, a snake by the fuse in the drying room.
 func _vermin() -> void:
 	var runs := [
-		[Vector3(-3.4, 0, -21.4), Vector3(-7.0, 0, -16.5)],    # hub corner -> into the vent
+		[Vector3(-1.8, 0, -21.5), Vector3(-7.0, 0, -16.5)],    # hub corner -> into the vent
 		[Vector3(0.5, 0, -7.0), Vector3(0.5, 0, -13.4)],       # down the corridor
 		[Vector3(-4.5, 0, -14.6), Vector3(-4.5, 0, -11.3)],    # towards the drying room
 		[Vector3(12.5, 0, -16.3), Vector3(6.4, 0, -19.6)],     # across the press

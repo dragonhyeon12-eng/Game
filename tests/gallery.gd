@@ -124,6 +124,9 @@ func _run() -> void:
 		"comp_start": func():
 			_zone("compression")
 			_look(Vector3(0.5, 1.6, -2.0), Vector3(0.5, 1.2, -12)),
+		"comp_drying_door": func():
+			_zone("compression")
+			_look(Vector3(1.0, 1.6, -18.5), Vector3(-4, 1.6, -14.5)),
 		"comp_hub": func():
 			_zone("compression")
 			_look(Vector3(2.0, 1.6, -15.0), Vector3(1.0, 1.2, -22)),

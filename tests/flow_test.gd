@@ -464,10 +464,25 @@ func _compression() -> void:
 	await shot("the_vent")
 	check(use("Take the fuse", Vector3(-6, 0.1, -29.0)), "fuse from the vent")
 	Game.player._crouched = false
-	print("== the drying room")
+	print("== the drying room (walking there, so a blocked doorway shows up)")
+	Game.player.dread.set_values(20, 80)
+	Game.player.teleport(Transform3D(Basis(Vector3.UP, deg_to_rad(90)), Vector3(-2.0, 0.05, -14.5)))   # facing -x
+	await wait(0.3)
+	Input.action_press("move_forward")
+	await wait(1.6)
+	Game.player.rotation.y = PI   # facing +z, down the passage
+	await wait(2.2)
+	Game.player.rotation.y = deg_to_rad(90)
+	await wait(1.5)
+	Input.action_release("move_forward")
+	check(Game.player.global_position.x < -5.2 and Game.player.global_position.z > -13.0, "walked from the hub into the drying room (%s)" % Game.player.global_position)
+	for f in cz._figures:
+		f.global_position = f.get_meta("home")
 	Game.player.dread.set_values(20, 80)
 	Game.player.teleport(Transform3D(Basis(), Vector3(-6.5, 0.05, -7)))
 	var fig: Node3D = cz._figures[0]
+	look_at_point(fig.global_position + Vector3(0, 1.4, 0))
+	await wait(2.2)   # their grace period
 	var d0 := fig.global_position.distance_to(Game.player.global_position)
 	look_at_point(Vector3(-2, 1.5, -7))   # away from them
 	await wait(0.6)
