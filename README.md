@@ -3,8 +3,8 @@
 First-person psychological horror about lucid dreaming, unstable reality and subconscious fear.
 Made with **Godot 4.7** (free, open source, no account needed). Runs on Mac, Windows and Linux.
 
-This is **Milestone 1: the vertical slice**: bedroom → tutorial video → notebook → summer dream city
-(ice cream, people, the Observer) → falling into the yellow maze → DREAD → the ending of the slice.
+Playable now: bedroom → tutorial video → notebook → summer dream city (ice cream, people, the Observer)
+→ falling into the yellow maze → **THE DEEP**, the first fear realm (aquaphobia).
 
 ---
 
@@ -46,8 +46,17 @@ It takes effect when you enter the next area.
   Mina (the ice cream vendor with no ice cream), Mr. Halvorsen and his pigeons, Theo and his kite, the jogger.
   Some questions break the notebook's rules. The **Observer** stands at the far end of the avenue.
   He never moves while you watch him. Hold T to wake up.
+- **THE DEEP** (aquaphobia). The maze's exit door leads to a night-time swimming complex. The way out is a
+  door at the bottom of the diving well, which goes down much further than it should.
+  1. The PUMP ROOM door is jammed. Swim through the dark hole under the water at the far end of the main pool.
+  2. Pull the DRAIN lever. The water only goes down **while you watch the well** - look away and it refills.
+  3. Leave through the pump room door, step into the empty well and sink to the EXIT at the bottom.
+  Swimming: Space up, C dive, watch your breath. The main pool's water level changes when you aren't looking,
+  and the water sometimes shows a figure standing where nobody stands.
 - **The yellow maze.** You fall through the floor instead. Fluorescent hum, stained carpet, a maze that
   is always solvable but rearranges itself when you aren't looking. Your notebook has a sixth rule now.
+- **The Observer** glitches - slices of him shear and drop out. Spotting him raises DREAD by 25, and he
+  glitches out of existence a second or two later.
 - **DREAD** (fear + dream stability) drives vignette, desaturation, grain, flickering lights, a low drone,
   knocks behind you, how often the maze changes and when the Observer appears.
 - **The pause menu** may not be entirely a pause menu at very high DREAD.
@@ -69,11 +78,12 @@ data/                    dialogue, notebook rules, manifestable objects, tutoria
 scripts/autoload/        Game (story flow, zones, checkpoints, sequences, DREAD director)
                          Settings, Data, Sfx (procedural audio), Notebook, Dialogue, Anomalies
 scripts/core/            Observation ("is the player looking at this?"), Effects, Shapes, Interactable
-scripts/player/          Player controller, Dread, Manifestation, ManifestedObject
-scripts/world/           Zone (base + geometry builder), BedroomZone, CityZone, MazeZone
-scripts/npc/             NPC, Observer
+scripts/player/          Player controller (incl. swimming/breath), FPHands, Dread, Manifestation, ManifestedObject
+scripts/world/           Zone (base + geometry builder), BedroomZone, CityZone, MazeZone, DeepZone, water shader
+scripts/npc/             Human (procedural people), NPC, Observer (+ glitch shader)
 scripts/ui/              HUD, menus, notebook, tutorial video, DREAD post-process shader
-tests/flow_test.tscn     automated playthrough of the whole slice
+tests/flow_test.tscn     automated playthrough of everything, title to the end of THE DEEP
+tests/gallery.tscn       renders review screenshots of each area
 unreal/                  the earlier Unreal Engine 5 version (archived, ignored by Godot)
 ```
 
@@ -86,7 +96,9 @@ unreal/                  the earlier Unreal Engine 5 version (archived, ignored 
 - **Data-driven story.** Dialogue, rules, objects and the video script are JSON. Effects are strings like
   `fear:+10`, `rule:break:rule_tell`, `notebook:rewrite:rule_scary:spiral`, `observer:closer`.
   New Game reloads the JSON, so you can edit the story and test immediately.
-- **No assets.** Geometry is built from primitives, all audio is synthesised at startup, all UI is code.
+- **No assets.** Geometry is built from primitives with procedural surface textures (tiles, wallpaper, wood,
+  carpet, concrete, fabric), people are articulated procedural bodies with faces, the first-person hands are
+  procedural too, all audio and music is synthesised at startup, all UI is code.
   Everything can be read, diffed and reviewed as text. Real art can replace pieces later.
 
 ## Testing

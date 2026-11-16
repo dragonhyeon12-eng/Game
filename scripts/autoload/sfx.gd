@@ -19,6 +19,14 @@ var _music_fade_speed := 0.5
 var _music_levels := [0.0, 0.0]
 var _music_targets := [0.0, 0.0]
 var _music_thread: Thread
+var _lowpass_index := -1
+var _muffled := false
+
+
+func set_muffled(on: bool) -> void:
+	if on != _muffled and _lowpass_index >= 0:
+		_muffled = on
+		AudioServer.set_bus_effect_enabled(0, _lowpass_index, on)
 
 
 func _ready() -> void:
@@ -37,6 +45,12 @@ func _ready() -> void:
 		_music_players.append(m)
 	_music_thread = Thread.new()
 	_music_thread.start(_build_music)
+	# underwater: everything muffled
+	var lowpass := AudioEffectLowPassFilter.new()
+	lowpass.cutoff_hz = 600.0
+	AudioServer.add_bus_effect(0, lowpass)
+	_lowpass_index = AudioServer.get_bus_effect_count(0) - 1
+	AudioServer.set_bus_effect_enabled(0, _lowpass_index, false)
 
 
 func _exit_tree() -> void:
@@ -89,6 +103,7 @@ func _build_music() -> void:
 	call_deferred("_music_ready", "title", _to_wav(_track_title(), true))
 	call_deferred("_music_ready", "city", _to_wav(_track_city(), true))
 	call_deferred("_music_ready", "maze", _to_wav(_track_maze(), true))
+	call_deferred("_music_ready", "deep", _to_wav(_track_deep(), true))
 	print("Sfx: music generated in %d ms (background thread)" % (Time.get_ticks_msec() - t0))
 
 
@@ -164,6 +179,31 @@ func _track_title() -> PackedFloat32Array:
 		_bell(buf, i * 1.5, melody[i], 0.07, 3.5)
 		if i % 4 == 0:
 			_bell(buf, i * 1.5 + 0.75, melody[i] + 12, 0.025, 2.5)
+	return buf
+
+
+## THE DEEP: slow, sinking glides far below, like something very large singing underwater.
+func _track_deep() -> PackedFloat32Array:
+	var length := 48.0
+	var n := int(length * RATE)
+	var buf := PackedFloat32Array()
+	buf.resize(n)
+	var lp := 0.0
+	for i in n:
+		var t := float(i) / RATE
+		var u := t / length
+		var a := sin(TAU * 41.2 * t) * 0.5 + sin(TAU * 61.7 * t) * 0.3
+		# a slow two-note call that slides down
+		var call_env := maxf(0.0, sin(TAU * u * 2.0)) * maxf(0.0, sin(TAU * u * 2.0))
+		var glide := 98.0 - 18.0 * fmod(u * 2.0, 1.0)
+		a += sin(TAU * glide * t) * 0.25 * call_env
+		lp += (_noise() - lp) * 0.004
+		buf[i] = (a * 0.12 + lp * 0.9) * (0.7 + 0.3 * sin(TAU * u))
+	# distant metallic pings
+	var r := RandomNumberGenerator.new()
+	r.seed = 77
+	for k in 7:
+		_bell(buf, r.randf_range(0.0, length), r.randf_range(80.0, 92.0), 0.025, 5.0)
 	return buf
 
 
@@ -281,6 +321,11 @@ func _build_all() -> void:
 	streams["whoosh"] = _to_wav(_whoosh(), false)
 	streams["bite"] = _to_wav(_bite(), false)
 	streams["chirp"] = _to_wav(_chirps(), false)
+	streams["static"] = _to_wav(_static(2.0), true)
+	streams["water_lap"] = _to_wav(_water_lap(5.0), true)
+	streams["gurgle"] = _to_wav(_gurgle(3.0), true)
+	streams["drip"] = _to_wav(_drip(), false)
+	streams["splash"] = _to_wav(_splash(), false)
 	print("Sfx: synthesized %d sounds in %d ms" % [streams.size(), Time.get_ticks_msec() - t0])
 
 
@@ -491,6 +536,89 @@ func _bite() -> PackedFloat32Array:
 		var t := float(i) / RATE
 		var on := 1.0 if (t < 0.05 or (t > 0.07 and t < 0.12)) else 0.0
 		s[i] = _noise() * on * 0.3
+	return s
+
+
+## Digital crackle: gated bursts of noise and a thin buzzing tone.
+func _static(sec: float) -> PackedFloat32Array:
+	var n := int(sec * RATE)
+	var s := PackedFloat32Array()
+	s.resize(n)
+	var gate := 0.0
+	var hold := 0
+	for i in n:
+		if hold <= 0:
+			gate = 1.0 if _rng.randf() < 0.35 else 0.15
+			hold = _rng.randi_range(200, 2400)
+		hold -= 1
+		var t := float(i) / RATE
+		var buzz := signf(sin(TAU * 60.0 * t)) * 0.08
+		s[i] = (_noise() * 0.35 + buzz) * gate
+	return s
+
+
+func _water_lap(sec: float) -> PackedFloat32Array:
+	var n := int(sec * RATE)
+	var s := PackedFloat32Array()
+	s.resize(n + 3000)
+	var lp := 0.0
+	var lp2 := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		lp += (_noise() - lp) * 0.05
+		lp2 += (lp - lp2) * 0.1
+		var lap := maxf(0.0, sin(TAU * t * 0.7)) * maxf(0.0, sin(TAU * t * 0.23 + 1.0))
+		s[i] = lp2 * (0.6 + 2.2 * lap)
+	_seam(s, 3000)
+	return s
+
+
+func _gurgle(sec: float) -> PackedFloat32Array:
+	var n := int(sec * RATE)
+	var s := PackedFloat32Array()
+	s.resize(n + 2000)
+	var lp := 0.0
+	var bubble_f := 300.0
+	var bubble_t := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		lp += (_noise() - lp) * 0.02
+		bubble_t -= 1.0 / RATE
+		if bubble_t <= 0.0:
+			bubble_t = _rng.randf_range(0.03, 0.15)
+			bubble_f = _rng.randf_range(150.0, 500.0)
+		var b := sin(TAU * bubble_f * (1.0 + t * 0.0) * bubble_t * 6.0) * exp(-bubble_t * 4.0)
+		s[i] = lp * 2.0 + b * 0.15
+	_seam(s, 2000)
+	return s
+
+
+func _drip() -> PackedFloat32Array:
+	var n := int(0.9 * RATE)
+	var s := PackedFloat32Array()
+	s.resize(n)
+	var f0 := _rng.randf_range(900.0, 1400.0)
+	var phase := 0.0
+	for i in n:
+		var t := float(i) / RATE
+		phase += TAU * (f0 + 1400.0 * minf(t, 0.03) / 0.03) / RATE
+		var hit := sin(phase) * exp(-t * 35.0) * 0.5
+		# a long, hollow echo
+		var echo: float = sin(phase * 0.5) * exp(-maxf(0.0, t - 0.18) * 9.0) * 0.15 * (1.0 if t > 0.18 else 0.0)
+		s[i] = hit + echo
+	return s
+
+
+func _splash() -> PackedFloat32Array:
+	var n := int(0.8 * RATE)
+	var s := PackedFloat32Array()
+	s.resize(n)
+	var lp := 0.0
+	for i in n:
+		var t := float(i) / RATE
+		var x := _noise()
+		lp += (x - lp) * (0.4 - t * 0.4)
+		s[i] = lp * exp(-t * 5.0) * 0.9
 	return s
 
 

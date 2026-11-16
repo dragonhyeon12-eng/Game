@@ -23,6 +23,8 @@ var _line: Label
 var _choices: VBoxContainer
 var _overlay: Control
 var _fade: ColorRect
+var _underwater: ColorRect
+var _breath_bar: ProgressBar
 var _card_box: VBoxContainer
 var _card_big: Label
 var _card_small: Label
@@ -81,6 +83,11 @@ func _build() -> void:
 	_post.material = _post_mat
 	root.add_child(_post)
 
+	_underwater = _full(ColorRect.new())
+	_underwater.color = Color(0.02, 0.22, 0.28, 0.55)
+	_underwater.visible = false
+	root.add_child(_underwater)
+
 	_crosshair = ColorRect.new()
 	_crosshair.size = Vector2(4, 4)
 	_crosshair.set_anchors_preset(Control.PRESET_CENTER)
@@ -109,6 +116,14 @@ func _build() -> void:
 	_hold_bar = _bar(240, 4, UIStyle.ACCENT)
 	_hold_box.add_child(_hold_bar)
 	root.add_child(_hold_box)
+
+	_breath_bar = _bar(200, 5, Color(0.6, 0.9, 1.0, 0.9))
+	_breath_bar.set_anchors_preset(Control.PRESET_CENTER)
+	_breath_bar.offset_left = -100
+	_breath_bar.offset_right = 100
+	_breath_bar.offset_top = 40
+	_breath_bar.offset_bottom = 45
+	root.add_child(_breath_bar)
 
 	_hint_panel = PanelContainer.new()
 	_hint_panel.add_theme_stylebox_override("panel", UIStyle.panel_style())
@@ -223,6 +238,12 @@ func _process(delta: float) -> void:
 	_hint_panel.visible = gameplay and _hint_t > 0.0
 	_hint_panel.modulate.a = clampf(_hint_t / 0.6, 0.0, 1.0)
 
+	if player:
+		_underwater.visible = player.underwater
+		_underwater.color.a = 0.55 + 0.25 * (1.0 - player.breath)
+		_breath_bar.visible = gameplay and player.breath < 0.999
+		_breath_bar.value = player.breath
+		(_breath_bar.get_theme_stylebox("fill") as StyleBoxFlat).bg_color = Color(0.6, 0.9, 1.0, 0.9) if player.breath > 0.3 else Color(0.9, 0.2, 0.15, 0.95)
 	_meter_box.visible = gameplay and player != null and Settings.show_dread_meter and Game.zone_type != "bedroom"
 	if player:
 		var a: float = player.dread.alpha()

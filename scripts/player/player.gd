@@ -15,6 +15,7 @@ var head: Node3D
 var hold_point: Node3D
 var dread: Dread
 var manifestation: Manifestation
+var hands: FPHands
 var ray: RayCast3D
 
 var controls_locked := true
@@ -24,6 +25,12 @@ var surface := "concrete"   # footstep sound set, chosen by the zone
 var phasing := false
 
 var focused: Object = null
+var swimming := false
+var underwater := false
+## 1 = full lungs, 0 = nothing left
+var breath := 1.0
+const BREATH_SECONDS := 22.0
+const SWIM_SPEED := 2.2
 var manifest_hold := -1.0
 var wake_hold := -1.0
 
@@ -60,9 +67,9 @@ func _init() -> void:
 	camera.far = 800.0
 	head.add_child(camera)
 
-	hold_point = Node3D.new()
-	hold_point.position = Vector3(0.16, -0.17, -0.42)
-	camera.add_child(hold_point)
+	hands = FPHands.new()
+	hands.name = "Hands"
+	camera.add_child(hands)
 
 	ray = RayCast3D.new()
 	ray.target_position = Vector3(0, 0, -INTERACT_RANGE)
@@ -82,6 +89,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	hold_point = hands.right_socket
 	ray.add_exception(self)
 	_drone.stream = Sfx.streams.get("drone")
 	_drone.volume_db = -80.0
@@ -131,6 +139,7 @@ func set_phasing(on: bool) -> void:
 
 
 func reset_presentation() -> void:
+	hands.conjuring = false
 	_hands_t = -1.0
 	for h in _hands:
 		h.visible = false
@@ -166,6 +175,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		rotate_y(-event.relative.x * s)
 		_pitch = clampf(_pitch - event.relative.y * s * (-1.0 if Settings.invert_y else 1.0), deg_to_rad(-88), deg_to_rad(88))
 		head.rotation.x = _pitch
+		hands.add_sway(event.relative)
 	elif event.is_action_pressed("interact"):
 		_interact()
 	elif event.is_action_pressed("use_item"):
@@ -176,7 +186,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		manifestation.cycle(1)
 	elif event.is_action_pressed("cycle_prev"):
 		manifestation.cycle(-1)
-	elif event.is_action_pressed("crouch"):
+	elif event.is_action_pressed("crouch") and not swimming:
 		_set_crouch(not _crouched)
 	elif event.is_action_pressed("manifest"):
 		manifest_hold = 0.0
@@ -192,6 +202,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _interact() -> void:
 	if focused and is_instance_valid(focused) and focused.can_interact():
+		hands.reach()
 		focused.interact()
 
 
@@ -215,6 +226,12 @@ func _physics_process(delta: float) -> void:
 			head.rotation.x = _pitch
 
 	var input := Vector2.ZERO if controls_locked else Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	if _update_water(delta, input):
+		_update_camera(delta)
+		_update_holds(delta)
+		_update_hands(delta)
+		_update_focus()
+		return
 	var sprinting := Input.is_action_pressed("sprint") and not controls_locked and not _crouched
 	var speed := (1.4 if _crouched else (sprint_speed if sprinting else walk_speed))
 	var dir := (transform.basis * Vector3(input.x, 0, input.y))
@@ -225,7 +242,10 @@ func _physics_process(delta: float) -> void:
 	velocity.x = lerpf(velocity.x, dir.x * speed, clampf(accel * delta, 0.0, 1.0))
 	velocity.z = lerpf(velocity.z, dir.z * speed, clampf(accel * delta, 0.0, 1.0))
 	if not is_on_floor() or phasing:
-		velocity.y -= GRAVITY * delta
+		var gs: float = Game.zone.gravity_scale_at(global_position) if Game.zone else 1.0
+		velocity.y -= GRAVITY * gs * delta
+		if Game.zone:
+			velocity.y = maxf(velocity.y, -Game.zone.max_fall_at(global_position))
 	elif Input.is_action_just_pressed("jump") and not controls_locked and not _crouched:
 		velocity.y = JUMP_SPEED
 	else:
@@ -236,7 +256,55 @@ func _physics_process(delta: float) -> void:
 	_update_footsteps(delta)
 	_update_holds(delta)
 	_update_hands(delta)
+	hands.pose_right = "hold" if manifestation.held != null else "relaxed"
+	hands.conjuring = manifest_hold >= 0.0 and not controls_locked
 	_update_focus()
+
+
+## Swimming: returns true when it handled movement this frame.
+func _update_water(delta: float, input: Vector2) -> bool:
+	var level: float = Game.zone.water_level_at(global_position + Vector3.UP * 0.9) if Game.zone and not phasing else -INF
+	var was := swimming
+	swimming = global_position.y + 1.0 < level
+	underwater = camera.global_position.y < level
+	# breath
+	if underwater:
+		breath = maxf(0.0, breath - delta / BREATH_SECONDS)
+		if breath < 0.3:
+			dread.add_fear((22.0 if breath <= 0.0 else 4.0) * delta, "drowning")
+	else:
+		if breath < 0.5 and not controls_locked and was:
+			Sfx.play("whoosh", -14.0, 2.4)   # a gasp
+		breath = minf(1.0, breath + delta / 3.0)
+	if swimming != was:
+		var cap := _shape.shape as CapsuleShape3D
+		cap.height = 0.9 if swimming else (1.1 if _crouched else 1.76)
+		_shape.position.y = cap.height * 0.5 + (0.4 if swimming else 0.0)
+		if swimming:
+			Sfx.play("splash", -6.0)
+	if not swimming:
+		return false
+
+	var vert := 0.0
+	if not controls_locked:
+		if Input.is_action_pressed("jump"): vert += 1.0
+		if Input.is_action_pressed("crouch"): vert -= 1.0
+	var wish: Vector3 = camera.global_transform.basis * Vector3(input.x, 0, input.y) + Vector3.UP * vert
+	var target := wish.limit_length(1.0) * SWIM_SPEED
+	var eye_depth := level - camera.global_position.y
+	if vert == 0.0 and input.length() < 0.1:
+		target.y += 0.8  # you float up, slowly
+	if eye_depth < 0.35 and vert >= 0.0:
+		# at the surface: keep the head out of the water
+		target.y = clampf((level - 1.25 - global_position.y) * 3.0, -1.0, 1.0)
+		if not controls_locked and Input.is_action_just_pressed("jump"):
+			velocity.y = 5.0  # pull yourself out
+			swimming = false
+			move_and_slide()
+			return true
+	velocity = velocity.lerp(target, clampf(delta * 4.0, 0.0, 1.0))
+	move_and_slide()
+	return true
 
 
 func _update_camera(delta: float) -> void:

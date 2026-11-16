@@ -240,23 +240,105 @@ func _run() -> void:
 	check(Game.zone_type == "maze" and Game.mode == "game", "back at the maze checkpoint")
 	check(absf(Game.player.dread.fear - 30.0) < 6.0, "fear reset to ~30")
 
-	print("== maze exit")
+	print("== maze exit -> THE DEEP")
 	var exit_found := false
 	for c in Game.zone.get_children():
 		if c is Interactable and c.get_prompt() == "Open the door":
 			exit_found = true
 			c.interact()
 	check(exit_found, "exit door exists")
-	await wait(7.0)
-	await shot("slice_end")
-	await wait(8.5)
+	await wait(5.0)
+	await shot("nightmare_begins")
+	await wait(6.0)
+	check(Game.zone_type == "deep", "arrived in THE DEEP")
+	check(Game.mode == "game", "control in THE DEEP")
+	check(Notebook.state.has("deep_watch") and Notebook.state["deep_watch"].pending, "a new line waits in the notebook")
+	var deep: DeepZone = Game.zone
+	Game.player.dread.set_values(30, 70)
+	await wait(1.0)
+	await shot("deep_arrival")
+
+	print("== spotting the Observer (+25 DREAD)")
+	var dobs: Observer = deep.observer
+	Game.player.teleport(Transform3D(Basis(Vector3.UP, PI), Vector3(-6, 0.05, 12)))
+	await wait(0.3)
+	check(dobs.try_appear_at(Vector3(-6, 0, 3)), "observer appears where you are not looking")
+	var before_dread := Game.player.dread.value()
+	look_at_point(Vector3(-6, 1.2, 3))
+	await wait(0.8)
+	check(dobs.spotted, "observer spotted")
+	check(Game.player.dread.value() - before_dread > 20.0, "spotting raised DREAD by ~25 (%.1f)" % (Game.player.dread.value() - before_dread))
+	await shot("observer_spotted")
+	await wait(2.6)
+	check(not dobs.is_present(), "he glitched away within a couple of seconds")
+	Game.player.dread.set_values(30, 70)
+
+	print("== swimming")
+	deep.main_level = DeepZone.REST
+	Game.player.teleport(Transform3D(Basis(Vector3.UP, deg_to_rad(90)), Vector3(-10, -1.9, 0)))
+	Input.action_press("crouch")   # dive
+	await wait(1.2)
+	check(Game.player.swimming and Game.player.underwater, "swimming underwater")
+	check(Game.player.breath < 1.0, "holding breath (%.2f)" % Game.player.breath)
+	await shot("underwater")
+	Input.action_release("crouch")
+	await wait(2.0)
+	check(Game.player.swimming and not Game.player.underwater, "floated back up to the surface")
+
+	print("== the tunnel")
+	Game.player.teleport(Transform3D(Basis(Vector3.UP, deg_to_rad(90)), Vector3(-25.2, -1.7, 0)))
+	await wait(2.5)
+	check(Game.player.global_position.x > 32.0, "the tunnel surfaced in the pump room (x=%.1f)" % Game.player.global_position.x)
+
+	print("== the drain")
+	var lever_found := false
+	for c in deep.get_children():
+		if c is Interactable and c.get_prompt() == "Pull the DRAIN lever":
+			lever_found = true
+			c.interact()
+	check(lever_found and deep.lever_pulled, "pulled the drain lever")
+	deep.drain_rate_override = 12.0
+	Game.player.teleport(Transform3D(Basis(), Vector3(33.6, 0.05, -2)))
+	look_at_point(Vector3(38, 1.4, 2))
+	await wait(1.5)
+	check(deep.well_level > -1.0, "looking away: the water does not go down (%.1f)" % deep.well_level)
+	look_at_point(Vector3(18, -1.0, 0))
+	await wait(1.0)
+	check(deep.well_level < -3.0, "watching: the water drains (%.1f)" % deep.well_level)
+	await shot("watching_the_drain")
+	await wait(3.5)
+	check(deep.drained, "the deep pool is empty")
+	for c in deep.get_children():
+		if c is Interactable and c.get_prompt() == "Pump room door":
+			c.interact()
+	await wait(0.3)
+	check(not deep._pump_door.visible, "the pump room door opens from inside")
+
+	print("== down into the well")
+	Game.player.teleport(Transform3D(Basis(), Vector3(18, 0.2, 2)))
+	await wait(4.0)
+	var mid_y := Game.player.global_position.y
+	check(mid_y < -3.0 and mid_y > -25.0, "sinking slowly (y=%.1f)" % mid_y)
+	await wait(9.0)
+	check(Game.player.global_position.y < -28.0, "reached the bottom (y=%.1f)" % Game.player.global_position.y)
+	look_at_point(Vector3(18, -29, -7))
+	await wait(0.3)
+	await shot("well_bottom")
+	var deep_exit := false
+	for c in deep.get_children():
+		if c is Interactable and c.get_prompt() == "Open the door":
+			deep_exit = true
+			c.interact()
+	check(deep_exit, "found the way out")
+	await wait(8.0)
+	await shot("deep_end")
+	await wait(8.0)
 	check(Game.zone_type == "bedroom" and Game.hud.menu_open(), "returned to title")
 
 	print("== continue from checkpoint")
 	Game.continue_game()
 	await wait(1.0)
-	check(Game.zone_type == "maze", "continue restores the maze")
-	check(Notebook.build_page().size() == 5 and Notebook.state["never_twice"].pending, "notebook restored from save (rule 6 still pending)")
+	check(Game.zone_type == "deep", "continue restores THE DEEP")
 
 	if failures.is_empty():
 		print("FLOW TEST PASSED")

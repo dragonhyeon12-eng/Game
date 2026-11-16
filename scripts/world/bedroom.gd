@@ -10,7 +10,7 @@ extends Zone
 var waking := false
 var _desk_notebook: MeshInstance3D
 
-const WALL := Color(0.36, 0.39, 0.46)
+const WALL := Color(0.42, 0.45, 0.52)
 const FLOOR := Color(0.30, 0.19, 0.11)
 const CEILING := Color(0.75, 0.75, 0.73)
 const WOOD := Color(0.24, 0.15, 0.09)
@@ -43,16 +43,16 @@ func build() -> void:
 
 
 func _room() -> void:
-	box(Vector3(0, -0.1, 0), Vector3(5.6, 0.2, 4.8), FLOOR)
-	box(Vector3(0, 2.7, 0), Vector3(5.6, 0.2, 4.8), CEILING)
-	box(Vector3(-2.7, 1.3, 0), Vector3(0.2, 2.6, 4.8), WALL)
-	box(Vector3(2.7, 1.3, 0), Vector3(0.2, 2.6, 4.8), WALL)
-	box(Vector3(0, 1.3, 2.3), Vector3(5.6, 2.6, 0.2), WALL)
+	box(Vector3(0, -0.1, 0), Vector3(5.6, 0.2, 4.8), FLOOR, true, 0.0, "wood")
+	box(Vector3(0, 2.7, 0), Vector3(5.6, 0.2, 4.8), CEILING, true, 0.0, "plaster")
+	box(Vector3(-2.7, 1.3, 0), Vector3(0.2, 2.6, 4.8), WALL, true, 0.0, "wallpaper")
+	box(Vector3(2.7, 1.3, 0), Vector3(0.2, 2.6, 4.8), WALL, true, 0.0, "wallpaper")
+	box(Vector3(0, 1.3, 2.3), Vector3(5.6, 2.6, 0.2), WALL, true, 0.0, "wallpaper")
 	# -Z wall with a window opening (X -0.1..1.3, Y 0.9..2.0)
-	box(Vector3(-1.45, 1.3, -2.3), Vector3(2.7, 2.6, 0.2), WALL)
-	box(Vector3(2.05, 1.3, -2.3), Vector3(1.5, 2.6, 0.2), WALL)
-	box(Vector3(0.6, 0.45, -2.3), Vector3(1.4, 0.9, 0.2), WALL)
-	box(Vector3(0.6, 2.3, -2.3), Vector3(1.4, 0.6, 0.2), WALL)
+	box(Vector3(-1.45, 1.3, -2.3), Vector3(2.7, 2.6, 0.2), WALL, true, 0.0, "wallpaper")
+	box(Vector3(2.05, 1.3, -2.3), Vector3(1.5, 2.6, 0.2), WALL, true, 0.0, "wallpaper")
+	box(Vector3(0.6, 0.45, -2.3), Vector3(1.4, 0.9, 0.2), WALL, true, 0.0, "wallpaper")
+	box(Vector3(0.6, 2.3, -2.3), Vector3(1.4, 0.6, 0.2), WALL, true, 0.0, "wallpaper")
 	box(Vector3(0.6, 0.88, -2.22), Vector3(1.5, 0.05, 0.3), TRIM)
 	box(Vector3(0.6, 2.0, -2.3), Vector3(1.46, 0.05, 0.08), TRIM, false)
 	box(Vector3(-0.12, 1.45, -2.3), Vector3(0.05, 1.15, 0.08), TRIM, false)
@@ -60,8 +60,8 @@ func _room() -> void:
 	box(Vector3(0.6, 1.45, -2.3), Vector3(0.03, 1.1, 0.07), TRIM, false)
 	box(Vector3(0.6, 1.45, -2.3), Vector3(1.4, 0.03, 0.05), TRIM, false)
 	# curtains, half drawn
-	box(Vector3(-0.3, 1.5, -2.14), Vector3(0.4, 1.3, 0.06), Color(0.25, 0.12, 0.15), false)
-	box(Vector3(1.5, 1.5, -2.14), Vector3(0.3, 1.3, 0.06), Color(0.25, 0.12, 0.15), false)
+	box(Vector3(-0.3, 1.5, -2.14), Vector3(0.4, 1.3, 0.06), Color(0.25, 0.12, 0.15), false, 0.0, "fabric")
+	box(Vector3(1.5, 1.5, -2.14), Vector3(0.3, 1.3, 0.06), Color(0.25, 0.12, 0.15), false, 0.0, "fabric")
 	# outside: night sky, rooftops, one lit window across the road, the moon
 	box(Vector3(0.6, 3.0, -16), Vector3(40, 24, 0.2), Color(0.012, 0.017, 0.045), false)
 	box(Vector3(-2.0, 0.0, -9), Vector3(5, 5, 3), Color(0.02, 0.02, 0.025), false)
@@ -72,20 +72,19 @@ func _room() -> void:
 	box(Vector3(-2.59, 0.05, 0), Vector3(0.02, 0.1, 4.4), TRIM, false)
 	box(Vector3(2.59, 0.05, 0), Vector3(0.02, 0.1, 4.4), TRIM, false)
 	box(Vector3(0, 0.05, 2.19), Vector3(5.2, 0.1, 0.02), TRIM, false)
-	box(Vector3(0, 0.006, 0), Vector3(2.3, 0.012, 1.7), Color(0.38, 0.16, 0.14), false)
+	box(Vector3(0, 0.006, 0), Vector3(2.3, 0.012, 1.7), Color(0.38, 0.16, 0.14), false, 0.0, "carpet")
 	box(Vector3(-0.8, 1.6, 2.185), Vector3(0.6, 0.85, 0.02), Color(0.12, 0.2, 0.35), false)
 	box(Vector3(-0.8, 1.75, 2.17), Vector3(0.4, 0.3, 0.01), Color(0.8, 0.55, 0.2), false)
 	box(Vector3(2.585, 1.7, 0.9), Vector3(0.02, 0.4, 0.55), Color(0.5, 0.6, 0.45), false)
 	# door on +Z wall
-	box(Vector3(1.5, 1.0, 2.19), Vector3(0.92, 2.02, 0.04), Color(0.52, 0.47, 0.42))
-	shape_at("sphere", Vector3(1.12, 1.0, 2.14), Vector3.ONE * 0.06, Color(0.7, 0.65, 0.45))
+	door(Vector3(1.5, 0, 2.17), 180, Color(0.62, 0.56, 0.5))
 
 
 func _furniture() -> void:
 	# desk against -X wall
-	box(Vector3(-2.25, 0.74, -0.8), Vector3(0.7, 0.04, 1.5), WOOD)
+	box(Vector3(-2.25, 0.74, -0.8), Vector3(0.7, 0.04, 1.5), WOOD, true, 0.0, "wood")
 	for p in [Vector2(-2.55, -1.5), Vector2(-1.95, -1.5), Vector2(-2.55, -0.1), Vector2(-1.95, -0.1)]:
-		box(Vector3(p.x, 0.36, p.y), Vector3(0.04, 0.72, 0.04), DARK_WOOD)
+		box(Vector3(p.x, 0.36, p.y), Vector3(0.04, 0.72, 0.04), DARK_WOOD, true, 0.0, "wood")
 	# monitor
 	shape_at("cylinder", Vector3(-2.42, 0.77, -0.8), Vector3(0.18, 0.02, 0.18), PLASTIC)
 	box(Vector3(-2.44, 0.86, -0.8), Vector3(0.04, 0.16, 0.04), PLASTIC, false)
@@ -112,16 +111,16 @@ func _furniture() -> void:
 	shape_at("cylinder", Vector3(-1.65, 0.22, -0.8), Vector3(0.05, 0.4, 0.05), PLASTIC)
 	shape_at("cylinder", Vector3(-1.65, 0.03, -0.8), Vector3(0.5, 0.04, 0.5), PLASTIC)
 	# bed along +X wall
-	box(Vector3(2.0, 0.18, -1.02), Vector3(1.12, 0.26, 2.06), DARK_WOOD)
-	box(Vector3(2.0, 0.4, -1.0), Vector3(1.02, 0.18, 1.94), Color(0.82, 0.82, 0.8))
-	box(Vector3(2.0, 0.54, -1.78), Vector3(0.62, 0.11, 0.32), Color(0.88, 0.88, 0.86), false)
-	box(Vector3(2.0, 0.51, -0.78), Vector3(1.04, 0.05, 1.4), Color(0.16, 0.3, 0.36), false)
-	box(Vector3(2.0, 0.62, -2.08), Vector3(1.12, 0.9, 0.08), DARK_WOOD)
-	box(Vector3(2.25, 0.28, 0.3), Vector3(0.5, 0.56, 0.45), WOOD)
+	box(Vector3(2.0, 0.18, -1.02), Vector3(1.12, 0.26, 2.06), DARK_WOOD, true, 0.0, "wood")
+	box(Vector3(2.0, 0.4, -1.0), Vector3(1.02, 0.18, 1.94), Color(0.82, 0.82, 0.8), true, 0.0, "fabric")
+	box(Vector3(2.0, 0.54, -1.78), Vector3(0.62, 0.11, 0.32), Color(0.88, 0.88, 0.86), false, 0.0, "fabric")
+	box(Vector3(2.0, 0.51, -0.78), Vector3(1.04, 0.05, 1.4), Color(0.16, 0.3, 0.36), false, 0.0, "fabric")
+	box(Vector3(2.0, 0.62, -2.08), Vector3(1.12, 0.9, 0.08), DARK_WOOD, true, 0.0, "wood")
+	box(Vector3(2.25, 0.28, 0.3), Vector3(0.5, 0.56, 0.45), WOOD, true, 0.0, "wood")
 	# wardrobe with the covered mirror
-	box(Vector3(2.25, 1.0, 1.4), Vector3(0.7, 2.0, 1.3), WOOD)
+	box(Vector3(2.25, 1.0, 1.4), Vector3(0.7, 2.0, 1.3), WOOD, true, 0.0, "wood")
 	box(Vector3(1.893, 1.15, 1.4), Vector3(0.016, 1.0, 0.56), Color(0.55, 0.6, 0.62), false, 0.0, 0.1)
-	box(Vector3(1.872, 1.28, 1.4), Vector3(0.02, 0.82, 0.62), Color(0.82, 0.8, 0.74), false)
+	box(Vector3(1.872, 1.28, 1.4), Vector3(0.02, 0.82, 0.62), Color(0.82, 0.8, 0.74), false, 0.0, "fabric")
 	box(Vector3(1.86, 1.69, 1.4), Vector3(0.04, 0.06, 0.66), Color(0.78, 0.76, 0.7), false)
 
 

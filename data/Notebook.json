@@ -13,9 +13,7 @@
 			"order": 20,
 			"text": "Don't think about anything scary.",
 			"style": "Player",
-			"variants": [
-				{ "id": "spiral", "text": "Don't think about anything scary. Don't think about it. Don't think about it. Don't", "style": "Player" }
-			],
+			"variants": [ { 	"id": "spiral", 	"text": "Don't think about anything scary. Don't think about it. Don't think about it. Don't", 	"style": "Player" } ],
 			"onBreak": [ "fear:+6" ]
 		},
 		{
@@ -54,6 +52,12 @@
 			"id": "maze_hint",
 			"order": 70,
 			"text": "follow the hum.",
+			"style": "Unknown"
+		},
+		{
+			"id": "deep_watch",
+			"order": 80,
+			"text": "the water only goes down while someone is watching it.",
 			"style": "Unknown"
 		}
 	]

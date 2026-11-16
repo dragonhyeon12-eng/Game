@@ -42,6 +42,7 @@ var _pigeon_freeze := 0.0
 var _saw_lottery := false
 var _next_chirp := 2.0
 var _water: Node3D
+var _observer_return := -1.0   # seconds until he reappears somewhere far away
 
 
 func zone_id() -> String: return "city"
@@ -83,10 +84,10 @@ func build() -> void:
 # ------------------------------------------------------------------ geometry
 
 func _ground() -> void:
-	box(Vector3(0, -0.25, 0), Vector3(800, 0.5, 800), ASPHALT)
+	box(Vector3(0, -0.25, 0), Vector3(800, 0.5, 800), ASPHALT, true, 0.0, "concrete")
 	for i in range(-HALF, HALF + 1):
 		for j in range(-HALF, HALF + 1):
-			box(Vector3(i * PITCH, CURB * 0.5, j * PITCH), Vector3(BLOCK, CURB, BLOCK), PAVEMENT)
+			box(Vector3(i * PITCH, CURB * 0.5, j * PITCH), Vector3(BLOCK, CURB, BLOCK), PAVEMENT, true, 0.0, "pavers")
 	for k in range(-HALF, HALF):
 		var mid := (k + 0.5) * PITCH
 		var t := -90.0
@@ -118,12 +119,12 @@ func _buildings() -> void:
 					var z := c.z - lot * 0.5 + d * 0.5 + b * (d + gap)
 					var h := rng.randf_range(9.0, 23.0) if near_park else rng.randf_range(16.0, 48.0)
 					var facade: Color = FACADES[rng.randi() % FACADES.size()]
-					box(Vector3(x, c.y + h * 0.5, z), Vector3(w, h, d), facade)
+					box(Vector3(x, c.y + h * 0.5, z), Vector3(w, h, d), facade, true, 0.0, "plaster")
 					box(Vector3(x, c.y + 1.25, z), Vector3(w + 0.1, 2.5, d + 0.1), facade.darkened(0.45), false)
 					box(Vector3(x, c.y + 2.68, z), Vector3(w + 0.7, 0.1, d + 0.7), FACADES[rng.randi() % FACADES.size()], false)
 					var y := 3.8
 					while y < h - 2.0:
-						box(Vector3(x, c.y + y, z), Vector3(w + 0.08, 1.5, d + 0.08), GLASS, false, 0.0, 0.25)
+						box(Vector3(x, c.y + y, z), Vector3(w + 0.08, 1.5, d + 0.08), GLASS, false, 0.0, "glass")
 						y += 3.6
 					box(Vector3(x, c.y + h + 0.12, z), Vector3(w + 0.16, 0.24, d + 0.16), TRIM, false)
 					if rng.randf() < 0.6:
@@ -173,8 +174,8 @@ func _tree(base: Vector3, s: float, variant: int) -> void:
 func _bench(center: Vector3, yaw: float) -> void:
 	var r := Basis(Vector3.UP, deg_to_rad(yaw))
 	var slat := Color(0.5, 0.32, 0.18)
-	box(center + r * Vector3(0, 0.45, 0), Vector3(1.8, 0.08, 0.5), slat, true, yaw)
-	box(center + r * Vector3(0, 0.75, -0.24), Vector3(1.8, 0.45, 0.06), slat, false, yaw)
+	box(center + r * Vector3(0, 0.45, 0), Vector3(1.8, 0.08, 0.5), slat, true, yaw, "wood")
+	box(center + r * Vector3(0, 0.75, -0.24), Vector3(1.8, 0.45, 0.06), slat, false, yaw, "wood")
 	box(center + r * Vector3(-0.8, 0.22, 0), Vector3(0.06, 0.44, 0.46), METAL, false, yaw)
 	box(center + r * Vector3(0.8, 0.22, 0), Vector3(0.06, 0.44, 0.46), METAL, false, yaw)
 
@@ -227,9 +228,9 @@ func _streets() -> void:
 
 func _park() -> void:
 	var inner := BLOCK - 2.0 * SIDEWALK
-	box(Vector3(0, GRASS_Y - 0.01, 0), Vector3(inner, 0.02, inner), GRASS, false)
-	box(Vector3(0, GRASS_Y + 0.005, 0), Vector3(inner, 0.02, 2.6), PATH, false)
-	box(Vector3(0, GRASS_Y + 0.02, 0), Vector3(2.6, 0.02, inner), PATH, false)
+	box(Vector3(0, GRASS_Y - 0.01, 0), Vector3(inner, 0.02, inner), GRASS, false, 0.0, "grass")
+	box(Vector3(0, GRASS_Y + 0.005, 0), Vector3(inner, 0.02, 2.6), PATH, false, 0.0, "concrete")
+	box(Vector3(0, GRASS_Y + 0.02, 0), Vector3(2.6, 0.02, inner), PATH, false, 0.0, "concrete")
 	# low hedges with gaps for the paths
 	var e := inner * 0.5
 	var length := e - 2.2
@@ -240,7 +241,7 @@ func _park() -> void:
 		box(Vector3(e, 0.53, mid), Vector3(0.68, 0.86, length - 0.02), LEAVES[2])
 		box(Vector3(-e, 0.53, mid), Vector3(0.68, 0.86, length - 0.02), LEAVES[2])
 	# fountain
-	shape_at("cylinder", Vector3(0, GRASS_Y + 0.25, 0), Vector3(5.2, 0.5, 5.2), STONE, true)
+	shape_at("cylinder", Vector3(0, GRASS_Y + 0.25, 0), Vector3(5.2, 0.5, 5.2), STONE, true, Vector3.ZERO, "concrete")
 	shape_at("cylinder", Vector3(0, GRASS_Y + 0.48, 0), Vector3(4.8, 0.06, 4.8), WATER, false, Vector3.ZERO, 0.05)
 	shape_at("cylinder", Vector3(0, GRASS_Y + 1.0, 0), Vector3(0.6, 1.6, 0.6), STONE, true)
 	shape_at("cylinder", Vector3(0, GRASS_Y + 1.75, 0), Vector3(2.0, 0.2, 2.0), STONE)
@@ -328,7 +329,7 @@ func _characters() -> void:
 	mina.rotation_degrees.y = 0
 	mina.setup("mina", "Mina", "the ice cream vendor", {"skin": Color(0.86, 0.64, 0.5), "hair": Color(0.32, 0.16, 0.07),
 		"shirt": Color(0.95, 0.55, 0.62), "pants": Color(0.2, 0.25, 0.42), "apron": true, "cap": true,
-		"cap_color": Color(0.98, 0.98, 0.95), "height": 0.95})
+		"cap_color": Color(0.98, 0.98, 0.95), "height": 0.95, "hair_style": "bun", "build": 0.92})
 
 	# Mr. Halvorsen, on the bench, with the pigeons.
 	var arne := NPC.new()
@@ -337,7 +338,8 @@ func _characters() -> void:
 	arne.rotation_degrees.y = 180
 	arne.setup("halvorsen", "Mr. Halvorsen", "the old man", {"skin": Color(0.84, 0.68, 0.58), "hair": Color(0.78, 0.78, 0.76),
 		"shirt": Color(0.42, 0.47, 0.34), "pants": Color(0.33, 0.29, 0.24), "seated": true, "cap": true,
-		"cap_color": Color(0.28, 0.28, 0.3)})
+		"cap_color": Color(0.28, 0.28, 0.3), "sleeves": "long", "hair_style": "short", "build": 1.05,
+		"shoes": Color(0.25, 0.15, 0.08)})
 	for i in 7:
 		var p := Vector3(-9 + randf_range(-1.7, 1.7), GRASS_Y + 0.06, randf_range(-0.9, 0.6))
 		var bird := group(p, randf_range(0, 360))
@@ -353,7 +355,7 @@ func _characters() -> void:
 	_theo.rotation_degrees.y = 150
 	_theo.setup("theo", "Theo", "the kid with the kite", {"skin": Color(0.58, 0.4, 0.28), "hair": Color(0.05, 0.04, 0.04),
 		"shirt": Color(0.96, 0.8, 0.2), "pants": Color(0.25, 0.4, 0.62), "height": 0.68, "cap": true,
-		"cap_color": Color(0.85, 0.15, 0.12)})
+		"cap_color": Color(0.85, 0.15, 0.12), "hair_style": "curly", "build": 0.9, "shoes": Color(0.9, 0.9, 0.92)})
 	_kite = group(Vector3(14, 15, 17))
 	part("box", Vector3.ZERO, Vector3(0.9, 0.9, 0.03), Color(0.9, 0.2, 0.25), _kite, Vector3(0, 0, 45))
 	part("box", Vector3(0, 0, 0.01), Vector3(0.5, 0.5, 0.02), Color(0.98, 0.85, 0.3), _kite, Vector3(0, 0, 45))
@@ -368,7 +370,8 @@ func _characters() -> void:
 	var e := BLOCK * 0.5 - 1.75
 	jog.position = Vector3(-e, CURB, -e)
 	jog.setup("jogger", "the jogger", "the jogger", {"skin": Color(0.74, 0.52, 0.38), "hair": Color(0.6, 0.42, 0.2),
-		"shirt": Color(0.25, 0.72, 0.72), "pants": Color(0.08, 0.08, 0.1)})
+		"shirt": Color(0.25, 0.72, 0.72), "pants": Color(0.08, 0.08, 0.1), "hair_style": "long",
+		"shoes": Color(0.95, 0.4, 0.3)})
 	jog.patrol = [Vector3(-e, CURB, -e), Vector3(e, CURB, -e), Vector3(e, CURB, e), Vector3(-e, CURB, e)]
 	jog.patrol_speed = 3.3
 
@@ -377,12 +380,12 @@ func _characters() -> void:
 	observer = Observer.new()
 	add_child(observer)
 	observer.global_position = _observer_spots[0]
-	observer.seen_threshold = 1.0
+	observer.seen_threshold = 0.6
 	observer.seen_max_distance = 120.0
 	observer.seen.connect(func():
-		if not Game.has_flag("observer_noticed"):
-			Game.set_flag("observer_noticed")
-			Game.player.dread.add_fear(3.0, "observer noticed"))
+		Game.set_flag("observer_noticed")
+		Game.player.dread.add_dread(observer.spot_dread))
+	observer.vanished.connect(func(): _observer_return = randf_range(35.0, 70.0))
 
 
 # ------------------------------------------------------------------ runtime
@@ -397,6 +400,17 @@ func _process(delta: float) -> void:
 	_t += delta
 	_hints(delta)
 	_life(delta)
+	# After vanishing, he comes back later - far away, somewhere you are not looking.
+	if _observer_return > 0.0 and observer and not observer.is_present():
+		_observer_return -= delta
+		if _observer_return <= 0.0:
+			var spots := _observer_spots.duplicate()
+			spots.shuffle()
+			_observer_return = 3.0   # retry soon if every spot is in view
+			for spot in spots:
+				if spot.distance_to(Game.player.global_position) > 40.0 and observer.try_appear_at(spot):
+					_observer_return = -1.0
+					break
 	# You can never quite reach him.
 	var p = Game.player
 	if observer and p and not observer.has_pending() and observer.is_present():

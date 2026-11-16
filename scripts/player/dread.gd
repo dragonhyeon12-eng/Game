@@ -78,6 +78,13 @@ func add_fear(amount: float, reason := "") -> void:
 	fear = clampf(fear + amount, 0.0, 100.0)
 
 
+## Raise the DREAD meter itself by `amount` points (fear up, stability down; not scaled by the zone).
+func add_dread(amount: float) -> void:
+	fear = clampf(fear + amount, 0.0, 100.0)
+	stability = clampf(stability - amount, 0.0, 100.0)
+	_last_fear = _t
+
+
 func add_stability(delta: float) -> void:
 	stability = clampf(stability + delta, 0.0, 100.0)
 

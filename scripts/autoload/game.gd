@@ -74,6 +74,7 @@ func set_mode(m: String) -> void:
 		"overlay":
 			Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
 	hud.set_gameplay_visible(m == "game" or m == "dialogue")
+	player.hands.visible = m == "game" or m == "dialogue"
 
 
 func enter_dialogue_mode() -> void:
@@ -143,6 +144,8 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 			var m := MazeZone.new()
 			m.seed_value = maze_seed
 			zone = m
+		"deep":
+			zone = DeepZone.new()
 		_:
 			zone_type = ""
 			return
@@ -162,6 +165,7 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 	match type:
 		"city": Sfx.play_music("city", 4.0)
 		"maze": Sfx.play_music("maze", 6.0)
+		"deep": Sfx.play_music("deep", 8.0)
 		_: Sfx.stop_music(1.5)   # the real bedroom stays quiet
 	print("Entered zone: ", type, " (waking)" if waking else "")
 
@@ -399,7 +403,7 @@ func request_wake() -> void:
 	set_mode("game")
 
 
-# ------------------------------------------------------------------ maze exit (end of slice)
+# ------------------------------------------------------------------ maze exit -> THE DEEP
 
 func on_maze_exit() -> void:
 	if in_sequence:
@@ -416,8 +420,37 @@ func on_maze_exit() -> void:
 	player.set_drone(0.0)
 	player.dread.set_profile(false, 0.0, 0.0, 10.0)
 	player.set_physics_process(false)
-	if not await _wait(3.0, t): return
-	hud.show_card("Now the nightmare begins.", "End of the DREAM PROTOCOL vertical slice. Thank you for playing.", 2.0)
+	if not await _wait(2.0, t): return
+	hud.show_card("Now the nightmare begins.", "", 2.0)
+	if not await _wait(4.5, t): return
+	hud.hide_card(1.5)
+	if not await _wait(1.5, t): return
+	player.set_physics_process(true)
+	enter_zone("deep")
+	save_checkpoint()
+	hud.fade_to(0.0, 3.0)
+	in_sequence = false
+	set_mode("game")
+
+
+# ------------------------------------------------------------------ THE DEEP exit (end of the current build)
+
+func on_deep_exit() -> void:
+	if in_sequence:
+		return
+	in_sequence = true
+	var t := _seq
+	set_mode("cinematic")
+	set_flag("deep_escaped")
+	hud.fade_to(1.0, 1.5)
+	if not await _wait(1.8, t): return
+	Sfx.stop_music(0.01)
+	_leave_zone()
+	player.set_drone(0.0)
+	player.dread.set_profile(false, 0.0, 0.0, 10.0)
+	player.set_physics_process(false)
+	if not await _wait(2.5, t): return
+	hud.show_card("THE DEEP", "End of the current build. More of the dream is still being written. Thank you for playing.", 2.0)
 	if not await _wait(7.5, t): return
 	hud.hide_card(1.5)
 	if not await _wait(2.0, t): return
@@ -488,6 +521,7 @@ func _process(delta: float) -> void:
 	var v := clampf(Settings.visual_intensity, 0.0, 1.0)
 	hud.set_post(0.25 + 0.75 * s * v, maxf(0.0, s - 0.25) * 0.5 * v, 0.45 * s * v, maxf(0.0, s - 0.5) * 2.0 * v)
 	player.set_drone(smoothstep(0.2, 1.0, s) * 1.2 if d.nightmare else 0.0)
+	Sfx.set_muffled(player.underwater)
 	if zone_type == "maze":
 		Sfx.music_gain = lerpf(0.55, 1.1, s) * lerpf(0.6, 1.0, Settings.audio_intensity)
 	if zone:

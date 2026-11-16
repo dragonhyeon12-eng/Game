@@ -69,6 +69,8 @@ func _present() -> void:
 		_visible.append(i)
 		labels.append(c.get("text", ""))
 	Game.hud.show_dialogue(_node.get("speaker", ""), _node.get("text", ""), labels)
+	if _node.get("speaker", "") != "" and is_instance_valid(speaker) and speaker.has_method("speak"):
+		speaker.speak()
 
 
 func choose(visible_index: int) -> void:

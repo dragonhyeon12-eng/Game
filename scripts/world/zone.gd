@@ -22,6 +22,12 @@ func sprint_speed() -> float: return 4.3
 func anomaly_pacing() -> Vector2: return Vector2(-1, -1)
 func player_start() -> Transform3D: return Transform3D.IDENTITY
 
+## Water surface height at a point, or -INF if there is no water there.
+func water_level_at(_p: Vector3) -> float: return -INF
+## Dream gravity (1 = normal).
+func gravity_scale_at(_p: Vector3) -> float: return 1.0
+func max_fall_at(_p: Vector3) -> float: return 60.0
+
 func build() -> void: pass
 func on_player_entered(_from_save: bool) -> void: pass
 ## Called every frame by Game with DREAD 0..100.
@@ -48,9 +54,16 @@ func _exit_tree() -> void:
 	Anomalies.unregister_owner(self)
 
 
+## Surface argument: a surface name ("tiles_pool", "wood", ... see Shapes.SURFACES) or a roughness float.
+static func _surf(surface) -> String:
+	if surface is String:
+		return surface
+	return "plain@%.2f" % float(surface)
+
+
 ## Instanced static shape. Call finish_batches() once after building.
-func add_shape(kind: String, xf: Transform3D, color: Color, collide := false, roughness := 0.85) -> void:
-	var key := "%s|%.2f" % [kind, roughness]
+func add_shape(kind: String, xf: Transform3D, color: Color, collide := false, surface: Variant = "plain") -> void:
+	var key := "%s|%s" % [kind, _surf(surface)]
 	if not _batches.has(key):
 		_batches[key] = []
 	_batches[key].append([xf, color])
@@ -85,19 +98,19 @@ func add_shape(kind: String, xf: Transform3D, color: Color, collide := false, ro
 		_body.add_child(cs)
 
 
-func box(center: Vector3, size: Vector3, color: Color, collide := true, yaw_deg := 0.0, roughness := 0.85) -> void:
+func box(center: Vector3, size: Vector3, color: Color, collide := true, yaw_deg := 0.0, surface: Variant = "plain") -> void:
 	var b := Basis(Vector3.UP, deg_to_rad(yaw_deg)) * Basis.from_scale(size)
-	add_shape("box", Transform3D(b, center), color, collide, roughness)
+	add_shape("box", Transform3D(b, center), color, collide, surface)
 
 
-func shape_at(kind: String, center: Vector3, scale: Vector3, color: Color, collide := false, rot_deg := Vector3.ZERO, roughness := 0.85) -> void:
+func shape_at(kind: String, center: Vector3, scale: Vector3, color: Color, collide := false, rot_deg := Vector3.ZERO, surface: Variant = "plain") -> void:
 	var b := Basis.from_euler(rot_deg * (PI / 180.0)) * Basis.from_scale(scale)
-	add_shape(kind, Transform3D(b, center), color, collide, roughness)
+	add_shape(kind, Transform3D(b, center), color, collide, surface)
 
 
 func finish_batches() -> void:
 	for key in _batches:
-		var parts: PackedStringArray = key.split("|")
+		var parts: PackedStringArray = key.split("|", true, 1)
 		var list: Array = _batches[key]
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -109,17 +122,20 @@ func finish_batches() -> void:
 			mm.set_instance_color(i, list[i][1])
 		var mmi := MultiMeshInstance3D.new()
 		mmi.multimesh = mm
-		mmi.material_override = Shapes.instanced_material(parts[1].to_float())
+		mmi.material_override = Shapes.surface(parts[1])
 		add_child(mmi)
 	_batches.clear()
 
 
 ## An individual mesh (for things that change at runtime).
 func part(kind: String, pos: Vector3, scale: Vector3, color: Color, parent: Node3D = null, rot_deg := Vector3.ZERO,
-		emission := 0.0, roughness := 0.85) -> MeshInstance3D:
+		emission := 0.0, surface: Variant = 0.85) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.mesh = Shapes.mesh(kind)
-	mi.material_override = Shapes.material(color, roughness, emission)
+	if emission > 0.0 or not surface is String:
+		mi.material_override = Shapes.material(color, 0.85 if surface is String else float(surface), emission)
+	else:
+		mi.material_override = Shapes.surface(surface, color)
 	mi.position = pos
 	mi.rotation_degrees = rot_deg
 	mi.scale = scale
@@ -128,7 +144,7 @@ func part(kind: String, pos: Vector3, scale: Vector3, color: Color, parent: Node
 
 
 ## A movable solid box (own body) - for walls that come and go.
-func solid_box(pos: Vector3, size: Vector3, color: Color, parent: Node3D = null) -> StaticBody3D:
+func solid_box(pos: Vector3, size: Vector3, color: Color, parent: Node3D = null, surface := "plain") -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.collision_layer = 1
 	body.position = pos
@@ -140,10 +156,34 @@ func solid_box(pos: Vector3, size: Vector3, color: Color, parent: Node3D = null)
 	var mi := MeshInstance3D.new()
 	mi.mesh = Shapes.mesh("box")
 	mi.scale = size
-	mi.material_override = Shapes.material(color)
+	mi.material_override = Shapes.surface(surface, color)
 	body.add_child(mi)
 	(parent if parent else self).add_child(body)
 	return body
+
+
+## A proper door: frame, slab with raised panels, lever handle and kick plate.
+## The door faces +Z of its yaw (handle side = +X). Returns the door's root.
+func door(pos: Vector3, yaw_deg: float, color: Color, width := 0.92, height := 2.05, surface := "wood") -> Node3D:
+	var d := group(pos, yaw_deg)
+	var frame := color.darkened(0.25)
+	part("box", Vector3(-width * 0.5 - 0.04, height * 0.5, 0), Vector3(0.08, height + 0.04, 0.14), frame, d, Vector3.ZERO, 0.0, surface)
+	part("box", Vector3(width * 0.5 + 0.04, height * 0.5, 0), Vector3(0.08, height + 0.04, 0.14), frame, d, Vector3.ZERO, 0.0, surface)
+	part("box", Vector3(0, height + 0.04, 0), Vector3(width + 0.16, 0.08, 0.14), frame, d, Vector3.ZERO, 0.0, surface)
+	part("box", Vector3(0, height * 0.5, 0), Vector3(width, height, 0.045), color, d, Vector3.ZERO, 0.0, surface)
+	for row in 2:
+		var ph := height * (0.38 if row == 1 else 0.3)
+		var py := height * (0.7 if row == 1 else 0.27)
+		for col in 2:
+			var px := (col - 0.5) * width * 0.44
+			part("box", Vector3(px, py, 0.026), Vector3(width * 0.34, ph, 0.012), color.lightened(0.04), d, Vector3.ZERO, 0.0, surface)
+			part("box", Vector3(px, py, -0.026), Vector3(width * 0.34, ph, 0.012), color.lightened(0.04), d, Vector3.ZERO, 0.0, surface)
+	var brass := Color(0.75, 0.62, 0.35)
+	for side in [1.0, -1.0]:
+		part("cylinder", Vector3(width * 0.38, 1.0, 0.045 * side), Vector3(0.05, 0.03, 0.05), brass, d, Vector3(90, 0, 0), 0.0, "metal")
+		part("box", Vector3(width * 0.38 - 0.05, 1.0, 0.07 * side), Vector3(0.12, 0.022, 0.022), brass, d, Vector3.ZERO, 0.0, "metal")
+		part("box", Vector3(0, 0.12, 0.027 * side), Vector3(width * 0.9, 0.2, 0.006), brass.darkened(0.3), d, Vector3.ZERO, 0.0, "metal")
+	return d
 
 
 func group(pos: Vector3, yaw_deg := 0.0) -> Node3D:

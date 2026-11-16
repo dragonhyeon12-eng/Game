@@ -18,8 +18,8 @@ const WALL_H := 2.9
 const THICK := 0.24
 const PILLAR := 0.28   # slightly thicker than walls
 
-const WALL_A := Color(0.78, 0.68, 0.33)
-const WALL_B := Color(0.74, 0.65, 0.3)
+const WALL_A := Color(0.84, 0.74, 0.4)
+const WALL_B := Color(0.8, 0.7, 0.36)
 const BASEBOARD := Color(0.45, 0.38, 0.2)
 const CARPET := Color(0.42, 0.36, 0.19)
 const CEILING := Color(0.8, 0.77, 0.58)
@@ -126,6 +126,7 @@ func build() -> void:
 	observer.seen_threshold = 0.35
 	observer.seen_max_distance = 40.0
 	observer.seen.connect(_on_observer_seen)
+	observer.vanished.connect(func(): _obs_cooldown = randf_range(30.0, 75.0))
 
 
 func _generate() -> void:
@@ -211,7 +212,7 @@ func _generate() -> void:
 
 func _wall(center: Vector3, along_z: bool, length: float, color: Color) -> void:
 	var size := Vector3(THICK, WALL_H, length) if along_z else Vector3(length, WALL_H, THICK)
-	box(center + Vector3(0, WALL_H * 0.5, 0), size, color)
+	box(center + Vector3(0, WALL_H * 0.5, 0), size, color, true, 0.0, "wallpaper")
 	var base := Vector3(THICK + 0.03, 0.12, length) if along_z else Vector3(length, 0.12, THICK + 0.03)
 	box(center + Vector3(0, 0.06, 0), base, BASEBOARD, false)
 
@@ -219,8 +220,8 @@ func _wall(center: Vector3, along_z: bool, length: float, color: Color) -> void:
 func _geometry() -> void:
 	var mid := Vector3((W - 1) * CELL * 0.5, 0, (H - 1) * CELL * 0.5)
 	var ext := Vector3(W * CELL + 2, 0.1, H * CELL + 2)
-	box(mid + Vector3(0, -0.05, 0), ext, CARPET, true, 0.0, 1.0)
-	box(mid + Vector3(0, WALL_H + 0.05, 0), ext, CEILING)
+	box(mid + Vector3(0, -0.05, 0), ext, CARPET, true, 0.0, "carpet")
+	box(mid + Vector3(0, WALL_H + 0.05, 0), ext, CEILING, true, 0.0, "tiles_ceiling")
 	for x in W + 1:
 		box(Vector3((x - 0.5) * CELL, WALL_H - 0.012, mid.z), Vector3(0.04, 0.02, H * CELL), CEILING.darkened(0.2), false)
 	for z in H + 1:
@@ -229,7 +230,7 @@ func _geometry() -> void:
 	# (coplanar faces flicker - "z-fighting").
 	for x in W + 1:
 		for z in H + 1:
-			box(Vector3((x - 0.5) * CELL, WALL_H * 0.5, (z - 0.5) * CELL), Vector3(PILLAR, WALL_H, PILLAR), WALL_A)
+			box(Vector3((x - 0.5) * CELL, WALL_H * 0.5, (z - 0.5) * CELL), Vector3(PILLAR, WALL_H, PILLAR), WALL_A, true, 0.0, "wallpaper")
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value + 7
@@ -247,7 +248,7 @@ func _geometry() -> void:
 					_wall(center, along_z, length, col)
 				elif t == Edge.DYNAMIC:
 					var size := Vector3(THICK, WALL_H, length) if along_z else Vector3(length, WALL_H, THICK)
-					var body := solid_box(center + Vector3(0, WALL_H * 0.5, 0), size, col)
+					var body := solid_box(center + Vector3(0, WALL_H * 0.5, 0), size, col, null, "wallpaper")
 					var w := {"body": body, "center": center, "open": false}
 					_dynamic.append(w)
 					_set_dynamic(w, rng.randf() < 0.5)
@@ -343,18 +344,25 @@ func _exit() -> void:
 	_wall(center - along * (door_half + side_len * 0.5), along_z, side_len, WALL_A)
 	var lintel_h := WALL_H - 2.2
 	box(center + Vector3(0, 2.2 + lintel_h * 0.5, 0), Vector3(THICK, lintel_h, 1.2) if along_z else Vector3(1.2, lintel_h, THICK), WALL_A)
-	box(center - inward * 0.06 + Vector3(0, 1.09, 0), Vector3(0.08, 2.18, 1.16) if along_z else Vector3(1.16, 2.18, 0.08), Color(0.5, 0.38, 0.25))
-	shape_at("sphere", center + inward * 0.02 + along * 0.4 + Vector3(0, 1.0, 0), Vector3.ONE * 0.06, Color(0.75, 0.7, 0.5))
+	door(center - inward * 0.02, rad_to_deg(atan2(inward.x, inward.z)), Color(0.55, 0.42, 0.28), 1.08, 2.14)
 	# EXIT sign above it
 	var sign_pos := center + inward * (THICK * 0.5 + 0.04) + Vector3(0, 2.5, 0)
-	part("box", sign_pos, Vector3(0.06, 0.24, 0.64) if along_z else Vector3(0.64, 0.24, 0.06), Color(0.6, 0.05, 0.04), null, Vector3.ZERO, 1.5)
+	part("box", sign_pos, Vector3(0.06, 0.24, 0.64) if along_z else Vector3(0.64, 0.24, 0.06), Color(0.05, 0.62, 0.25), null, Vector3.ZERO, 1.8)
 	var yaw := rad_to_deg(atan2(inward.x, inward.z))
 	label(sign_pos + inward * 0.035, yaw, "EXIT", 0.18, Color(1.0, 0.95, 0.9))
-	omni(sign_pos + inward * 0.3, Color(1.0, 0.2, 0.15), 0.5, 3.0, false)
+	omni(sign_pos + inward * 0.3, Color(0.2, 1.0, 0.45), 0.5, 3.0, false)
 	# the loudest hum in the building
 	ambient("hum", center + inward * 0.4 + Vector3(0, 2.0, 0), true, 4.0, 38.0)
 	interactable(center - inward * 0.02 + Vector3(0, 1.1, 0), Vector3(0.3, 2.1, 1.16) if along_z else Vector3(1.16, 2.1, 0.3),
 		func(): return "Open the door", func(): Game.on_maze_exit())
+
+
+func exit_position() -> Vector3:
+	return Vector3((W - 0.5) * CELL, 0, _exit_cell.y * CELL) if _exit_dir == 0 else Vector3(_exit_cell.x * CELL, 0, (H - 0.5) * CELL)
+
+
+func exit_inward() -> Vector3:
+	return Vector3(-1, 0, 0) if _exit_dir == 0 else Vector3(0, 0, -1)
 
 
 func player_start() -> Transform3D:
@@ -455,7 +463,7 @@ func _on_observer_seen() -> void:
 		return
 	_obs_seen_now = true
 	_sightings += 1
-	Game.player.dread.add_fear(12.0 if _sightings == 1 else 7.0, "observer seen")
+	Game.player.dread.add_dread(observer.spot_dread)
 	Game.player.dread.notify_suspicious()
 	Game.set_flag("observer_seen_maze")
 
@@ -488,8 +496,8 @@ func _update_observer(delta: float, stage: int, d: float) -> void:
 		return
 	if observer.is_present():
 		_obs_present += delta
-		# once seen he is gone the moment you look away; if never seen, he leaves eventually
-		if (_obs_seen_now and observer.unobserved_time > 0.4) or (_obs_present > 18.0 and not observer.observed):
+		# once spotted he glitches away by himself; if never spotted, he leaves eventually
+		if _obs_present > 18.0 and not observer.observed and not observer.spotted:
 			observer.hide_now()
 			_obs_cooldown = lerpf(90.0, 30.0, d) * randf_range(0.8, 1.2)
 		return
