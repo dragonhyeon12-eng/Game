@@ -108,7 +108,98 @@ func shape_at(kind: String, center: Vector3, scale: Vector3, color: Color, colli
 	add_shape(kind, Transform3D(b, center), color, collide, surface)
 
 
+# ---- models from tools/creatures (models/props): placed one by one, or batched
+
+var _scatter := {}     # "slot|mesh|tint|shadow" -> [Mesh, Array[[Transform3D, Color]], cast_shadow]
+
+
+## A prop model at a position (yaw in degrees, uniform scale). Null if the model is missing.
+func prop(slot: String, pos: Vector3, yaw_deg := 0.0, s := 1.0, parent: Node3D = null) -> Node3D:
+	var n := Props.instance(slot)
+	if n == null:
+		return null
+	n.position = pos
+	n.rotation_degrees.y = yaw_deg
+	n.scale = Vector3.ONE * s
+	(parent if parent else self).add_child(n)
+	return n
+
+
+## Many copies of one mesh in a single draw (grass, building modules). False if the model is missing.
+func scatter(slot: String, xf: Transform3D, color := Color.WHITE, mesh_name := "", tint := false, shadows := true) -> bool:
+	var key := "%s|%s|%s|%s" % [slot, mesh_name, tint, shadows]
+	if not _scatter.has(key):
+		var m := Props.mesh(slot, mesh_name, tint)
+		if m == null:
+			return false
+		_scatter[key] = [m, [], shadows]
+	_scatter[key][1].append([xf, color])
+	return true
+
+
+## A building assembled from the facade kit: window bays on every side (shopfronts on the ground floor
+## if `shops`), a cornice, a flat roof. `style` is "brick", "plaster", "modern" or "tower" (curtain wall;
+## `lit` mixes in lit office windows). `from_floor` skips the lower floors (for towers that vanish into fog).
+## Returns false (nothing built) if the kit is missing.
+func facade_building(center: Vector3, w: float, d: float, floors: int, style: String, color: Color,
+		shops := false, lit := 0.0, from_floor := 0, rng: RandomNumberGenerator = null) -> bool:
+	if not Props.has("facade_kit"):
+		return false
+	var bay := "bay_" + style
+	var ground_h := 4.2 if shops else 3.6
+	var total := ground_h + floors * 3.6
+	for face in 4:
+		var n := [Vector3(0, 0, 1), Vector3(0, 0, -1), Vector3(1, 0, 0), Vector3(-1, 0, 0)][face] as Vector3
+		var length := w if face < 2 else d
+		var half_other := (d if face < 2 else w) * 0.5
+		var count := maxi(1, roundi(length / 3.0))
+		var bw := length / count
+		var basis := Basis(Vector3.UP, atan2(n.x, n.z)) * Basis.from_scale(Vector3(bw / 3.0, 1, 1))
+		var along := n.cross(Vector3.UP) * -1.0
+		for i in count:
+			var off: float = -length * 0.5 + bw * (i + 0.5)
+			var base: Vector3 = center + n * half_other + along * off
+			for f in range(from_floor, floors + 1):
+				var y := 0.0 if f == 0 else ground_h + (f - 1) * 3.6
+				var module := bay
+				if f == 0 and shops:
+					module = "shop"
+				elif style == "tower" and lit > 0.0 and rng and rng.randf() < lit:
+					module = "bay_tower_lit"
+				if f == 0 and shops:
+					var sb := Basis(Vector3.UP, atan2(n.x, n.z)) * Basis.from_scale(Vector3(bw / 3.0, 1, 1))
+					scatter("facade_kit", Transform3D(sb, base + Vector3(0, y, 0)), color, "shop", true)
+				else:
+					scatter("facade_kit", Transform3D(basis, base + Vector3(0, y, 0)), color, module, true)
+			if style != "tower":
+				scatter("facade_kit", Transform3D(basis, base + Vector3(0, total, 0)), color, "cornice", true)
+	# the solid core (collision, roof), set back behind the modules
+	box(center + Vector3(0, total * 0.5, 0), Vector3(w - 0.5, total, d - 0.5), color.darkened(0.3), true, 0.0, "concrete")
+	box(center + Vector3(0, total + 0.6, 0), Vector3(w - 0.1, 0.1, d - 0.1), Color(0.35, 0.35, 0.36), false, 0.0, "concrete")
+	return true
+
+
+func _finish_scatter() -> void:
+	for key in _scatter:
+		var e: Array = _scatter[key]
+		var list: Array = e[1]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.mesh = e[0]
+		mm.instance_count = list.size()
+		for i in list.size():
+			mm.set_instance_transform(i, list[i][0])
+			mm.set_instance_color(i, list[i][1])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if e[2] else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(mmi)
+	_scatter.clear()
+
+
 func finish_batches() -> void:
+	_finish_scatter()
 	for key in _batches:
 		var parts: PackedStringArray = key.split("|", true, 1)
 		var list: Array = _batches[key]

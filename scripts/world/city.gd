@@ -119,6 +119,14 @@ func _buildings() -> void:
 					var z := c.z - lot * 0.5 + d * 0.5 + b * (d + gap)
 					var h := rng.randf_range(9.0, 23.0) if near_park else rng.randf_range(16.0, 48.0)
 					var facade: Color = FACADES[rng.randi() % FACADES.size()]
+					# a real building from the facade kit, when there is one
+					var style: String = ["brick", "plaster", "plaster", "modern"][rng.randi() % 4] if near_park else ["brick", "modern", "plaster"][rng.randi() % 3]
+					var tint := facade.lightened(0.15) if style == "plaster" else (Color(0.78, 0.5, 0.4) if style == "brick" else Color(0.82, 0.82, 0.8))
+					if facade_building(Vector3(x, c.y, z), w, d, maxi(1, int((h - 4.2) / 3.6)), style, tint, near_park or rng.randf() < 0.4):
+						if rng.randf() < 0.6:
+							box(Vector3(x + rng.randf_range(-w, w) * 0.25, c.y + 4.2 + int((h - 4.2) / 3.6) * 3.6 + 1.15, z + rng.randf_range(-d, d) * 0.25),
+								Vector3(2.2, 1.1, 1.6), Color(0.6, 0.6, 0.6), false, 0.0, "metal")
+						continue
 					box(Vector3(x, c.y + h * 0.5, z), Vector3(w, h, d), facade, true, 0.0, "plaster")
 					box(Vector3(x, c.y + 1.25, z), Vector3(w + 0.1, 2.5, d + 0.1), facade.darkened(0.45), false)
 					box(Vector3(x, c.y + 2.68, z), Vector3(w + 0.7, 0.1, d + 0.7), FACADES[rng.randi() % FACADES.size()], false)
@@ -159,11 +167,32 @@ func _skyline() -> void:
 				1: p = Vector3(t, h * 0.5, -depth)
 				2: p = Vector3(depth, h * 0.5, t)
 				_: p = Vector3(-depth, h * 0.5, t)
-			box(p, Vector3(14, h, 14), col, false)
+			if not _far_building(p - Vector3(0, h * 0.5, 0), h, col, rng):
+				box(p, Vector3(14, h, 14), col, false)
 			t += 17.0
 
 
+## Distant skyline: large modern facades, two bays a side, double-height floors (they are far away).
+func _far_building(base: Vector3, h: float, col: Color, _rng: RandomNumberGenerator) -> bool:
+	if not Props.has("facade_kit"):
+		return false
+	var floors := int(h / 7.2)
+	for face in 4:
+		var n := [Vector3(0, 0, 1), Vector3(0, 0, -1), Vector3(1, 0, 0), Vector3(-1, 0, 0)][face] as Vector3
+		var b := Basis(Vector3.UP, atan2(n.x, n.z)) * Basis.from_scale(Vector3(7.0 / 3.0, 2.0, 2.0))
+		var along := n.cross(Vector3.UP) * -1.0
+		for i in 2:
+			for f in floors:
+				scatter("facade_kit", Transform3D(b, base + n * 7.0 + along * (-3.5 + i * 7.0) + Vector3(0, f * 7.2, 0)),
+					col.lightened(0.25), "bay_modern", true, false)
+	box(base + Vector3(0, floors * 3.6, 0), Vector3(13.2, floors * 7.2, 13.2), col.darkened(0.3), false)
+	return true
+
+
 func _tree(base: Vector3, s: float, variant: int) -> void:
+	if prop(["tree_oak", "tree_lime", "tree_young"][variant], base, randf() * 360.0, s * 0.9):
+		blocker(base + Vector3(0, 1.5, 0), Vector3(0.45, 3.0, 0.45))
+		return
 	var leaf: Color = LEAVES[variant]
 	shape_at("cylinder", base + Vector3(0, 1.6 * s, 0), Vector3(0.22, 3.2, 0.22) * s, BARK, true)
 	shape_at("sphere", base + Vector3(0, 4.0 * s, 0), Vector3(3.2, 2.6, 3.2) * s, leaf)
@@ -173,6 +202,9 @@ func _tree(base: Vector3, s: float, variant: int) -> void:
 
 func _bench(center: Vector3, yaw: float) -> void:
 	var r := Basis(Vector3.UP, deg_to_rad(yaw))
+	if prop("bench", center, yaw + 180.0):
+		box(center + r * Vector3(0, 0.45, 0), Vector3(1.9, 0.08, 0.5), Color(0, 0, 0, 0), true, yaw)
+		return
 	var slat := Color(0.5, 0.32, 0.18)
 	box(center + r * Vector3(0, 0.45, 0), Vector3(1.8, 0.08, 0.5), slat, true, yaw, "wood")
 	box(center + r * Vector3(0, 0.75, -0.24), Vector3(1.8, 0.45, 0.06), slat, false, yaw, "wood")
@@ -182,6 +214,9 @@ func _bench(center: Vector3, yaw: float) -> void:
 
 func _car(center: Vector3, yaw: float, color: Color) -> void:
 	var r := Basis(Vector3.UP, deg_to_rad(yaw))
+	if prop("car_%d" % (absi(hash(center)) % 5), center, yaw):
+		blocker(center + Vector3(0, 0.75, 0), Vector3(4.4, 1.5, 1.8).rotated(Vector3.UP, deg_to_rad(yaw)).abs())
+		return
 	box(center + r * Vector3(0, 0.55, 0), Vector3(4.2, 0.7, 1.8), color, true, yaw, 0.35)
 	box(center + r * Vector3(-0.2, 1.15, 0), Vector3(2.3, 0.55, 1.65), color, true, yaw, 0.35)
 	box(center + r * Vector3(-0.2, 1.16, 0), Vector3(2.36, 0.38, 1.71), GLASS, false, yaw, 0.1)
@@ -190,6 +225,9 @@ func _car(center: Vector3, yaw: float, color: Color) -> void:
 
 
 func _lamp(base: Vector3) -> void:
+	if prop("lamp_post", base, 0.0, 1.1):
+		blocker(base + Vector3(0, 2.5, 0), Vector3(0.25, 5.0, 0.25))
+		return
 	shape_at("cylinder", base + Vector3(0, 2.5, 0), Vector3(0.12, 5.0, 0.12), METAL, true)
 	box(base + Vector3(0, 5.05, 0), Vector3(0.4, 0.3, 0.4), METAL, false)
 	box(base + Vector3(0, 4.86, 0), Vector3(0.32, 0.08, 0.32), Color(0.95, 0.92, 0.8), false)
@@ -231,21 +269,42 @@ func _park() -> void:
 	box(Vector3(0, GRASS_Y - 0.01, 0), Vector3(inner, 0.02, inner), GRASS, false, 0.0, "grass")
 	box(Vector3(0, GRASS_Y + 0.005, 0), Vector3(inner, 0.02, 2.6), PATH, false, 0.0, "concrete")
 	box(Vector3(0, GRASS_Y + 0.02, 0), Vector3(2.6, 0.02, inner), PATH, false, 0.0, "concrete")
-	# low hedges with gaps for the paths
+	# low hedges with gaps for the paths: real bushes when there are models, boxes otherwise
 	var e := inner * 0.5
 	var length := e - 2.2
+	var grng := RandomNumberGenerator.new()
+	grng.seed = 515
+	var bushes := Props.has("bush")
 	for s in [-1, 1]:
 		var mid: float = s * (2.2 + length * 0.5)
-		box(Vector3(mid, 0.5, e), Vector3(length, 0.8, 0.7), LEAVES[2])
-		box(Vector3(mid, 0.5, -e), Vector3(length, 0.8, 0.7), LEAVES[2])
-		box(Vector3(e, 0.53, mid), Vector3(0.68, 0.86, length - 0.02), LEAVES[2])
-		box(Vector3(-e, 0.53, mid), Vector3(0.68, 0.86, length - 0.02), LEAVES[2])
+		for seg in [[Vector3(mid, 0.5, e), Vector3(length, 0.8, 0.7)], [Vector3(mid, 0.5, -e), Vector3(length, 0.8, 0.7)],
+				[Vector3(e, 0.53, mid), Vector3(0.68, 0.86, length - 0.02)], [Vector3(-e, 0.53, mid), Vector3(0.68, 0.86, length - 0.02)]]:
+			var c: Vector3 = seg[0]
+			var sz: Vector3 = seg[1]
+			if not bushes:
+				box(c, sz, LEAVES[2])
+				continue
+			blocker(c, sz)
+			var along := Vector3(1, 0, 0) if sz.x > sz.z else Vector3(0, 0, 1)
+			var len := maxf(sz.x, sz.z)
+			var k := -len * 0.5 + 0.4
+			while k < len * 0.5:
+				var b := Basis(Vector3.UP, grng.randf() * TAU) * Basis.from_scale(Vector3.ONE * grng.randf_range(0.75, 1.0))
+				scatter("bush", Transform3D(b, Vector3(c.x, GRASS_Y - 0.05, c.z) + along * k), Color.WHITE)
+				k += 0.75
+	# grass: thousands of clumps over the lawns
+	for i in 3200:
+		var gp := Vector3(grng.randf_range(-e, e), GRASS_Y - 0.02, grng.randf_range(-e, e))
+		if surface_at(gp) == "grass" and Vector2(gp.x, gp.z).length() > 3.1:
+			var gb := Basis(Vector3.UP, grng.randf() * TAU) * Basis.from_scale(Vector3(1.1, grng.randf_range(0.32, 0.55), 1.1) * grng.randf_range(0.8, 1.2))
+			if not scatter("grass_clump", Transform3D(gb, gp), Color.WHITE, "", false, false):
+				break
 	# fountain
 	shape_at("cylinder", Vector3(0, GRASS_Y + 0.25, 0), Vector3(5.2, 0.5, 5.2), STONE, true, Vector3.ZERO, "concrete")
-	shape_at("cylinder", Vector3(0, GRASS_Y + 0.48, 0), Vector3(4.8, 0.06, 4.8), WATER, false, Vector3.ZERO, 0.05)
+	_fountain_water(Vector3(0, GRASS_Y + 0.47, 0), 2.4)
 	shape_at("cylinder", Vector3(0, GRASS_Y + 1.0, 0), Vector3(0.6, 1.6, 0.6), STONE, true)
 	shape_at("cylinder", Vector3(0, GRASS_Y + 1.75, 0), Vector3(2.0, 0.2, 2.0), STONE)
-	shape_at("cylinder", Vector3(0, GRASS_Y + 1.86, 0), Vector3(1.8, 0.04, 1.8), WATER, false, Vector3.ZERO, 0.05)
+	_fountain_water(Vector3(0, GRASS_Y + 1.855, 0), 0.9)
 	shape_at("sphere", Vector3(0, GRASS_Y + 2.15, 0), Vector3(0.35, 0.5, 0.35), WATER.lightened(0.3), false, Vector3.ZERO, 0.05)
 	# trees
 	var rng := RandomNumberGenerator.new()
@@ -274,6 +333,26 @@ func _park() -> void:
 	shape_at("cylinder", cart + Vector3(1.1, 2.0, -0.3), Vector3(0.05, 2.2, 0.05), TRIM)
 	shape_at("cone", cart + Vector3(1.1, 3.3, -0.3), Vector3(2.8, 0.55, 2.8), Color(0.98, 0.62, 0.7))
 	label(cart + Vector3(0, 0.75, 0.62), 0, "ICE CREAM", 0.22, Color(0.86, 0.35, 0.47), false)
+
+
+## A disc of real water (the same shader as the pools), shallow and clear.
+func _fountain_water(pos: Vector3, radius: float) -> void:
+	var mi := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = radius
+	disc.bottom_radius = radius
+	disc.height = 0.02
+	disc.radial_segments = 48
+	disc.rings = 8
+	mi.mesh = disc
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://scripts/world/water.gdshader")
+	mat.set_shader_parameter("absorb", 0.6)
+	mat.set_shader_parameter("wave_height", 0.004)
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.position = pos
+	add_child(mi)
 
 
 # ------------------------------------------------------------------ light
