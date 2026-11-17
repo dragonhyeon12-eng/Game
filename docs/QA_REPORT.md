@@ -1,5 +1,7 @@
 # DREAM PROTOCOL: QA and polish audit
 
+[한국어](QA_REPORT.ko.md)
+
 Scope: the whole campaign (bedroom → CITY → BACKROOMS → THE DEEP → COMPRESSION → ABOVE), on desktop and
 the web/mobile build. No levels, mechanics, models or story were redesigned. Every fix below was tested on
 its own, and the full playthrough test passes after all of them.
