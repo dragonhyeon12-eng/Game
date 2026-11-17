@@ -396,9 +396,9 @@ def _detail(hand):
 # what you wear on your hands in each realm (see FPHands.VARIANT_BY_ZONE)
 VARIANTS = {
     "bare": {"file": "fp_hand.glb"},
-    "hazmat": {"file": "fp_hand_hazmat.glb", "glove": (0.86, 0.62, 0.08), "glove_rough": 0.32, "sleeve": (0.88, 0.76, 0.18),
+    "hazmat": {"file": "fp_hand_hazmat.glb", "glove": (0.10, 0.19, 0.11), "glove_rough": 0.35, "sleeve": (0.88, 0.76, 0.18),
                "sleeve_rough": 0.45, "thick": 0.0016, "cuff": -0.105, "gauntlet": 0.0045, "sleeve_thick": 0.0065,
-               "folds": 0.00045, "seam": None, "grain": "rubber", "dirt": (0.42, 0.38, 0.30)},
+               "folds": 0.0006, "seam": None, "grain": "rubber", "dirt": (0.30, 0.28, 0.22)},
     "diving": {"file": "fp_hand_diving.glb", "glove": (0.035, 0.037, 0.042), "glove_rough": 0.72, "sleeve": (0.03, 0.032, 0.036),
                "sleeve_rough": 0.68, "thick": 0.0013, "cuff": -0.035, "gauntlet": 0.0, "sleeve_thick": 0.0035,
                "folds": 0.0002, "seam": (0.22, 0.23, 0.25), "stitch": False, "grain": "neoprene", "dirt": None},
@@ -462,7 +462,7 @@ def _glove_detail(hand, v):
             ax = (b - a) / np.linalg.norm(b - a)
             s = (P - jp) @ ax
             sel = np.isin(owner, [k for k, n in enumerate(names) if n.startswith(name)] + ([names.index("hand")] if j == 0 else []))
-            ridges = np.sin(s * math.tau / 0.0032 + noise * 2.5) * np.exp(-(s / 0.0065) ** 2)
+            ridges = np.sin(s * math.tau / 0.0058 + big * 1.2) * np.exp(-(s / 0.0085) ** 2)
             disp += sel * dmask * ridges * v["folds"] * (~sleeve)
             cav += sel * dmask * np.clip(-ridges, 0, 1) * 0.5 * (~sleeve)
     disp += big * 0.00035 * (~sleeve)

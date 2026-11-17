@@ -51,9 +51,12 @@ static func wanted() -> bool:
 
 func _define_buttons() -> void:
 	_buttons = [
-		{"id": "use", "label": "USE", "action": "interact", "kind": "tap", "r": 62.0, "modes": ["game", "dialogue", "overlay"]},
-		{"id": "jump", "label": "JUMP", "action": "jump", "kind": "tap", "r": 50.0, "modes": ["game"]},
-		{"id": "crouch", "label": "CROUCH", "action": "crouch", "kind": "tap", "r": 46.0, "modes": ["game"]},
+		{"id": "use", "label": "USE", "action": "interact", "kind": "tap", "r": 62.0, "modes": ["game", "dialogue", "overlay", "cinematic"],
+			"show": func(): return Game.mode != "cinematic" or Game._death_skippable},
+		{"id": "jump", "label": "JUMP", "action": "jump", "kind": "hold", "r": 50.0, "modes": ["game"]},
+		{"id": "crouch", "label": "CROUCH", "action": "crouch", "kind": "hold", "r": 46.0, "modes": ["game"]},
+		{"id": "prev", "label": "<", "action": "cycle_prev", "kind": "tap", "r": 25.0, "modes": ["game"], "show": _can_cycle},
+		{"id": "next", "label": ">", "action": "cycle_next", "kind": "tap", "r": 25.0, "modes": ["game"], "show": _can_cycle},
 		{"id": "run", "label": "RUN", "action": "sprint", "kind": "toggle", "r": 46.0, "modes": ["game"]},
 		{"id": "picture", "label": "PICTURE", "action": "manifest", "kind": "hold", "r": 42.0, "modes": ["game"]},
 		{"id": "wake", "label": "WAKE", "action": "wake", "kind": "hold", "r": 42.0, "modes": ["game"], "zones": ["city", "maze"]},
@@ -69,7 +72,8 @@ func _layout() -> void:
 	var spots := {
 		"use": Vector2(s.x - 150, s.y - 170), "jump": Vector2(s.x - 300, s.y - 110),
 		"crouch": Vector2(s.x - 110, s.y - 330), "run": Vector2(s.x - 260, s.y - 270),
-		"picture": Vector2(s.x - 440, s.y - 100), "wake": Vector2(s.x - 410, s.y - 220),
+		"picture": Vector2(s.x - 440, s.y - 100), "wake": Vector2(s.x - 425, s.y - 250),
+		"prev": Vector2(s.x - 478, s.y - 168), "next": Vector2(s.x - 402, s.y - 168),
 		"bite": Vector2(s.x - 560, s.y - 100), "drop": Vector2(s.x - 540, s.y - 200),
 		"menu": Vector2(s.x * 0.5 + 50, 56), "notes": Vector2(s.x * 0.5 - 50, 56),
 	}
@@ -89,7 +93,14 @@ func _shown(b: Dictionary) -> bool:
 		return false
 	if b.get("holding", false) and (Game.player == null or Game.player.manifestation.held == null):
 		return false
+	if b.has("show") and not b.show.call():
+		return false
 	return true
+
+
+func _can_cycle() -> bool:
+	var m = Game.player.manifestation if Game.player else null
+	return m != null and Game.zone != null and Game.zone.allows_manifestation() and m.unlocked.size() > 1
 
 
 func _process(_delta: float) -> void:
@@ -156,7 +167,7 @@ func _touch_down(index: int, pos: Vector2) -> void:
 		_stick_vec = Vector2.ZERO
 		_touch[index] = {"role": "stick"}
 	else:
-		_touch[index] = {"role": "look", "last": pos}
+		_touch[index] = {"role": "look", "last": pos, "start": pos, "t0": Time.get_ticks_msec()}
 	get_viewport().set_input_as_handled()
 
 
@@ -169,11 +180,38 @@ func _touch_up(index: int) -> void:
 		_stick_index = -1
 		_stick_vec = Vector2.ZERO
 		_apply_stick()
+	elif t.role == "look":
+		# a quick tap (not a drag) on something you could use: use it
+		var moved: float = (t.last as Vector2).distance_to(t.start)
+		if moved < 14.0 and Time.get_ticks_msec() - int(t.t0) < 350 and Game.mode == "game":
+			_tap_world(t.start)
 	elif t.role != "look":
 		for b in _buttons:
 			if b.id == t.role:
 				_press_button(b, false)
 	get_viewport().set_input_as_handled()
+
+
+## Use whatever is under the finger, if it's in reach - the same as looking at it and pressing USE.
+func _tap_world(pos: Vector2) -> void:
+	var pl: Player = Game.player
+	if pl == null or pl.controls_locked:
+		return
+	var cam := pl.camera
+	var from := cam.project_ray_origin(pos)
+	var q := PhysicsRayQueryParameters3D.create(from, from + cam.project_ray_normal(pos) * (Player.INTERACT_RANGE + 0.5), 1 | 8)
+	q.collide_with_areas = true
+	q.exclude = [pl.get_rid()]
+	var hit = pl.get_world_3d().direct_space_state.intersect_ray(q).get("collider")
+	while hit != null:
+		if hit.has_method("interact") and hit.has_method("get_prompt"):
+			if hit.can_interact() and String(hit.get_prompt()) != "":
+				pl.focused = hit
+				pl._interact()
+			return
+		hit = hit.get_parent() if hit is Node else null
+		if hit is Zone:
+			return
 
 
 func _press_button(b: Dictionary, down: bool) -> void:
@@ -249,5 +287,11 @@ func _draw_pad() -> void:
 		var on: bool = b.get("on", false)
 		_pad.draw_circle(b.pos, b.r, Color(0.62, 0.71, 1.0, 0.45) if on else Color(0.05, 0.05, 0.08, 0.42))
 		_pad.draw_arc(b.pos, b.r, 0, TAU, 40, Color(1, 1, 1, 0.45 if on else 0.28), 2.0, true)
-		var fs := 17 if b.r > 40 else 14
-		_pad.draw_string(font, b.pos + Vector2(-b.r, fs * 0.35), b.label, HORIZONTAL_ALIGNMENT_CENTER, b.r * 2, fs, ink)
+		var fs := 17 if b.r > 40 else (14 if b.r > 30 else 18)
+		var text: String = b.label
+		if b.id == "use" and Game.mode == "cinematic":
+			text = "SKIP"
+		_pad.draw_string(font, b.pos + Vector2(-b.r, fs * 0.35), text, HORIZONTAL_ALIGNMENT_CENTER, b.r * 2, fs, ink)
+		if b.id == "picture" and Game.player and Game.player.manifestation.unlocked.size() > 0:
+			_pad.draw_string(font, b.pos + Vector2(-70, b.r + 16), Game.player.manifestation.selected_name(),
+				HORIZONTAL_ALIGNMENT_CENTER, 140, 12, Color(1, 1, 1, 0.55))

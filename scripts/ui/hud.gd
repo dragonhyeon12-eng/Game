@@ -216,7 +216,7 @@ func _build() -> void:
 	_card_box.modulate.a = 0.0
 	root.add_child(_card_box)
 
-	_skip_label = UIStyle.label("[Space / E]  skip", 15, UIStyle.DIM)
+	_skip_label = UIStyle.label(for_touch("[Space / E]  skip"), 15, UIStyle.DIM)
 	_skip_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	_skip_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_skip_label.grow_vertical = Control.GROW_DIRECTION_BEGIN
@@ -297,8 +297,26 @@ func set_gameplay_visible(v: bool) -> void:
 
 # ------------------------------------------------------------------ text
 
+## Keys named in hints and thoughts, as the touch buttons are called (on phones and tablets).
+const TOUCH_WORDS := [
+	["Left mouse: take a bite    Right mouse: let go / toss\nMouse wheel: picture something else",
+		"BITE: take a bite    DROP: let go / toss\n< >: picture something else"],
+	["Crouch (C / Ctrl)", "Tap CROUCH"], ["Crouch. (C)", "Tap CROUCH."], ["(C / Ctrl)", "(CROUCH)"],
+	["(hold Q)", "(hold PICTURE)"], ["Hold Q", "Hold PICTURE"], ["hold Q", "hold PICTURE"],
+	["Hold T", "Hold WAKE"], ["hold T", "hold WAKE"], ["[Space / E]  skip", "SKIP"], ["[E]  ", ""],
+]
+
+
+static func for_touch(text: String) -> String:
+	if not TouchControls.wanted():
+		return text
+	for pair in TOUCH_WORDS:
+		text = text.replace(pair[0], pair[1])
+	return text
+
+
 func show_thought(text: String, seconds := 4.0) -> void:
-	_thought.text = text
+	_thought.text = for_touch(text)
 	_thought_t = seconds
 
 
@@ -306,7 +324,7 @@ func show_thought(text: String, seconds := 4.0) -> void:
 func set_objectives(list: Array) -> void:
 	var lines := PackedStringArray()
 	for o in list:
-		lines.append(("[x]  " if o[1] else "[  ]  ") + o[0])
+		lines.append(("[x]  " if o[1] else "[  ]  ") + for_touch(String(o[0])))
 	var txt := "\n".join(lines)
 	if txt == _obj_text:
 		return
@@ -318,7 +336,7 @@ func set_objectives(list: Array) -> void:
 
 
 func show_hint(text: String, seconds := 6.0) -> void:
-	_hint.text = text
+	_hint.text = for_touch(text)
 	_hint_t = seconds
 
 
@@ -379,7 +397,7 @@ func show_dialogue(speaker: String, text: String, choices: Array) -> void:
 	for c in _choices.get_children():
 		c.queue_free()
 	if choices.is_empty():
-		var b := UIStyle.flat_button("[E]  Continue", 18)
+		var b := UIStyle.flat_button(for_touch("[E]  Continue"), 18)
 		b.pressed.connect(func(): Dialogue.advance())
 		_choices.add_child(b)
 	for i in choices.size():
