@@ -24,12 +24,21 @@ from dp import geo, scene, tex
 ARM_DEG = 50.0
 
 
+STALKER = False   # set by build_stalker(): the Backrooms entity shares this rig with a different body
+
+
 def _skeleton():
     pts = {}
     edges = []
+    zs = 1.33 if STALKER else 1.0
+    rs = 0.7 if STALKER else 1.0
 
     def p(n, xyz, r):
-        pts[n] = (Vector(xyz), r)
+        x, y, z = xyz
+        pts[n] = (Vector((x, y, z * zs)), r * rs)
+
+    def _un(v):
+        return Vector((v.x, v.y, v.z / zs))
 
     p("pelvis", (0, 0.0, 0.97), 0.135)
     p("waist", (0, 0.005, 1.12), 0.12)
@@ -46,23 +55,25 @@ def _skeleton():
     for side, s in ((-1, "L"), (1, "R")):
         sh = Vector((side * 0.195, 0.0, 1.455))
         d = Vector((math.sin(a) * side, 0.0, -math.cos(a)))
+        arm = 1.55 if STALKER else 1.0
+        sh = Vector((sh.x, sh.y, sh.z * (1.33 if STALKER else 1.0))) / (1.33 if STALKER else 1.0)
         p("sh" + s, sh, 0.064)
-        p("elb" + s, sh + d * 0.29, 0.046)
-        p("wri" + s, sh + d * 0.55, 0.032)
-        p("pal" + s, sh + d * 0.62, 0.036)
+        p("elb" + s, sh + d * 0.29 * arm, 0.046)
+        p("wri" + s, sh + d * 0.55 * arm, 0.032)
+        p("pal" + s, sh + d * 0.62 * arm, 0.036)
         for a2, b2 in (("upper", "sh" + s), ("sh" + s, "elb" + s), ("elb" + s, "wri" + s), ("wri" + s, "pal" + s)):
             edges.append((a2, b2))
         fwd = Vector((0, 1, 0))
         for f in range(4):
             spread = (f - 1.5) * 0.019
-            ln = (0.075, 0.085, 0.08, 0.065)[f]
-            base = pts["pal" + s][0] + fwd * spread
+            ln = (0.075, 0.085, 0.08, 0.065)[f] * (2.3 if STALKER else 1.0)
+            base = _un(pts["pal" + s][0]) + fwd * spread
             k1, k2 = f"k{f}{s}", f"t{f}{s}"
             p(k1, base + d * 0.03, 0.0115)
             p(k2, base + d * (0.03 + ln), 0.009)
             edges.append(("pal" + s, k1))
             edges.append((k1, k2))
-        base = pts["pal" + s][0]
+        base = _un(pts["pal" + s][0])
         p("th1" + s, base + fwd * 0.035 + d * -0.01, 0.012)
         p("th2" + s, base + fwd * 0.07 + d * 0.03, 0.009)
         edges.append(("pal" + s, "th1" + s))
@@ -138,7 +149,18 @@ def _textures():
     return T
 
 
-def build(out_path):
+def build_stalker(out_path):
+    """THE BACKROOMS' entity: the same rig, a body that is wrong - too tall, too thin, arms past the
+    knees, fingers twice as long, a small head. Grey-white skin with dark veins. No clothes, no face."""
+    global STALKER
+    STALKER = True
+    try:
+        build(out_path, stalker=True)
+    finally:
+        STALKER = False
+
+
+def build(out_path, stalker=False):
     scene.reset()
     pts, edges = _skeleton()
     body = scene.skin_body("PlayerSkin", pts, edges, "pelvis", flat=("chest", "upper", "pelvis", "waist"))
@@ -149,7 +171,7 @@ def build(out_path):
     for v in bm.verts:
         co = v.co
         d = 0.002 * geo.fbm(co * 18.0, 2)
-        if co.z < 0.95 and co.z > 0.1:                 # trouser folds, mostly around the knees and ankles
+        if not STALKER and co.z < 0.95 and co.z > 0.1:   # trouser folds, mostly around the knees and ankles
             d += 0.004 * math.sin(co.z * 70.0 + geo.fbm(co * 4.0, 2) * 3.0) * (0.5 + 0.5 * math.cos((co.z - 0.5) * 6))
         v.co = co + v.normal * d
     bm.to_mesh(body.data)
@@ -168,6 +190,16 @@ def build(out_path):
 
     # split into three meshes by region, weights from bone distance, materials by region
     T = _textures()
+    if stalker:
+        n = 256
+        veins = np.clip(1 - np.abs(np.sin(tex.fbm(n, n, 6, 6, 41) * 30.0)) * 4, 0, 1)
+        mott = tex.fbm(n, n, 8, 8, 42)
+        lum = 0.62 + 0.12 * mott
+        alb = np.stack([lum * 0.95, lum * 0.95, lum * 0.92], -1) * (1 - 0.35 * veins[..., None]) + np.array([0.05, 0.03, 0.06]) * veins[..., None]
+        T["skin"] = tex.to_image("stalker_skin", alb)
+        T["skin_n"] = tex.to_image("stalker_skin_n", tex.normal_from_height(mott * 0.5 - veins * 0.6, 2.0), non_color=True)
+        T["shirt"], T["pants"], T["hair"] = T["skin"], T["skin"], T["skin"]
+        T["shirt_n"], T["pants_n"], T["hair_n"] = T["skin_n"], T["skin_n"], T["skin_n"]
     M = {
         "skin": scene.material("player_skin", T["skin"], normal_tex=T["skin_n"], normal_strength=0.4, roughness=0.6),
         "shirt": scene.material("player_shirt", T["shirt"], normal_tex=T["shirt_n"], normal_strength=0.8, roughness=0.92),

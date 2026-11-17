@@ -1,43 +1,181 @@
 {
 	"_doc": "Objectives shown in the top-left corner, per zone. An objective is done when its flag is set. 'after' hides it until that flag is set (unless it is already done). {name} is replaced by Game.counters[name].",
 	"bedroom": [
-		{"flag": "tutorial_done", "text": "Watch the video on the PC"},
-		{"flag": "has_notebook", "text": "Take the notebook from the desk"},
-		{"flag": "_sleep", "text": "Go to bed", "after": "has_notebook"}
+		{
+			"flag": "tutorial_done",
+			"text": "Watch the video on the PC"
+		},
+		{
+			"flag": "has_notebook",
+			"text": "Take the notebook from the desk"
+		},
+		{
+			"flag": "_sleep",
+			"text": "Go to bed",
+			"after": "has_notebook"
+		}
 	],
 	"city": [
-		{"flag": "manifest_first", "text": "Picture an ice cream (hold Q)"},
-		{"flag": "talked_any", "text": "Talk to someone"},
-		{"flag": "fell_through", "text": "When you've had enough: wake up (hold T)", "after": "talked_any"}
+		{
+			"flag": "city_landmarks",
+			"text": "Explore the neighbourhood ({landmarks}/3)"
+		},
+		{
+			"flag": "manifest_first",
+			"text": "Picture something (hold Q)"
+		},
+		{
+			"flag": "city_changed",
+			"text": "Change something in the dream ({changes}/2)",
+			"after": "manifest_first"
+		},
+		{
+			"flag": "city_talked",
+			"text": "Talk to the residents ({talked}/3)"
+		},
+		{
+			"flag": "city_told",
+			"text": "Tell someone they're dreaming",
+			"after": "city_talked"
+		},
+		{
+			"flag": "observer_noticed",
+			"text": "Find the man who doesn't move",
+			"after": "city_told"
+		},
+		{
+			"flag": "fell_through",
+			"text": "Find a quiet place to sleep: the big tree on the hill",
+			"after": "observer_noticed"
+		}
 	],
 	"maze": [
-		{"flag": "maze_escaped", "text": "Find the EXIT"}
+		{
+			"flag": "maze_found_wing",
+			"text": "Find a way out of the yellow rooms"
+		},
+		{
+			"flag": "maze_notes",
+			"text": "Find the notes about the power ({notes}/3)",
+			"after": "maze_power_room"
+		},
+		{
+			"flag": "maze_power",
+			"text": "Restore the power: breakers in order, then the main supply",
+			"after": "maze_power_room"
+		},
+		{
+			"flag": "maze_escaped",
+			"text": "Get back to the lift where you started",
+			"after": "maze_power"
+		}
 	],
 	"deep": [
-		{"flag": "deep_in_pump", "text": "Get into the PUMP ROOM"},
-		{"flag": "deep_handle", "text": "Find the DRAIN lever's missing handle", "after": "deep_saw_lever"},
-		{"flag": "deep_lever", "text": "Pull the DRAIN lever", "after": "deep_saw_lever"},
-		{"flag": "deep_drained", "text": "Watch the deep pool until it's empty", "after": "deep_lever"},
-		{"flag": "deep_key", "text": "Find the key to the gate around the deep pool", "after": "deep_saw_gate"},
-		{"flag": "deep_gate", "text": "Unlock the gate", "after": "deep_saw_gate"},
-		{"flag": "deep_grabbed", "text": "Go down", "after": "deep_gate"}
+		{
+			"flag": "deep_in_pump",
+			"text": "Get into the PUMP ROOM"
+		},
+		{
+			"flag": "deep_handle",
+			"text": "Find the DRAIN lever's missing handle",
+			"after": "deep_saw_lever"
+		},
+		{
+			"flag": "deep_lever",
+			"text": "Pull the DRAIN lever",
+			"after": "deep_saw_lever"
+		},
+		{
+			"flag": "deep_drained",
+			"text": "Watch the deep pool until it's empty",
+			"after": "deep_lever"
+		},
+		{
+			"flag": "deep_key",
+			"text": "Find the key to the gate around the deep pool",
+			"after": "deep_saw_gate"
+		},
+		{
+			"flag": "deep_gate",
+			"text": "Unlock the gate",
+			"after": "deep_saw_gate"
+		},
+		{
+			"flag": "deep_grabbed",
+			"text": "Go down",
+			"after": "deep_gate"
+		}
 	],
 	"seabed": [
-		{"flag": "seabed_light", "text": "Picture a light (hold Q)"},
-		{"flag": "seabed_cliff", "text": "Follow the glowing stones. Don't stray."},
-		{"flag": "seabed_cave", "text": "Get inside the sea cave", "after": "seabed_cliff"},
-		{"flag": "deep_escaped", "text": "Step through the glowing doorway", "after": "seabed_cave"}
+		{
+			"flag": "seabed_light",
+			"text": "Picture a light (hold Q)"
+		},
+		{
+			"flag": "seabed_cliff",
+			"text": "Follow the glowing stones. Don't stray."
+		},
+		{
+			"flag": "seabed_cave",
+			"text": "Get inside the sea cave",
+			"after": "seabed_cliff"
+		},
+		{
+			"flag": "deep_escaped",
+			"text": "Step through the glowing doorway",
+			"after": "seabed_cave"
+		}
 	],
 	"compression": [
-		{"flag": "comp_saw_box", "text": "Find a way out"},
-		{"flag": "comp_fuses", "text": "Find 3 fuses for the freight elevator ({fuses}/3)", "after": "comp_saw_box"},
-		{"flag": "comp_power", "text": "Put the fuses in the fuse box", "after": "comp_saw_box"},
-		{"flag": "comp_elevator", "text": "Take the freight elevator", "after": "comp_power"}
+		{
+			"flag": "comp_saw_box",
+			"text": "Find a way out"
+		},
+		{
+			"flag": "comp_fuses",
+			"text": "Find 3 fuses for the freight elevator ({fuses}/3)",
+			"after": "comp_saw_box"
+		},
+		{
+			"flag": "comp_power",
+			"text": "Put the fuses in the fuse box",
+			"after": "comp_saw_box"
+		},
+		{
+			"flag": "comp_elevator",
+			"text": "Take the freight elevator",
+			"after": "comp_power"
+		}
 	],
 	"above": [
-		{"flag": "above_key", "text": "Get the key at the end of the plank"},
-		{"flag": "above_cross", "text": "Cross the beam to the next roof"},
-		{"flag": "above_bridge", "text": "Use the key on the bridge controls", "after": "above_cross"},
-		{"flag": "above_mast", "text": "Climb the mast to the light", "after": "above_bridge"}
+		{
+			"flag": "above_key",
+			"text": "Get the key at the end of the plank"
+		},
+		{
+			"flag": "above_cross",
+			"text": "Cross the beam to the next roof"
+		},
+		{
+			"flag": "above_bridge",
+			"text": "Use the key on the bridge controls",
+			"after": "above_cross"
+		},
+		{
+			"flag": "above_mast",
+			"text": "Climb the mast to the light",
+			"after": "above_bridge"
+		}
+	],
+	"bedroom_dream": [
+		{
+			"flag": "city_realitycheck",
+			"text": "Reality check: read the clock, look away, read it again"
+		},
+		{
+			"flag": "_outside",
+			"text": "Go outside",
+			"after": "city_realitycheck"
+		}
 	]
 }

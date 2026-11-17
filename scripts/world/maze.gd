@@ -47,6 +47,23 @@ var _obs_check := 0.0
 var _obs_present := 0.0
 var _obs_seen_now := false
 var _sightings := 0
+# the expedition: maintenance wing, breakers, power, the hunt, the elevator
+var _maint_door: Node3D
+var _maint_block: StaticBody3D
+var _breakers: Array = []        # [{group, letter, up}]
+var _order: Array = []           # correct breaker order (letters)
+var _flipped: Array = []
+var _main_switch: Node3D
+var _wing_lights: Array = []
+var _stalker: Stalker
+var _hunting := false
+var _path: Array = []
+var _path_t := 0.0
+var _glass: StaticBody3D
+var _lift_doors: Array[Node3D] = []
+var _lift_light: OmniLight3D
+var _lift_sign: MeshInstance3D
+var _wing_xf := Transform3D.IDENTITY
 
 
 func zone_id() -> String: return "maze"
@@ -117,6 +134,7 @@ func build() -> void:
 	_build_lights()
 	_props()
 	_exit()
+	_expedition()
 	_register_anomalies()
 	_hum = ambient("hum", Vector3.ZERO, false, -18.0)
 	observer = Observer.new()
@@ -344,17 +362,20 @@ func _exit() -> void:
 	_wall(center - along * (door_half + side_len * 0.5), along_z, side_len, WALL_A)
 	var lintel_h := WALL_H - 2.2
 	box(center + Vector3(0, 2.2 + lintel_h * 0.5, 0), Vector3(THICK, lintel_h, 1.2) if along_z else Vector3(1.2, lintel_h, THICK), WALL_A)
-	door(center - inward * 0.02, rad_to_deg(atan2(inward.x, inward.z)), Color(0.55, 0.42, 0.28), 1.08, 2.14)
-	# EXIT sign above it
+	# not an exit: a grey steel door, MAINTENANCE - STAFF ONLY, into the wing behind the yellow rooms
+	_maint_door = door(center - inward * 0.02, rad_to_deg(atan2(inward.x, inward.z)), Color(0.42, 0.44, 0.46), 1.08, 2.14, "metal")
+	_maint_block = solid_box(center + Vector3(0, 1.07, 0), Vector3(0.2, 2.14, 1.1) if along_z else Vector3(1.1, 2.14, 0.2), Color(0, 0, 0, 0))
+	_maint_block.get_child(1).visible = false
 	var sign_pos := center + inward * (THICK * 0.5 + 0.04) + Vector3(0, 2.5, 0)
-	part("box", sign_pos, Vector3(0.06, 0.24, 0.64) if along_z else Vector3(0.64, 0.24, 0.06), Color(0.05, 0.62, 0.25), null, Vector3.ZERO, 1.8)
+	part("box", sign_pos, Vector3(0.06, 0.24, 0.84) if along_z else Vector3(0.84, 0.24, 0.06), Color(0.55, 0.06, 0.04), null, Vector3.ZERO, 1.2)
 	var yaw := rad_to_deg(atan2(inward.x, inward.z))
-	label(sign_pos + inward * 0.035, yaw, "EXIT", 0.18, Color(1.0, 0.95, 0.9))
-	omni(sign_pos + inward * 0.3, Color(0.2, 1.0, 0.45), 0.5, 3.0, false)
-	# the loudest hum in the building
-	ambient("hum", center + inward * 0.4 + Vector3(0, 2.0, 0), true, 4.0, 38.0)
+	label(sign_pos + inward * 0.035, yaw, "MAINTENANCE\nSTAFF ONLY", 0.1, Color(1.0, 0.92, 0.85))
+	omni(sign_pos + inward * 0.3, Color(1.0, 0.3, 0.2), 0.4, 3.0, false)
+	ambient("buzz", center + inward * 0.4 + Vector3(0, 2.0, 0), true, -6.0, 18.0)
 	interactable(center - inward * 0.02 + Vector3(0, 1.1, 0), Vector3(0.3, 2.1, 1.16) if along_z else Vector3(1.16, 2.1, 0.3),
-		func(): return "Open the door", func(): Game.on_maze_exit())
+		func(): return "Maintenance door" if _maint_block.visible else "",
+		func(): _open_maint(), func(): return _maint_block.visible)
+	_wing(center, -inward, along)
 
 
 func exit_position() -> Vector3:
@@ -417,6 +438,7 @@ func on_player_entered(from_save: bool) -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	_hunt(delta)
 	if Game.in_sequence:
 		return
 	if _hint == 0 and _t > 2.5:
@@ -517,3 +539,360 @@ func observer_event(event: String) -> void:
 		_obs_cooldown = minf(_obs_cooldown, 4.0)
 		if observer and not observer.is_present():
 			_summon(2)
+
+
+# ------------------------------------------------------------------ THE BACKROOMS' expedition
+# 1 Arrival  2 The yellow maze: landmarks (a park bench, a street sign, the ice cream cart) and three notes
+# 3 The maintenance wing  4 The power room: breakers in the order the notes give  5 The distortion:
+# walls swap, doorways lead elsewhere  6 The pursuit  7 The exit: the elevator where you arrived.
+
+func _wbox(local_c: Vector3, local_size: Vector3, color: Color, collide := true, surface: Variant = "concrete") -> void:
+	var sz := local_size if absf(_wing_xf.basis.x.x) > 0.5 else Vector3(local_size.z, local_size.y, local_size.x)
+	box(_wing_xf * local_c, sz, color, collide, 0.0, surface)
+
+
+## The wing: local X runs away from the maze (out through the maintenance door), Z along the wall.
+func _wing(door_center: Vector3, out: Vector3, along: Vector3) -> void:
+	var z_axis := out.cross(Vector3.UP)
+	_wing_xf = Transform3D(Basis(out, Vector3.UP, z_axis), door_center)
+	var grey := Color(0.5, 0.5, 0.49)
+	var floor_c := Color(0.36, 0.36, 0.35)
+	var H2 := 2.8
+	# corridor: x 0..16, z -1.5..1.5
+	_wbox(Vector3(8, -0.05, 0), Vector3(16, 0.1, 3.2), floor_c, true, "concrete")
+	_wbox(Vector3(8, H2 + 0.05, 0), Vector3(16, 0.1, 3.2), grey.darkened(0.2))
+	for side in [-1.0, 1.0]:
+		# walls with gaps for the side doors (x 4.4..5.6 on +Z, 8.3..10.3 window on -Z, x 11.4..12.6 on +Z)
+		var gaps: Array = [[4.4, 5.6], [11.4, 12.6]] if side > 0 else [[8.3, 10.3]]
+		var x := 0.0
+		for g in gaps + [[16.0, 16.0]]:
+			if g[0] > x:
+				_wbox(Vector3((x + g[0]) * 0.5, H2 * 0.5, side * 1.6), Vector3(g[0] - x, H2, 0.2), grey, true, "concrete")
+			x = g[1]
+	# the two locked doors, and what's behind the window
+	for spec in [[5.0, "B-12  STORAGE"], [12.0, "ELECTRICAL"]]:
+		var dpos: Vector3 = _wing_xf * Vector3(spec[0], 0, 1.55)
+		door(dpos, rad_to_deg(atan2(-z_axis.x, -z_axis.z)), Color(0.4, 0.42, 0.44), 1.0, 2.1, "metal")
+		blocker(dpos + Vector3(0, 1.05, 0), Vector3(1.2, 2.1, 1.2))
+		label(_wing_xf * Vector3(spec[0], 2.35, 1.48), rad_to_deg(atan2(-z_axis.x, -z_axis.z)), spec[1], 0.07, Color(0.1, 0.1, 0.1), false)
+		interactable(_wing_xf * Vector3(spec[0], 1.0, 1.4), Vector3(1.2, 2.0, 1.2), func(): return "Locked door",
+			func():
+				Sfx.play_at("knock", self, dpos + Vector3(0, 1.2, 0), 2.0, 12.0)
+				Game.hud.show_thought("Locked. ...Something on the other side knocked back.", 3.0)
+				Game.player.dread.add_fear(5.0, "knock back"))
+	# the dark room behind glass (x 8.3..10.3 window; room x 7.5..11, z -1.6..-5)
+	_wbox(Vector3(9.25, -0.05, -3.3), Vector3(3.6, 0.1, 3.4), floor_c)
+	_wbox(Vector3(9.25, H2 + 0.05, -3.3), Vector3(3.6, 0.1, 3.4), grey.darkened(0.3))
+	_wbox(Vector3(7.4, H2 * 0.5, -3.3), Vector3(0.2, H2, 3.4), grey)
+	_wbox(Vector3(11.1, H2 * 0.5, -3.3), Vector3(0.2, H2, 3.4), grey)
+	_wbox(Vector3(9.25, H2 * 0.5, -5.05), Vector3(3.6, H2, 0.2), grey)
+	_wbox(Vector3(9.3, 0.5, -1.6), Vector3(2.0, 1.0, 0.2), grey)
+	_wbox(Vector3(9.3, 2.4, -1.6), Vector3(2.0, 0.8, 0.2), grey)
+	_glass = solid_box(_wing_xf * Vector3(9.3, 1.5, -1.6), Vector3(0.04, 1.0, 2.0) if absf(z_axis.x) > 0.5 else Vector3(2.0, 1.0, 0.04), Color(0.4, 0.5, 0.5), null, "glass")
+	_glass.collision_layer = 1 | 4
+	var gm := StandardMaterial3D.new()
+	gm.albedo_color = Color(0.55, 0.65, 0.65, 0.18)
+	gm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	gm.roughness = 0.05
+	gm.metallic = 0.2
+	(_glass.get_child(1) as MeshInstance3D).material_override = gm
+	omni(_wing_xf * Vector3(9.25, 2.4, -4.0), Color(0.8, 0.12, 0.08), 0.35, 4.0, false)
+	_stalker = Stalker.new()
+	add_child(_stalker)
+	_stalker.global_position = _wing_xf * Vector3(9.25, 0, -4.2)
+	_stalker.rotation.y = atan2(z_axis.x, z_axis.z) + PI
+	trigger(_wing_xf * Vector3(8.6, 1.2, 0), Vector3(1.4, 2.4, 3.0), func():
+		Game.set_flag("maze_saw_it")
+		scare("braam", 8.0, -2.0)
+		Game.hud.show_thought("There's someone in there. Standing. Not moving. Don't look at it. Keep going.", 4.0))
+	trigger(_wing_xf * Vector3(1.5, 1.2, 0), Vector3(2.0, 2.4, 3.0), func():
+		Game.set_flag("maze_found_wing")
+		Game.hud.show_thought("Concrete. Pipes. A real building, behind the yellow. Somebody maintains this place.", 4.0))
+	# pipes along the ceiling, buzzing tubes
+	for k in 2:
+		_wbox(Vector3(8, 2.55 - k * 0.18, -1.2 + k * 0.25), Vector3(16, 0.12, 0.12), Color(0.3, 0.32, 0.3), false, "metal")
+	for x in [3.0, 8.0, 13.0]:
+		var tube := part("box", _wing_xf * Vector3(x, H2 - 0.04, 0.5), Vector3(0.12, 0.04, 1.2) if absf(z_axis.x) > 0.5 else Vector3(1.2, 0.04, 0.12), Color(0.9, 0.95, 1.0), null, Vector3.ZERO, 2.0)
+		var l := omni(_wing_xf * Vector3(x, H2 - 0.3, 0.5), Color(0.85, 0.92, 1.0), 0.9, 6.0, false)
+		_wing_lights.append([l, tube])
+	ambient("buzz", _wing_xf * Vector3(8, 2.4, 0), true, -8.0, 14.0)
+	# the power room: x 16..22, z -3..3
+	_wbox(Vector3(19, -0.05, 0), Vector3(6, 0.1, 6.2), floor_c)
+	_wbox(Vector3(19, 3.05, 0), Vector3(6, 0.1, 6.2), grey.darkened(0.25))
+	_wbox(Vector3(19, 1.5, 3.1), Vector3(6, 3, 0.2), grey)
+	_wbox(Vector3(19, 1.5, -3.1), Vector3(6, 3, 0.2), grey)
+	_wbox(Vector3(22.1, 1.5, 0), Vector3(0.2, 3, 6.2), grey)
+	_wbox(Vector3(16, 1.5, 2.3), Vector3(0.2, 3, 1.4), grey)
+	_wbox(Vector3(16, 1.5, -2.3), Vector3(0.2, 3, 1.4), grey)
+	_wbox(Vector3(16, 2.9, 0), Vector3(0.2, 0.2, 3.2), grey)
+	var pl := omni(_wing_xf * Vector3(19, 2.6, 0), Color(1.0, 0.9, 0.7), 0.9, 7.0, true)
+	_wing_lights.append([pl, null])
+	# breaker panel on the far wall
+	_wbox(Vector3(21.9, 1.5, 0), Vector3(0.16, 1.4, 2.4), Color(0.25, 0.28, 0.26), true, "metal")
+	label(_wing_xf * Vector3(21.8, 2.35, 0), rad_to_deg(atan2(-out.x, -out.z)), "EXIT SYSTEM  -  MAIN SUPPLY", 0.06, Color(0.9, 0.85, 0.3), false)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value + 404
+	_order = ["A", "B", "C", "D"]
+	for i in range(3, 0, -1):
+		var j := rng.randi_range(0, i)
+		var tmp = _order[i]
+		_order[i] = _order[j]
+		_order[j] = tmp
+	for k in 4:
+		var letter: String = ["A", "B", "C", "D"][k]
+		var zc := -0.75 + k * 0.5
+		var g := group(_wing_xf * Vector3(21.78, 1.5, zc))
+		part("box", Vector3(0, 0.12, 0), Vector3(0.05, 0.25, 0.05), Color(0.1, 0.1, 0.1), g)
+		g.rotation_degrees.z = 0.0
+		label(_wing_xf * Vector3(21.78, 1.15, zc), rad_to_deg(atan2(-out.x, -out.z)), letter, 0.08, Color(0.95, 0.95, 0.9), false)
+		var b := {"group": g, "letter": letter, "up": false}
+		_breakers.append(b)
+		interactable(_wing_xf * Vector3(21.7, 1.5, zc), Vector3(0.3, 0.5, 0.4), func(): return "Breaker " + letter + (" (up)" if b.up else ""),
+			func(): _flip(b), func(): return not Game.has_flag("maze_power"))
+	_main_switch = group(_wing_xf * Vector3(21.78, 1.1, 0.95))
+	part("box", Vector3(0, 0.15, 0), Vector3(0.07, 0.3, 0.07), Color(0.6, 0.08, 0.05), _main_switch)
+	interactable(_wing_xf * Vector3(21.7, 1.2, 0.95), Vector3(0.3, 0.5, 0.4),
+		func(): return "MAIN SUPPLY" if _flipped.size() == 4 else "Main supply (breakers off)",
+		func():
+			if _flipped.size() < 4:
+				Game.hud.show_thought("Nothing. The breakers have to be up first.", 2.5)
+			else:
+				_power_on(),
+		func(): return not Game.has_flag("maze_power"))
+	# a tape recorder (optional)
+	_wbox(Vector3(17.2, 0.45, -2.5), Vector3(0.6, 0.9, 0.8), Color(0.35, 0.3, 0.25), true, "wood")
+	box(_wing_xf * Vector3(17.2, 0.95, -2.5), Vector3(0.3, 0.1, 0.2), Color(0.1, 0.1, 0.1), false, 0.0, "metal")
+	interactable(_wing_xf * Vector3(17.2, 1.0, -2.5), Vector3(0.6, 0.4, 0.6), func(): return "Play the tape", func(): _tape())
+	trigger(_wing_xf * Vector3(17.0, 1.2, 0), Vector3(2.0, 2.4, 4.0), func():
+		Game.set_flag("maze_power_room")
+		Game.hud.show_thought("Four breakers. A main switch. EXIT SYSTEM. There's an exit system.", 4.0))
+
+	# the elevator where you arrived: dead until the power is back
+	var lift := cell_center(0, 0) + Vector3(-0.5 * CELL + THICK * 0.5 + 0.03, 0, 0.0)
+	var face_yaw := 90.0
+	for k in 2:
+		var dg := group(lift + Vector3(0, 0, -0.42 + k * 0.84), face_yaw)
+		part("box", Vector3(0, 1.1, 0), Vector3(0.84, 2.2, 0.05), Color(0.6, 0.6, 0.62), dg, Vector3.ZERO, 0.0, "metal")
+		_lift_doors.append(dg)
+	box(lift + Vector3(-0.05, 1.15, 0), Vector3(0.08, 2.4, 1.9), Color(0.35, 0.36, 0.38), false, 0.0, "metal")
+	_lift_sign = part("box", lift + Vector3(0.05, 2.55, 0), Vector3(0.04, 0.16, 0.5), Color(0.15, 0.04, 0.03), null, Vector3.ZERO, 0.4)
+	label(lift + Vector3(0.08, 2.55, 0), 90, "LIFT", 0.08, Color(1.0, 0.6, 0.5))
+	_lift_light = omni(lift + Vector3(0.4, 2.3, 0), Color(1.0, 0.3, 0.2), 0.0, 4.0, false)
+	interactable(lift + Vector3(0.3, 1.2, 0.9), Vector3(0.4, 0.5, 0.3), func(): return "Call the lift",
+		func():
+			if not Game.has_flag("maze_power"):
+				Sfx.play("switch", -10.0)
+				Game.hud.show_thought("Dead. No power. ...It's been here the whole time.", 3.0)
+			else:
+				_lift_arrives())
+	box(lift + Vector3(0.05, 1.2, 0.9), Vector3(0.04, 0.25, 0.14), Color(0.2, 0.2, 0.2), false, 0.0, "metal")
+
+
+func _open_maint() -> void:
+	_maint_block.visible = false
+	_maint_block.get_child(0).disabled = true
+	Sfx.play("door_creak", -2.0, 0.9)
+	create_tween().tween_property(_maint_door, "rotation_degrees:y", _maint_door.rotation_degrees.y + 95.0, 1.4).set_trans(Tween.TRANS_SINE)
+
+
+func _flip(b: Dictionary) -> void:
+	if b.up:
+		return
+	b.up = true
+	(b.group as Node3D).rotation_degrees.z = 160.0
+	Sfx.play("switch", -4.0)
+	_flipped.append(b.letter)
+	var i := _flipped.size() - 1
+	if _flipped[i] != _order[i]:
+		# wrong: everything trips. bang. the lights die for a moment.
+		await get_tree().create_timer(0.35, false).timeout
+		Sfx.play("hit", -6.0, 1.3)
+		Sfx.play("glitch", -6.0)
+		for x in _breakers:
+			x.up = false
+			(x.group as Node3D).rotation_degrees.z = 0.0
+		_flipped.clear()
+		for wl in _wing_lights:
+			wl[0].visible = false
+		Game.player.dread.add_fear(6.0, "breakers tripped")
+		Game.hud.show_thought("They all tripped. Wrong order. ...The notes. The notes had an order.", 3.5)
+		await get_tree().create_timer(1.6, false).timeout
+		for wl in _wing_lights:
+			wl[0].visible = true
+	elif _flipped.size() == 4:
+		Game.hud.show_thought("All four. Now the main supply.", 2.5)
+
+
+func _power_on() -> void:
+	Game.set_flag("maze_power")
+	_main_switch.rotation_degrees.z = 160.0
+	Sfx.play("switch", 0.0, 0.7)
+	Sfx.stinger("braam", 0.0)
+	Game.player.jolt(Vector3(-4, 2, 0))
+	# the lights go red. the walls shift. the lift lights up. and the glass breaks.
+	for l in _lights:
+		l.light.light_color = Color(1.0, 0.35, 0.25)
+		l.base = 1.2
+	for wl in _wing_lights:
+		wl[0].light_color = Color(1.0, 0.3, 0.2)
+	for w in _dynamic:
+		_set_dynamic(w, not w.open)
+	_lift_light.light_energy = 1.5
+	_lift_sign.material_override = Shapes.material(Color(1.0, 0.25, 0.15), 0.4, 3.0)
+	Game.hud.show_thought("Power. ...The lift. Back where I started. It was there the whole time.", 4.0)
+	_portals()
+	await get_tree().create_timer(3.0, false).timeout
+	if not is_inside_tree():
+		return
+	_glass.queue_free()
+	Sfx.play_at("hit", self, _stalker.global_position + Vector3(0, 1.5, 0), 6.0, 40.0)
+	Sfx.stinger("screech", -2.0)
+	Game.player.dread.add_fear(15.0, "it's out")
+	Game.hud.show_thought("RUN.", 2.0)
+	_hunting = true
+	Game.set_flag("maze_hunted")
+
+
+## After the power comes on, two doorways no longer lead where they did.
+func _portals() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value + 808
+	for k in 2:
+		var a := Vector2i(rng.randi_range(2, W - 3), rng.randi_range(2, H - 3))
+		var b := Vector2i(rng.randi_range(2, W - 3), rng.randi_range(2, H - 3))
+		var from := cell_center(a.x, a.y)
+		var to := cell_center(b.x, b.y)
+		trigger(from + Vector3(0, 1.2, 0), Vector3(1.5, 2.4, 1.5), func():
+			var off: Vector3 = Game.player.global_position - from
+			Game.player.global_position = to + off
+			Sfx.play("glitch", -14.0)
+			Game.player.dread.add_fear(3.0, "the corridor moved"), false)
+
+
+func _tape() -> void:
+	Sfx.play("static", -10.0)
+	var lines := ["\"...day nine. The walls moved again while I was asleep.\"",
+		"\"I found the breakers. It only lets the lift run when it's awake.\"",
+		"\"When the lights go red, don't look behind you. Just walk. Then run.\""]
+	for i in lines.size():
+		Game.hud.show_thought(lines[i], 3.8)
+		await get_tree().create_timer(4.0, false).timeout
+		if not is_inside_tree():
+			return
+	Game.set_flag("maze_tape")
+
+
+func _lift_arrives() -> void:
+	if Game.in_sequence:
+		return
+	Sfx.play("ding", 0.0)
+	for k in 2:
+		var side := -1.0 if k == 0 else 1.0
+		create_tween().tween_property(_lift_doors[k], "position:z", _lift_doors[k].position.z + side * 0.8, 1.6).set_trans(Tween.TRANS_SINE)
+	await get_tree().create_timer(1.2, false).timeout
+	Sfx.play("splash_big", 0.0, 0.8)
+	Game.hud.show_thought("That's not a lift. That's... water. Where the lift should be.", 3.0)
+	await get_tree().create_timer(1.5, false).timeout
+	Game.on_maze_exit()
+
+
+func _hunt(delta: float) -> void:
+	if not _hunting or _stalker == null or Game.in_sequence:
+		return
+	var p: Vector3 = Game.player.global_position
+	var me := _stalker.global_position
+	# in the wing: straight down the corridor to the door, then the maze's own passages
+	var in_wing := (_wing_xf.affine_inverse() * me).x > 0.3
+	_path_t -= delta
+	if _path_t <= 0.0:
+		_path_t = 0.4
+		_path = _route(cell_at(me), cell_at(p)) if not in_wing else [_wing_xf * Vector3(-1.0, 0, 0)]
+	var target := p
+	if not _path.is_empty():
+		target = _path[0]
+		if Vector2(me.x - target.x, me.z - target.z).length() < 0.4:
+			_path.pop_front()
+	var dist := me.distance_to(p)
+	var spd := 3.35 if dist > 4.0 else 3.7
+	if in_wing and (_wing_xf.affine_inverse() * me).z < -1.2:
+		target = _wing_xf * Vector3(9.25, 0, 0)
+	_stalker.move_to(target if dist > 1.6 else p, spd, delta)
+	if dist < 1.1:
+		_hunting = false
+		Game.entity_death("stalker", _stalker)
+
+
+## Shortest walk through the maze's current openings (BFS over cells), as world points.
+func _route(from: Vector2i, to: Vector2i) -> Array:
+	if not _in(from.x, from.y) or not _in(to.x, to.y):
+		return []
+	var prev := {from: from}
+	var queue := [from]
+	var head := 0
+	while head < queue.size():
+		var c: Vector2i = queue[head]
+		head += 1
+		if c == to:
+			break
+		for d in 4:
+			if not passable(c.x, c.y, d):
+				continue
+			var n := Vector2i(c.x + DX[d], c.y + DZ[d])
+			if _in(n.x, n.y) and not prev.has(n):
+				prev[n] = c
+				queue.append(n)
+	if not prev.has(to):
+		return []
+	var out := []
+	var c: Vector2i = to
+	while c != from:
+		out.push_front(cell_center(c.x, c.y))
+		c = prev[c]
+	return out
+
+
+func _expedition() -> void:
+	# the summer leaks in: things from the city, where they don't belong
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value + 313
+	var used := {Vector2i(0, 0): true, _exit_cell: true}
+	var spots := []
+	while spots.size() < 6:
+		var c := Vector2i(rng.randi_range(1, W - 2), rng.randi_range(1, H - 2))
+		if not used.has(c):
+			used[c] = true
+			spots.append(c)
+	var bench_c: Vector3 = cell_center(spots[0].x, spots[0].y)
+	if not prop("bench", bench_c, 30.0):
+		box(bench_c + Vector3(0, 0.45, 0), Vector3(1.8, 0.08, 0.5), Color(0.5, 0.32, 0.18))
+	interactable(bench_c + Vector3(0, 0.6, 0), Vector3(2.0, 1.2, 1.0), func(): return "Park bench",
+		func(): Game.hud.show_thought("Mr. Halvorsen's bench. From the park. There are still breadcrumbs on it.", 4.0))
+	var sign_c: Vector3 = cell_center(spots[1].x, spots[1].y) + Vector3(1.2, 0, 1.2)
+	shape_at("cylinder", sign_c + Vector3(0, 1.4, 0), Vector3(0.06, 2.8, 0.06), Color(0.3, 0.32, 0.3), true, Vector3.ZERO, "metal")
+	box(sign_c + Vector3(0.45, 2.6, 0), Vector3(0.9, 0.22, 0.03), Color(0.1, 0.35, 0.18), false, 0.0, "metal")
+	label(sign_c + Vector3(0.45, 2.6, 0.02), 0, "PARK AVE", 0.09, Color(0.95, 0.95, 0.9), false)
+	var cart: Vector3 = cell_center(spots[2].x, spots[2].y)
+	box(cart + Vector3(0, 0.7, 0), Vector3(2.4, 0.9, 1.1), Color(0.95, 0.92, 0.85), true, 20.0)
+	box(cart + Vector3(0, 1.08, 0), Vector3(2.44, 0.12, 1.14), Color(0.95, 0.5, 0.6), false, 20.0)
+	interactable(cart + Vector3(0, 1.0, 0), Vector3(2.6, 1.2, 1.4), func(): return "Ice cream cart",
+		func():
+			Game.hud.show_thought("Mina's cart. Every tub is melted. Long ago. It smells like the summer, gone off.", 4.0)
+			Game.player.dread.add_fear(3.0, "melted"))
+	# three notes, each with a piece of the breaker order
+	var texts := ["\"%s goes first. ALWAYS first.\"" % _order[0],
+		"\"%s then %s. Never the other way round.\"" % [_order[1], _order[2]],
+		"\"%s last. Or it hears you.\"" % _order[3]]
+	for k in 3:
+		var nc: Vector3 = cell_center(spots[3 + k].x, spots[3 + k].y) + Vector3(0.8, 0, -0.6)
+		box(nc + Vector3(0, 0.73, 0), Vector3(1.2, 0.04, 0.6), Color(0.55, 0.5, 0.42), true, 0.0, "wood")
+		box(nc + Vector3(0, 0.36, 0), Vector3(1.1, 0.72, 0.5), Color(0.45, 0.4, 0.33), false, 0.0, "wood")
+		var paper := part("box", nc + Vector3(0.1, 0.755, 0.05), Vector3(0.21, 0.004, 0.29), Color(0.92, 0.9, 0.82), null, Vector3(0, 15, 0))
+		var t: String = texts[k]
+		interactable(nc + Vector3(0, 0.85, 0), Vector3(1.0, 0.5, 0.6), func(): return "Read the note",
+			func():
+				Game.hud.show_thought("Scrawled in pencil, pressed hard: " + t, 5.0)
+				if not paper.has_meta("read"):
+					paper.set_meta("read", true)
+					Game.counters["notes"] = int(Game.counters.get("notes", 0)) + 1
+					if Game.counters["notes"] >= 3:
+						Game.set_flag("maze_notes"))

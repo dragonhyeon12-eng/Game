@@ -71,6 +71,8 @@ func break_rule(id: String) -> void:
 	if r.breaks > 1 and def.has("onRepeatBreak"):
 		effects = def["onRepeatBreak"]
 	print("Rule broken: %s (x%d)" % [id, r.breaks])
+	if id == "rule_tell" and Game.zone_type == "city":
+		Game.set_flag("city_told")
 	rule_broken.emit(id)
 	Effects.apply_all(effects.duplicate())
 

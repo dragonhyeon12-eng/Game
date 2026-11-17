@@ -26,6 +26,13 @@ func _look(from: Vector3, at: Vector3) -> void:
 	pl.head.rotation.x = pl._pitch
 
 
+func _zone_t(z: String) -> void:
+	Game.enter_zone(z)
+	Game.set_mode("cinematic")
+	Game.hud.set_fade(0.0)
+	Game.hud.clear_text()
+
+
 func _zone(z: String) -> void:
 	Game.enter_zone(z)
 	Game.set_mode("cinematic")
@@ -186,6 +193,22 @@ func _run() -> void:
 		"comp_vent": func():
 			_zone("compression")
 			_look(Vector3(-10.5, 0.9, -18.0), Vector3(-10.5, 0.7, -28)),
+		"dream_bedroom": func():
+			_zone_t("bedroom_dream")
+			_look(Vector3(1.2, 1.4, -0.9), Vector3(0.6, 1.4, -2.3)),
+		"city_hill": func():
+			_zone("city")
+			_look(Vector3(0, 1.8, -8), Vector3(0, 8, -84)),
+		"maze_wing": func():
+			_zone("maze")
+			var z: MazeZone = Game.zone
+			z._open_maint()
+			var p: Vector3 = z._wing_xf * Vector3(6.0, 1.62, 0.6)
+			_look(p, z._wing_xf * Vector3(9.3, 1.4, -3.5)),
+		"maze_power": func():
+			_zone("maze")
+			var z: MazeZone = Game.zone
+			_look(z._wing_xf * Vector3(18.5, 1.62, 0.8), z._wing_xf * Vector3(22, 1.4, 0)),
 		"comp_sheets": func():
 			_zone("compression")
 			_look(Vector3(-9.2, 1.6, -12.4), Vector3(-9.6, 1.2, -4)),

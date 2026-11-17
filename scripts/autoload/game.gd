@@ -160,6 +160,10 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 			var b := BedroomZone.new()
 			b.waking = waking
 			zone = b
+		"bedroom_dream":
+			var bd := BedroomZone.new()
+			bd.dreaming = true
+			zone = bd
 		"city":
 			zone = CityZone.new()
 		"maze":
@@ -192,6 +196,9 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 	Sfx.music_gain = 1.0
 	match type:
 		"city": Sfx.play_music("city", 4.0)
+		"bedroom_dream":
+			Sfx.play_music("city", 6.0)
+			Sfx.music_gain = 0.5
 		"maze": Sfx.play_music("maze", 6.0)
 		"deep": Sfx.play_music("deep", 8.0)
 		"seabed": Sfx.play_music("deep", 4.0)
@@ -396,11 +403,29 @@ func request_sleep() -> void:
 	if not await _wait(3.0, t): return
 	hud.hide_card(1.0)
 	if not await _wait(1.5, t): return
-	enter_zone("city")
+	enter_zone("bedroom_dream")
 	save_checkpoint()
 	hud.fade_to(0.0, 3.5)
 	in_sequence = false
 	set_mode("game")
+
+
+## Out of the dream bedroom into the summer city.
+func leave_dream_house() -> void:
+	if in_sequence:
+		return
+	in_sequence = true
+	var t := _seq
+	set_mode("cinematic")
+	Sfx.play("door_creak", -6.0, 1.2)
+	hud.fade_to(1.0, 0.8)
+	if not await _wait(1.0, t): return
+	enter_zone("city")
+	save_checkpoint()
+	hud.fade_to(0.0, 2.0)
+	in_sequence = false
+	set_mode("game")
+	hud.show_thought("Warm. Bright. It smells like cut grass. This is MY dream.", 4.0)
 
 
 # ------------------------------------------------------------------ waking (falling)
@@ -593,6 +618,52 @@ func leviathan_kill(lev: Leviathan) -> void:
 	player.jolt(Vector3(-10, 6, -6))
 	hud.set_fade(1.0)
 	Sfx.play("thud", 6.0, 0.5)
+	_death_sequence("wake")
+
+
+## Turn the player's view toward a point over `seconds` (cutscenes).
+func look_toward(point: Vector3, seconds: float) -> void:
+	var to := point - player.camera.global_position
+	var yaw := atan2(-to.x, -to.z)
+	var pitch := atan2(to.y, Vector2(to.x, to.z).length())
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(player, "rotation:y", lerp_angle(player.rotation.y, yaw, 1.0), seconds).set_trans(Tween.TRANS_SINE)
+	tw.tween_method(func(v): player._pitch = v; player.head.rotation.x = v, player._pitch, pitch, seconds).set_trans(Tween.TRANS_SINE)
+
+
+## Each entity kills in its own way. Every one ends in the waking sequence.
+func entity_death(kind: String, who: Node3D = null) -> void:
+	if in_sequence:
+		return
+	in_sequence = true
+	var t := _seq
+	set_mode("cinematic")
+	hud.clear_text()
+	match kind:
+		"stalker":
+			# it is right behind you. you turn. it is already closer than that.
+			var head := who.global_position + Vector3(0, 2.1, 0)
+			look_toward(head, 0.25)
+			Sfx.stinger("screech", 2.0)
+			if not await _wait(0.3, t): return
+			var cam := player.camera.global_position
+			var fwd := -player.camera.global_transform.basis.z
+			fwd.y = 0.0
+			fwd = fwd.normalized()
+			var tw := create_tween()
+			tw.tween_property(who, "global_position", Vector3(cam.x, player.global_position.y, cam.z) + fwd * 0.55, 0.18)
+			if not await _wait(0.2, t): return
+			look_toward(who.global_position + Vector3(0, 2.25, 0), 0.35)
+			Sfx.play("hit", 4.0, 0.8)
+			player.jolt(Vector3(-12, 6, 8))
+			hud.set_post(1.0, 0.6, 1.0, 1.0)
+			if not await _wait(0.45, t): return
+			Sfx.play("thud", 6.0, 0.6)
+			hud.set_fade(1.0, Color(0.05, 0.0, 0.0))
+			if not await _wait(0.8, t): return
+		_:
+			hud.fade_to(1.0, 0.3)
+			if not await _wait(0.4, t): return
 	_death_sequence("wake")
 
 

@@ -73,6 +73,7 @@ func build() -> void:
 	_skyline()
 	_lighting()
 	_characters()
+	_quest()
 	ambient("city", Vector3.ZERO, false, -14.0)
 	_water = ambient("water", Vector3(0, 0.8, 0), true, -2.0, 22.0)
 	for s in [Vector3(BOUNDS, 10, 0), Vector3(-BOUNDS, 10, 0)]:
@@ -105,6 +106,8 @@ func _buildings() -> void:
 		for j in range(-HALF, HALF + 1):
 			if i == 0 and j == 0:
 				continue
+			if i == 0 and j == -2:
+				continue     # the hill with the big tree: the quiet place at the end of the city
 			var c := Vector3(i * PITCH, CURB, j * PITCH)
 			var near_park := absi(i) <= 1 and absi(j) <= 1
 			var layout := rng.randi_range(0, 2)
@@ -477,6 +480,7 @@ func on_player_entered(_from_save: bool) -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	_quest_update(delta)
 	_hints(delta)
 	_life(delta)
 	# After vanishing, he comes back later - far away, somewhere you are not looking.
@@ -598,3 +602,161 @@ func observer_event(event: String) -> void:
 	if spot != Vector3.INF:
 		_observer_spots.insert(0, spot)
 		observer.request_relocation(spot)
+
+
+# ------------------------------------------------------------------ the city's stages
+# 1 Awakening (the dream bedroom)  2 The Neighbourhood: three landmarks  3 The Experiment: picture
+# something, change two things  4 The Residents: talk, tell one of them  5 The Observer  6 The Exit:
+# the hammock under the giant tree on the hill, visible over the rooftops from the park.
+
+const HILL := Vector3(0, CURB, -84)
+var _landmarks := {}
+var _changes := {}
+var _fountain_jets: Array[Node3D] = []
+var _told_t := -1.0
+
+
+func _quest() -> void:
+	# landmarks: the fountain, the ice cream cart, the bus stop at the far end of the avenue
+	for lm in [["fountain", Vector3(0, 1, 0), Vector3(9, 3, 9), "The fountain's dry. In a dream? I could fix that."],
+			["cart", Vector3(2.4, 1, -9), Vector3(5, 3, 5), "An ice cream cart. Nobody's queuing."],
+			["busstop", Vector3(69, 1, -31.5), Vector3(8, 3, 9), "The 3:12 bus. Every stop on the timetable says 3:12."]]:
+		var id: String = lm[0]
+		var line: String = lm[3]
+		trigger(lm[1], lm[2], func():
+			_landmarks[id] = true
+			Game.counters["landmarks"] = _landmarks.size()
+			Game.hud.show_thought(line, 4.0)
+			if _landmarks.size() >= 3:
+				Game.set_flag("city_landmarks"))
+	label(Vector3(69.0, 2.2, -29.4), 180, "3:12  3:12  3:12  3:12", 0.08, Color(0.1, 0.1, 0.12), false)
+
+	# things that can be changed by wanting them changed
+	interactable(Vector3(0, GRASS_Y + 0.9, 2.7), Vector3(5.4, 1.4, 0.6), func(): return "" if _changes.has("fountain") else "Picture the fountain flowing",
+		func(): _change("fountain"), func(): return not _changes.has("fountain"))
+	interactable(Vector3(9, 0.9, 17.4), Vector3(4.4, 1.6, 2.2), func(): return "" if _changes.has("car") else "Picture it another colour",
+		func(): _change("car"), func(): return not _changes.has("car"))
+	interactable(Vector3(-10, GRASS_Y + 1.5, -1.7), Vector3(0.8, 3.0, 0.8), func(): return "" if _changes.has("lamps") else "Picture the lamps lit",
+		func(): _change("lamps"), func(): return not _changes.has("lamps"))
+
+	# the hill: a long grassy mound, the biggest tree in the city, a hammock in its shade
+	var cone := CylinderMesh.new()
+	cone.top_radius = 2.5
+	cone.bottom_radius = 15.0
+	cone.height = 3.6
+	cone.radial_segments = 40
+	var hill := MeshInstance3D.new()
+	hill.mesh = cone
+	hill.material_override = Shapes.surface("grass", GRASS)
+	hill.position = HILL + Vector3(0, 1.8, 0)
+	add_child(hill)
+	var body := StaticBody3D.new()
+	var cs := CollisionShape3D.new()
+	cs.shape = cone.create_convex_shape()
+	cs.position = hill.position
+	body.add_child(cs)
+	add_child(body)
+	var top := HILL + Vector3(0, 3.6, 0)
+	if not prop("tree_oak", top, 30.0, 4.6):
+		_tree(top, 4.6, 0)
+	blocker(top + Vector3(0, 3, 0), Vector3(1.4, 6, 1.4))
+	var hrng := RandomNumberGenerator.new()
+	hrng.seed = 9
+	for i in 600:
+		var a := hrng.randf() * TAU
+		var r := sqrt(hrng.randf()) * 14.5
+		var y := 3.6 * clampf((15.0 - r) / 12.5, 0.0, 1.0)
+		var gb := Basis(Vector3.UP, hrng.randf() * TAU) * Basis.from_scale(Vector3(1.1, hrng.randf_range(0.35, 0.6), 1.1))
+		if not scatter("grass_clump", Transform3D(gb, HILL + Vector3(cos(a) * r, y - 0.05, sin(a) * r)), Color.WHITE, "", false, false):
+			break
+	# hammock between the trunk and a post
+	var post := top + Vector3(3.2, 0, 1.0)
+	shape_at("cylinder", post + Vector3(0, 0.9, 0), Vector3(0.12, 1.8, 0.12), BARK, true, Vector3.ZERO, "wood")
+	var a0 := top + Vector3(0.6, 1.35, 0.2)
+	var a1 := post + Vector3(0, 1.5, 0)
+	for k in 9:
+		var f := float(k) / 8.0
+		var p := a0.lerp(a1, f) + Vector3(0, -0.55 * sin(PI * f), 0)
+		box(p, Vector3(0.42, 0.04, 0.95), Color(0.85, 0.45, 0.35), false, rad_to_deg(atan2(a1.x - a0.x, a1.z - a0.z)) + 90.0, "fabric")
+	interactable(a0.lerp(a1, 0.5) + Vector3(0, -0.4, 0), Vector3(2.0, 1.0, 1.4), func(): return "Lie down in the hammock",
+		func():
+			if not Game.has_flag("observer_noticed"):
+				Game.hud.show_thought("Not yet. There's more of the dream to see.", 3.0)
+				return
+			Game.hud.show_thought("Quiet. Just the leaves. ...Time to wake up.", 3.0)
+			Game.request_wake())
+	label(HILL + Vector3(0, 0.8, 14.0), 0, "THE HILL", 0.3, Color(0.2, 0.18, 0.14), false)
+	Notebook.rule_broken.connect(_on_rule_broken)
+
+
+func _change(what: String) -> void:
+	if _changes.has(what) or not Game.player:
+		return
+	_changes[what] = true
+	Game.counters["changes"] = _changes.size()
+	Sfx.play("chime", -2.0, 0.7)
+	Sfx.play("whoosh", -8.0, 1.8)
+	Game.player.jolt(Vector3(-1, 0, 0))
+	match what:
+		"fountain":
+			for k in 6:
+				var a := k / 6.0 * TAU
+				var jet := MeshInstance3D.new()
+				var c := CylinderMesh.new()
+				c.top_radius = 0.02
+				c.bottom_radius = 0.05
+				c.height = 1.3
+				jet.mesh = c
+				jet.material_override = Shapes.material(Color(0.75, 0.9, 1.0), 0.05, 0.6)
+				jet.position = Vector3(cos(a) * 1.6, GRASS_Y + 1.1, sin(a) * 1.6)
+				jet.rotation = Vector3(sin(a) * 0.35, 0, -cos(a) * 0.35)
+				add_child(jet)
+				_fountain_jets.append(jet)
+			Game.hud.show_thought("It just... does what I want. I want it, and it is.", 4.0)
+		"car":
+			var tint := Color.from_hsv(randf(), 0.55, 0.8)
+			for c in get_children():
+				if c is Node3D and String(c.name).begins_with("car_") and (c as Node3D).global_position.distance_to(Vector3(9, 0, 17.4)) < 1.0:
+					for mi in c.find_children("*", "MeshInstance3D", true, false):
+						for si in mi.mesh.get_surface_count():
+							var m: Material = mi.mesh.surface_get_material(si)
+							if m and String(m.resource_name).ends_with("paint"):
+								var nm := (m as BaseMaterial3D).duplicate() as BaseMaterial3D
+								nm.albedo_color = tint
+								mi.set_surface_override_material(si, nm)
+			Game.hud.show_thought("Blue. No - that colour. Exactly that colour.", 3.5)
+		"lamps":
+			for l in [Vector3(-10, GRASS_Y, -1.7), Vector3(10, GRASS_Y, 1.7), Vector3(1.7, GRASS_Y, -10), Vector3(-1.7, GRASS_Y, 10)]:
+				omni(l + Vector3(0, 4.7, 0), Color(1.0, 0.85, 0.6), 2.0, 9.0, false)
+			Game.hud.show_thought("Lamps in broad daylight. Because I can.", 3.0)
+	if _changes.size() >= 2:
+		Game.set_flag("city_changed")
+
+
+func _on_rule_broken(id: String) -> void:
+	if id != "rule_tell" or Game.zone_type != "city":
+		return
+	# they all stop. they all look at you. then everything carries on as if nothing happened.
+	_told_t = 4.0
+	for c in get_children():
+		if c is NPC:
+			c.set_frozen(true)
+	Sfx.stinger("whisper", -4.0)
+
+
+func _quest_update(delta: float) -> void:
+	var talked := 0
+	for id in ["mina", "halvorsen", "theo", "jogger"]:
+		if Game.has_flag("talked_" + id):
+			talked += 1
+	Game.counters["talked"] = talked
+	if talked >= 3 and not Game.has_flag("city_talked"):
+		Game.set_flag("city_talked")
+	if _told_t > 0.0:
+		_told_t -= delta
+		if _told_t <= 0.0:
+			for c in get_children():
+				if c is NPC:
+					c.set_frozen(false)
+	for i in _fountain_jets.size():
+		_fountain_jets[i].scale.y = 1.0 + 0.08 * sin(_t * 9.0 + i)

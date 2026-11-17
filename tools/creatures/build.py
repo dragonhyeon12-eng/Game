@@ -31,6 +31,7 @@ CREATURES = {
     "observer": (observer.build, "models/observer.glb"),
     "draped": (draped.build, "models/creatures/draped.glb"),
     "player": (player.build, "models/player.glb"),
+    "stalker": (player.build_stalker, "models/creatures/stalker.glb"),
     "foliage": (foliage.build, "models/props"),
     "kit": (kit.build, "models/props"),
 }
@@ -42,6 +43,7 @@ PREVIEWS = {   # label, camera, target, lens (Blender coords: +Y forward, +Z up)
     "observer": [("front", (0, -6, 1.2), (0, 0, 1.1), 50), ("side", (6, 0, 1.2), (0, 0, 1.1), 50)],
     "draped": [("front", (0, -5, 1.1), (0, 0, 0.95), 50), ("side34", (3.5, -3.5, 1.3), (0, 0, 0.95), 50)],
     "foliage": [("tree", (14, -14, 5), (0, 0, 4), 35)],
+    "stalker": [("front", (0, 6, 1.3), (0, 0, 1.2), 45), ("side34", (4, 4, 1.5), (0, 0, 1.2), 45)],
     "player": [("front", (0, 5, 1.0), (0, 0, 0.9), 45), ("side34", (3.2, 3.2, 1.3), (0, 0, 0.9), 45),
                ("back", (0, -5, 1.0), (0, 0, 0.9), 45)],
 }

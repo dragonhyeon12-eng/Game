@@ -8,7 +8,13 @@ extends Zone
 ##   -X wall: desk + computer   +X wall: bed and wardrobe   -Z wall: window   +Z wall: door
 
 var waking := false
+## The dream copy of the room (THE CITY's first stage): morning, the street outside in sunshine,
+## and a clock that can't keep its story straight. The reality check happens here.
+var dreaming := false
 var _desk_notebook: MeshInstance3D
+var _clock_label: Label3D
+var _clock_read := 0          # 0 not read, 1 read once (3:12), 2 changed while unwatched
+var _clock_unseen := 0.0
 
 const WALL := Color(0.42, 0.45, 0.52)
 const FLOOR := Color(0.30, 0.19, 0.11)
@@ -28,7 +34,7 @@ func sprint_speed() -> float: return 2.8
 
 
 func player_start() -> Transform3D:
-	if waking:
+	if waking or dreaming:
 		# sitting up at the edge of the bed, facing the dark monitor
 		return Transform3D(Basis.from_euler(Vector3(deg_to_rad(-8), deg_to_rad(90), 0)), Vector3(1.2, 0.05, -0.9))
 	return Transform3D(Basis.from_euler(Vector3(deg_to_rad(-6), deg_to_rad(90), 0)), Vector3(-1.0, 0.05, -0.6))
@@ -40,6 +46,11 @@ func build() -> void:
 	_lighting()
 	_interactables()
 	ambient("room_tone", Vector3(-2.2, 0.8, -0.8), false, -10.0 if not waking else -16.0)
+	if dreaming:
+		ambient("city", Vector3(0.6, 1.4, -3.0), true, -10.0, 12.0)
+		_clock_label = label(Vector3(2.25, 0.62, 0.3), 90, "3:12", 0.07, Color(1.0, 0.25, 0.2))
+		box(Vector3(2.25, 0.62, 0.3), Vector3(0.12, 0.1, 0.22), PLASTIC, false)
+		_clock_label.position.x -= 0.065
 
 
 func _room() -> void:
@@ -63,11 +74,13 @@ func _room() -> void:
 	box(Vector3(-0.3, 1.5, -2.14), Vector3(0.4, 1.3, 0.06), Color(0.25, 0.12, 0.15), false, 0.0, "fabric")
 	box(Vector3(1.5, 1.5, -2.14), Vector3(0.3, 1.3, 0.06), Color(0.25, 0.12, 0.15), false, 0.0, "fabric")
 	# outside: night sky, rooftops, one lit window across the road, the moon
-	box(Vector3(0.6, 3.0, -16), Vector3(40, 24, 0.2), Color(0.012, 0.017, 0.045), false)
-	box(Vector3(-2.0, 0.0, -9), Vector3(5, 5, 3), Color(0.02, 0.02, 0.025), false)
-	box(Vector3(4.0, -0.5, -10), Vector3(4, 6, 3), Color(0.025, 0.02, 0.02), false)
+	var day := dreaming
+	box(Vector3(0.6, 3.0, -16), Vector3(40, 24, 0.2), Color(0.55, 0.75, 0.98) if day else Color(0.012, 0.017, 0.045), false)
+	box(Vector3(-2.0, 0.0, -9), Vector3(5, 5, 3), Color(0.85, 0.7, 0.55) if day else Color(0.02, 0.02, 0.025), false, 0.0, "plaster")
+	box(Vector3(4.0, -0.5, -10), Vector3(4, 6, 3), Color(0.8, 0.6, 0.55) if day else Color(0.025, 0.02, 0.02), false, 0.0, "plaster")
 	part("box", Vector3(3.2, 1.7, -8.45), Vector3(0.5, 0.6, 0.02), Color(1.0, 0.75, 0.4), null, Vector3.ZERO, 2.5)
-	part("sphere", Vector3(-3.0, 6.5, -15.5), Vector3.ONE * 1.1, Color(0.85, 0.88, 1.0), null, Vector3.ZERO, 3.0)
+	if not day:
+		part("sphere", Vector3(-3.0, 6.5, -15.5), Vector3.ONE * 1.1, Color(0.85, 0.88, 1.0), null, Vector3.ZERO, 3.0)
 	# skirting, rug, posters
 	box(Vector3(-2.59, 0.05, 0), Vector3(0.02, 0.1, 4.4), TRIM, false)
 	box(Vector3(2.59, 0.05, 0), Vector3(0.02, 0.1, 4.4), TRIM, false)
@@ -127,6 +140,17 @@ func _furniture() -> void:
 
 
 func _lighting() -> void:
+	if dreaming:
+		# morning sun pouring through the window: the dream starts warm and safe
+		var envd := make_env(Color(0.9, 0.85, 0.75), 0.55)
+		envd.background_mode = Environment.BG_COLOR
+		envd.background_color = Color(0.6, 0.78, 1.0)
+		envd.glow_intensity = 0.8
+		envd.tonemap_exposure = 1.1
+		environment(envd)
+		spot(Vector3(0.6, 3.4, -4.6), Vector3(1.2, 0, 0.6), Color(1.0, 0.88, 0.7), 4.0, 9.0, 24.0)
+		omni(Vector3(0.6, 1.6, -1.6), Color(1.0, 0.9, 0.75), 0.6, 6.0, false)
+		return
 	var env := make_env(Color(0.25, 0.3, 0.5), 0.12)
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color.BLACK
@@ -143,6 +167,9 @@ func _lighting() -> void:
 
 func _interactables() -> void:
 	if waking:
+		return
+	if dreaming:
+		_dream_interactables()
 		return
 	interactable(Vector3(-2.32, 1.12, -0.8), Vector3(0.28, 0.48, 0.72),
 		func(): return "The video's over" if Game.has_flag("tutorial_done") else "Watch the video",
@@ -182,4 +209,52 @@ func _interactables() -> void:
 
 
 func on_player_entered(_from_save: bool) -> void:
-	_desk_notebook.visible = waking or not Game.has_flag("has_notebook")
+	_desk_notebook.visible = waking or (not dreaming and not Game.has_flag("has_notebook"))
+	if dreaming:
+		_desk_notebook.visible = false
+		Game.hud.show_thought("...Morning? No. I was asleep a minute ago.", 4.0)
+		Game.hud.show_hint("Reality check: read the clock by the bed. Look away. Read it again.", 8.0)
+
+
+func _dream_interactables() -> void:
+	interactable(Vector3(2.25, 0.62, 0.3), Vector3(0.3, 0.3, 0.4),
+		func(): return "Read the clock",
+		func():
+			if _clock_read == 0:
+				_clock_read = 1
+				Game.hud.show_thought("3:12. ...Same as when I went to bed. Look away, then read it again.", 4.0)
+			elif _clock_read == 1:
+				Game.hud.show_thought("Still 3:12. Look away first. Really look away.", 3.0)
+			elif not Game.has_flag("city_realitycheck"):
+				Game.set_flag("city_realitycheck")
+				Sfx.play("chime", -4.0, 0.8)
+				Game.hud.show_thought("11:68. That's not a time. ...I'm dreaming. I'm DREAMING.", 4.5)
+			else:
+				Game.hud.show_thought("It reads something different every time I look.", 3.0))
+	interactable(Vector3(1.5, 1.0, 2.14), Vector3(0.92, 2.0, 0.16),
+		func(): return "Go outside" if Game.has_flag("city_realitycheck") else "Door",
+		func():
+			if Game.has_flag("city_realitycheck"):
+				Game.leave_dream_house()
+			else:
+				Game.hud.show_thought("Something's off about this morning. Check first.", 3.0))
+	interactable(Vector3(0.6, 1.45, -2.22), Vector3(1.4, 1.1, 0.16),
+		func(): return "Window",
+		func(): Game.hud.show_thought("Sunshine. Summer. It was the middle of the night a minute ago.", 3.5))
+
+
+func _process(delta: float) -> void:
+	if not dreaming or _clock_label == null:
+		return
+	# the clock only changes while nobody is reading it
+	if _clock_read == 1:
+		if Observation.is_observed(_clock_label.global_position, 0.15):
+			_clock_unseen = 0.0
+		else:
+			_clock_unseen += delta
+			if _clock_unseen > 1.0:
+				_clock_read = 2
+				_clock_label.text = "11:68"
+	elif _clock_read == 2 and Game.has_flag("city_realitycheck"):
+		if not Observation.is_observed(_clock_label.global_position, 0.15) and randf() < delta * 0.5:
+			_clock_label.text = "%d:%02d" % [randi_range(1, 99), randi_range(0, 99)]
