@@ -224,6 +224,9 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 	if pacing.x >= 0.0:
 		Anomalies.set_pacing(pacing.x, pacing.y)
 	zone.on_player_entered(from_save)
+	if title_preview:
+		print("Entered zone: ", type, " (title)")
+		return
 	Sfx.music_gain = 1.0
 	match type:
 		"city": Sfx.play_music("city", 4.0)
@@ -310,17 +313,65 @@ func _restore_checkpoint(fear_override := -1.0, stability_override := -1.0) -> b
 
 # ------------------------------------------------------------------ flow
 
+## The title screen: behind the menu, a slow tour of where each realm begins.
+const TITLE_TOUR := [["bedroom", "3:12 AM"], ["city", "THE CITY"], ["maze", "THE BACKROOMS"], ["deep", "THE DEEP"],
+	["seabed", "THE DEEP  -  THE SEABED"], ["abyss", "THE DEEP  -  THE ABYSS"], ["compression", "COMPRESSION"],
+	["tenement", "COMPRESSION  -  THE TENEMENT"], ["above", "ABOVE"]]
+const TITLE_SHOT_SECONDS := 7.0
+var title_preview := false
+var _title_token := 0
+
+
 func show_title() -> void:
 	_reset_world()
+	title_preview = true
+	_title_token += 1
 	enter_zone("bedroom")
+	_title_shot("3:12 AM")
 	hud.set_fade(1.0)
 	hud.fade_to(0.0, 2.0)
 	set_mode("menu")
 	hud.open_title(has_checkpoint())
 	Sfx.play_music("title", 3.0)
+	_title_tour(_title_token)
+
+
+func _title_tour(token: int) -> void:
+	var i := 0
+	while true:
+		await get_tree().create_timer(TITLE_SHOT_SECONDS).timeout
+		if token != _title_token or not title_preview or mode != "menu":
+			return
+		hud.fade_to(1.0, 0.9)
+		await get_tree().create_timer(1.0).timeout
+		if token != _title_token or not title_preview or mode != "menu":
+			return
+		i = (i + 1) % TITLE_TOUR.size()
+		enter_zone(TITLE_TOUR[i][0])
+		_title_shot(TITLE_TOUR[i][1])
+		hud.fade_to(0.0, 1.4)
+
+
+## A realm as a backdrop: its story asleep (no hints, no hunting, no fear), the camera at its start.
+func _title_shot(caption: String) -> void:
+	in_sequence = true
+	hud.clear_text()
+	player.dread.set_profile(false, 0.0, 0.0, 10.0)
+	player.dread.set_values(0.0, 100.0)
+	player.set_drone(0.0)
+	player.set_locked(true)
+	hud.set_title_caption(caption)
+
+
+func _stop_title() -> void:
+	title_preview = false
+	_title_token += 1
+	in_sequence = false
+	hud.set_title_caption("")
 
 
 func start_new_game() -> void:
+	_stop_title()
 	hud.close_menu()
 	Data.reload()
 	_reset_world()
@@ -341,6 +392,7 @@ func start_new_game() -> void:
 
 
 func continue_game() -> void:
+	_stop_title()
 	hud.close_menu()
 	if not _restore_checkpoint():
 		start_new_game()
@@ -934,6 +986,8 @@ func skip_death() -> void:
 func _process(delta: float) -> void:
 	if player == null or get_tree().paused:
 		return
+	if title_preview:
+		player.rotation.y += delta * 0.025      # the backdrop turns, slowly
 	_clock += delta
 	var d := player.dread
 	_smoothed_dread = lerpf(_smoothed_dread, d.alpha(), clampf(delta * 1.5, 0.0, 1.0))

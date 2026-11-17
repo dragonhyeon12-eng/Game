@@ -85,7 +85,7 @@ func look_at_point(p: Vector3) -> void:
 func _run() -> void:
 	print("== title")
 	await wait(1.0)
-	check(Game.zone_type == "bedroom", "title shows over the bedroom")
+	check(Game.zone_type == "bedroom" and Game.title_preview, "title shows over the bedroom (the first stop of the tour)")
 	check(Game.hud.menu_open(), "title menu is open")
 	await wait(1.5)
 	await shot("title")
@@ -434,7 +434,7 @@ func _run() -> void:
 	check(Journal.is_unlocked("deep"), "journal entry THE DEEP unlocked")
 	await _compression()
 	await _above()
-	check(Game.zone_type == "bedroom" and Game.hud.menu_open(), "returned to title")
+	check(Game.title_preview and Game.hud.menu_open(), "returned to title")
 	for e in ["video", "summer", "maze"]:
 		check(Journal.is_unlocked(e), "journal entry %s unlocked" % e)
 

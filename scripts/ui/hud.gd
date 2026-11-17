@@ -327,6 +327,23 @@ func panic_text(text: String) -> void:
 		l.queue_free()
 
 
+var _title_caption: Label
+
+## The name of the realm behind the title menu (empty hides it).
+func set_title_caption(text: String) -> void:
+	if _title_caption == null:
+		_title_caption = UIStyle.shadowed(UIStyle.label("", 15, Color(0.85, 0.85, 0.85, 0.75)))
+		_title_caption.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+		_title_caption.position = Vector2(48, -60)
+		_title_caption.grow_vertical = Control.GROW_DIRECTION_BEGIN
+		_menu_layer.get_parent().add_child(_title_caption)
+	_title_caption.text = text
+	_title_caption.visible = text != ""
+	var t := create_tween()
+	_title_caption.modulate.a = 0.0
+	t.tween_property(_title_caption, "modulate:a", 1.0, 1.5)
+
+
 # ------------------------------------------------------------------ jumpscare
 
 const SCARE_IMAGES := ["res://assets/jumpscare/scare_1.png", "res://assets/jumpscare/scare_2.jpg", "res://assets/jumpscare/scare_3.jpg",
