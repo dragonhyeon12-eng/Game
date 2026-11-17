@@ -15,6 +15,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 Settings="*res://scripts/autoload/settings.gd"
+Loc="*res://scripts/autoload/loc.gd"
 Data="*res://scripts/autoload/data.gd"
 Sfx="*res://scripts/autoload/sfx.gd"
 Notebook="*res://scripts/autoload/notebook.gd"

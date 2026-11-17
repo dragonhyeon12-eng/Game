@@ -275,12 +275,12 @@ func _draw_pad() -> void:
 		# a faint hint where the stick lives
 		var hint := Vector2(200, _pad.size.y - 190)
 		_pad.draw_arc(hint, STICK_RADIUS, 0, TAU, 48, Color(1, 1, 1, 0.1), 2.0, true)
-		_pad.draw_string(font, hint + Vector2(-40, 6), "MOVE", HORIZONTAL_ALIGNMENT_CENTER, 80, 18, Color(1, 1, 1, 0.25))
+		_pad.draw_string(font, hint + Vector2(-40, 6), Loc.t("MOVE"), HORIZONTAL_ALIGNMENT_CENTER, 80, 18, Color(1, 1, 1, 0.25))
 		# where moving ends and looking begins
 		var sx := _pad.size.x * SPLIT
 		for y in range(int(_pad.size.y * 0.2), int(_pad.size.y * 0.95), 26):
 			_pad.draw_line(Vector2(sx, y), Vector2(sx, y + 12), Color(1, 1, 1, 0.07), 2.0)
-		_pad.draw_string(font, Vector2(sx + 30, _pad.size.y * 0.5), "LOOK", HORIZONTAL_ALIGNMENT_LEFT, 80, 18, Color(1, 1, 1, 0.18))
+		_pad.draw_string(font, Vector2(sx + 30, _pad.size.y * 0.5), Loc.t("LOOK"), HORIZONTAL_ALIGNMENT_LEFT, 80, 18, Color(1, 1, 1, 0.18))
 	for b in _buttons:
 		if not _shown(b):
 			continue
@@ -291,7 +291,8 @@ func _draw_pad() -> void:
 		var text: String = b.label
 		if b.id == "use" and Game.mode == "cinematic":
 			text = "SKIP"
+		text = Loc.t(text)
 		_pad.draw_string(font, b.pos + Vector2(-b.r, fs * 0.35), text, HORIZONTAL_ALIGNMENT_CENTER, b.r * 2, fs, ink)
 		if b.id == "picture" and Game.player and Game.player.manifestation.unlocked.size() > 0:
-			_pad.draw_string(font, b.pos + Vector2(-70, b.r + 16), Game.player.manifestation.selected_name(),
+			_pad.draw_string(font, b.pos + Vector2(-70, b.r + 16), Loc.t(Game.player.manifestation.selected_name()),
 				HORIZONTAL_ALIGNMENT_CENTER, 140, 12, Color(1, 1, 1, 0.55))

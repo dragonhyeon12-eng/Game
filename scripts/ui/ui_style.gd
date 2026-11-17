@@ -73,7 +73,7 @@ static func hand_font() -> Font:
 		var f := SystemFont.new()
 		f.font_names = PackedStringArray(["Noteworthy", "Bradley Hand", "Segoe Print", "Comic Neue", "Comic Sans MS"])
 		f.font_italic = true
-		_hand_font = f
+		_hand_font = Loc.with_korean(f, true)
 	return _hand_font
 
 
@@ -82,7 +82,7 @@ static func other_hand_font() -> Font:
 	if _other_hand_font == null:
 		var f := SystemFont.new()
 		f.font_names = PackedStringArray(["Chalkduster", "Marker Felt", "Ink Free", "Courier New"])
-		_other_hand_font = f
+		_other_hand_font = Loc.with_korean(f, true)
 	return _other_hand_font
 
 
@@ -91,7 +91,7 @@ static func italic_font() -> Font:
 		var f := SystemFont.new()
 		f.font_names = PackedStringArray(["Georgia", "Times New Roman", "serif"])
 		f.font_italic = true
-		_italic_font = f
+		_italic_font = Loc.with_korean(f)
 	return _italic_font
 
 

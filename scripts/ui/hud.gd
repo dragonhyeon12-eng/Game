@@ -307,10 +307,23 @@ const TOUCH_WORDS := [
 ]
 
 
+## The same, for the Korean text (keys are written "Q 길게 누르기" and so on in data/Lang_ko.json).
+const TOUCH_WORDS_KO := [
+	["왼쪽 마우스: 한 입 먹기    오른쪽 마우스: 놓기 / 던지기\n마우스 휠: 다른 것 상상하기", "한입: 한 입 먹기    놓기: 놓기 / 던지기\n< >: 다른 것 상상하기"],
+	["(C / Ctrl)", "(웅크리기 버튼)"], ["(C)", "(웅크리기 버튼)"],
+	["Q 길게 누르기", "상상 버튼 길게 누르기"], ["T 길게 누르기", "깨기 버튼 길게 누르기"],
+	["[Space / E]  건너뛰기", "건너뛰기"], ["[E]  ", ""],
+]
+
+
+## Text as the player should read it: in their language, naming touch buttons instead of keys on touch screens.
 static func for_touch(text: String) -> String:
+	var ko := Loc.korean()
+	if ko:
+		text = Loc.t(text)
 	if not TouchControls.wanted():
 		return text
-	for pair in TOUCH_WORDS:
+	for pair in (TOUCH_WORDS_KO if ko else TOUCH_WORDS):
 		text = text.replace(pair[0], pair[1])
 	return text
 
@@ -506,6 +519,7 @@ func _settings(back: Callable) -> void:
 		["Super duper shaders (strong GPU)", flag.call("super_shaders")],
 		["Show objectives", flag.call("show_objectives")],
 		["Touch controls", num.call("touch_controls", 0.0, 2.0, 1.0, func(v): return ["AUTO", "ON", "OFF"][clampi(roundi(v), 0, 2)])],
+		["Language / 언어", num.call("language", 0.0, 1.0, 1.0, func(v): return Loc.NAMES[clampi(roundi(v), 0, 1)])],
 	]
 	var items := []
 	for r in rows:
