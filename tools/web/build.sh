@@ -9,10 +9,12 @@ ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 mkdir -p "$OUT/raw"
 "$GODOT" --headless --path "$ROOT" --export-release "Web" "$OUT/raw/index.html"
 PCK=$(stat -c %s "$OUT/raw/index.pck")
-sed "s/PCK_SIZE/$PCK/" "$ROOT/tools/web/play.html" > "$OUT/play.html"
+PARTS=$(( (PCK + 13999999) / 14000000 ))     # the host takes files up to 15 MB: parts of at most 14 MB
+sed "s/PCK_SIZE/$PCK/; s/DATA_PARTS_N/$PARTS/" "$ROOT/tools/web/play.html" > "$OUT/play.html"
 cp "$OUT/raw/index.js" "$OUT/raw/index.audio.worklet.js" "$OUT/raw/index.audio.position.worklet.js" "$OUT/"
 gzip -9 -c "$OUT/raw/index.wasm" > "$OUT/engine.wasm"     # gzip bytes; play.html decompresses them
-# the host only serves known file types, with a size limit per file: the game data goes up in 3 parts
-split -n 3 -d -a 1 "$OUT/raw/index.pck" "$OUT/data"
+# the host only serves known file types, with a size limit per file: the game data goes up in parts
+rm -f "$OUT"/data[0-9]*.wasm
+split -n $PARTS -d -a 1 "$OUT/raw/index.pck" "$OUT/data"
 for f in "$OUT"/data[0-9]; do mv "$f" "$f.wasm"; done
 echo "fileSizes for play.html (index.pck; DATA_PARTS must match):"; grep -o '"fileSizes":{[^}]*}' "$OUT/raw/index.html"

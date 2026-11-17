@@ -171,6 +171,9 @@ func _cancel_sequences() -> void:
 
 # ------------------------------------------------------------------ zones
 
+const ZONES := ["bedroom", "bedroom_dream", "city", "maze", "deep", "seabed", "abyss", "compression", "tenement", "above"]
+
+
 func enter_zone(type: String, from_save := false, waking := false) -> void:
 	player.manifestation.clear_all()
 	if Dialogue.is_active():
@@ -290,8 +293,8 @@ func _restore_checkpoint(fear_override := -1.0, stability_override := -1.0) -> b
 	if not has_checkpoint():
 		return false
 	var data = JSON.parse_string(FileAccess.get_file_as_string(SAVE_PATH))
-	if not data is Dictionary or data.get("zone", "") == "":
-		return false
+	if not data is Dictionary or not String(data.get("zone", "")) in ZONES:
+		return false     # no save, a damaged one, or one from an area that no longer exists: start afresh
 	_reset_world()
 	for f in data.get("flags", []):
 		flags[f] = true

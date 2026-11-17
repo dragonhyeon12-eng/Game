@@ -166,7 +166,7 @@ kbd {
 		<div class="start">
 			<button id="play" type="button">Enter the dream</button>
 			<div class="meter" aria-hidden="true"><span id="bar"></span></div>
-			<div class="status" id="status" role="status">About 49 MB to load the first time.</div>
+			<div class="status" id="status" role="status">About 57 MB to load the first time.</div>
 		</div>
 		<div class="controls" aria-label="Controls">
 			<div class="ctl"><kbd>W A S D</kbd> move, <kbd>mouse</kbd> look</div>
@@ -196,7 +196,7 @@ kbd {
 	const realFetch = window.fetch.bind(window);
 	const files = { 'index.wasm': ['engine.wasm', 'application/wasm'], 'index.pck': ['data.wasm', 'application/octet-stream'] };
 	// the game data is published in parts (data0.wasm, data1.wasm, ...): each file has a size limit
-	const DATA_PARTS = 3;
+	const DATA_PARTS = DATA_PARTS_N;
 	window.fetch = async function (input, init) {
 		const url = typeof input === 'string' ? input : (input && input.url) || '';
 		const name = url.split('?')[0].split('/').pop();
