@@ -55,6 +55,28 @@ func walk(seconds: float, actions := ["move_forward"]) -> Vector3:
 	return Game.player.global_position
 
 
+## Run (or walk) through waypoints, steering like a player would. Returns false if you didn't get there.
+func run_to(points: Array, sprint := true, timeout := 20.0) -> bool:
+	Input.action_press("move_forward")
+	if sprint:
+		Input.action_press("sprint")
+	var t := 0.0
+	var i := 0
+	while i < points.size() and t < timeout and not Game.in_sequence:
+		var pl := Game.player
+		var to: Vector3 = points[i] - pl.global_position
+		to.y = 0.0
+		if to.length() < 0.45:
+			i += 1
+			continue
+		pl.rotation.y = atan2(-to.x, -to.z)
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+	Input.action_release("move_forward")
+	Input.action_release("sprint")
+	return i >= points.size()
+
+
 func calm() -> void:
 	Game.player.dread.set_values(0.0, 100.0)
 
@@ -77,6 +99,33 @@ func _run() -> void:
 	for o in Game.objectives():
 		txt += String(o[0]) + " | "
 	check(not txt.contains(".0"), "no '5.0' after loading (%s)" % txt)
+
+	print("== BACKROOMS: the power comes on - and there's a way out of the power room")
+	await zone("maze")
+	var mz: MazeZone = Game.zone
+	mz._open_maint()
+	var wx: Transform3D = mz._wing_xf
+	var sd: float = mz._side
+	place(wx * Vector3(20.5, 0.05, 0), 0.0)
+	calm()
+	for letter in mz._order:
+		for b in mz._breakers:
+			if b.letter == letter:
+				mz._flip(b)
+	await wait(0.4)
+	mz._power_on()
+	await wait(0.6)
+	var route := [wx * Vector3(20.2, 0, 1.6 * sd), wx * Vector3(20.2, 0, 4.4 * sd), wx * Vector3(20.2, 0, 6.5 * sd),
+		wx * Vector3(1.0, 0, 6.5 * sd), wx * Vector3(-2.0, 0, 6.5 * sd)]
+	var ok := await run_to(route)
+	check(ok and not Game.in_sequence and mz._in_grid(Game.player.global_position), "ran through the shutter and the service passage, back into the maze")
+	check(mz._hunting, "and it's coming")
+	var d0: float = mz._stalker.global_position.distance_to(Game.player.global_position)
+	await wait(3.0)
+	var through: bool = mz._in_grid(mz._stalker.global_position) or (wx.affine_inverse() * mz._stalker.global_position).z * sd > 3.0 or Game.in_sequence
+	check(through, "it followed you the way you went (stalker at %s, was %.1f m away)" % [wx.affine_inverse() * mz._stalker.global_position, d0])
+	Game._cancel_sequences()
+	mz._hunting = false
 
 	print("== THE DEEP: the door you can't look at")
 	await zone("abyss")

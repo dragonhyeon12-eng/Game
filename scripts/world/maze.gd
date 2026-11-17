@@ -57,6 +57,12 @@ var _main_switch: Node3D
 var _wing_lights: Array = []
 var _stalker: Stalker
 var _hunting := false
+var _side := 1.0                  # which side of the wing the escape passage runs (+1 / -1 along its local Z)
+var _side_cell := Vector2i(-1, -1)  # the maze cell the escape passage comes out in
+var _shutter: StaticBody3D
+var _escape_door: Node3D
+var _escape_block: StaticBody3D
+var _trail: Array[Vector3] = []   # the player's footsteps since the power came on (the stalker follows them)
 var _path: Array = []
 var _path_t := 0.0
 var _glass: StaticBody3D
@@ -219,6 +225,13 @@ func _generate() -> void:
 				best = dist[c]
 				_exit_cell = c
 	_exit_dir = 0 if _exit_cell.x == W - 1 else 2
+	# the escape passage comes back into the maze one cell along the edge (the wing's local +Z if there's room)
+	if _exit_dir == 0:
+		_side = 1.0 if _exit_cell.y + 1 < H else -1.0
+		_side_cell = Vector2i(W - 1, _exit_cell.y + int(_side))
+	else:
+		_side = 1.0 if _exit_cell.x >= 1 else -1.0
+		_side_cell = Vector2i(_exit_cell.x - int(_side), H - 1)
 
 	for d in 4:
 		if _get_edge(0, 0, d) == Edge.OPEN:
@@ -273,11 +286,11 @@ func _geometry() -> void:
 
 	for x in W:
 		_wall(Vector3(x * CELL, 0, -0.5 * CELL), false, length, WALL_A)
-		if not (_exit_dir == 2 and _exit_cell.x == x):
+		if not (_exit_dir == 2 and (_exit_cell.x == x or _side_cell.x == x)):
 			_wall(Vector3(x * CELL, 0, (H - 0.5) * CELL), false, length, WALL_A)
 	for z in H:
 		_wall(Vector3(-0.5 * CELL, 0, z * CELL), true, length, WALL_A)
-		if not (_exit_dir == 0 and _exit_cell.y == z):
+		if not (_exit_dir == 0 and (_exit_cell.y == z or _side_cell.y == z)):
 			_wall(Vector3((W - 0.5) * CELL, 0, z * CELL), true, length, WALL_A)
 
 	var env := make_env(Color(0.9, 0.82, 0.55), 0.25)
@@ -438,6 +451,10 @@ func on_player_entered(from_save: bool) -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	if Game.has_flag("maze_power") and Game.player:
+		var pp: Vector3 = Game.player.global_position
+		if _trail.is_empty() or _trail[-1].distance_to(pp) > 0.7:
+			_trail.append(Vector3(pp.x, 0.0, pp.z))
 	_hunt(delta)
 	if Game.in_sequence:
 		return
@@ -619,8 +636,11 @@ func _wing(door_center: Vector3, out: Vector3, along: Vector3) -> void:
 	# the power room: x 16..22, z -3..3
 	_wbox(Vector3(19, -0.05, 0), Vector3(6, 0.1, 6.2), floor_c)
 	_wbox(Vector3(19, 3.05, 0), Vector3(6, 0.1, 6.2), grey.darkened(0.25))
-	_wbox(Vector3(19, 1.5, 3.1), Vector3(6, 3, 0.2), grey)
-	_wbox(Vector3(19, 1.5, -3.1), Vector3(6, 3, 0.2), grey)
+	_wbox(Vector3(19, 1.5, -3.1 * _side), Vector3(6, 3, 0.2), grey)
+	_wbox(Vector3(17.8, 1.5, 3.1 * _side), Vector3(3.6, 3, 0.2), grey)
+	_wbox(Vector3(21.4, 1.5, 3.1 * _side), Vector3(1.2, 3, 0.2), grey)
+	_wbox(Vector3(20.2, 2.75, 3.1 * _side), Vector3(1.2, 0.5, 0.2), grey)
+	_escape_passage(grey, floor_c, z_axis)
 	_wbox(Vector3(22.1, 1.5, 0), Vector3(0.2, 3, 6.2), grey)
 	_wbox(Vector3(16, 1.5, 2.3), Vector3(0.2, 3, 1.4), grey)
 	_wbox(Vector3(16, 1.5, -2.3), Vector3(0.2, 3, 1.4), grey)
@@ -688,11 +708,69 @@ func _wing(door_center: Vector3, out: Vector3, along: Vector3) -> void:
 	box(lift + Vector3(0.05, 1.2, 0.9), Vector3(0.04, 0.25, 0.14), Color(0.2, 0.2, 0.2), false, 0.0, "metal")
 
 
+## Local size -> world size of an axis-aligned box in the wing's frame.
+func _wsize(local: Vector3) -> Vector3:
+	var a := (_wing_xf.basis * Vector3(local.x, 0, 0)).abs() + (_wing_xf.basis * Vector3(0, 0, local.z)).abs()
+	return Vector3(a.x, local.y, a.z)
+
+
+## Behind a shutter in the power room's side wall: a narrow service passage back alongside the corridor, into
+## the maze one cell along. It opens when the power comes on - so when the glass breaks there is somewhere to run.
+func _escape_passage(grey: Color, floor_c: Color, z_axis: Vector3) -> void:
+	var sd := _side
+	var H2 := 2.8
+	_shutter = solid_box(_wing_xf * Vector3(20.2, 1.25, 3.1 * sd), _wsize(Vector3(1.2, 2.5, 0.14)), Color(0.32, 0.34, 0.33), null, "metal")
+	for k in 6:
+		part("box", _wing_xf * Vector3(20.2, 0.3 + k * 0.4, 3.1 * sd - 0.08 * sd), _wsize(Vector3(1.16, 0.03, 0.02)), Color(0.22, 0.23, 0.22), null, Vector3.ZERO, 0.0, "metal")
+	label(_wing_xf * Vector3(20.2, 2.7, 3.1 * sd - 0.12 * sd), rad_to_deg(atan2(-z_axis.x * sd, -z_axis.z * sd)), "SERVICE", 0.06, Color(0.9, 0.85, 0.3), false)
+	# the stub out of the power room, and the passage back
+	_wbox(Vector3(20.2, -0.05, 4.35 * sd), Vector3(1.4, 0.1, 2.5), floor_c, true, "concrete")
+	_wbox(Vector3(20.2, H2 + 0.05, 4.35 * sd), Vector3(1.4, 0.1, 2.5), grey.darkened(0.3))
+	for x in [19.4, 21.0]:
+		_wbox(Vector3(x, H2 * 0.5, 4.3 * sd), Vector3(0.2, H2, 2.4), grey)
+	_wbox(Vector3(10.45, -0.05, 6.5 * sd), Vector3(21.1, 0.1, 2.2), floor_c, true, "concrete")
+	_wbox(Vector3(10.45, H2 + 0.05, 6.5 * sd), Vector3(21.1, 0.1, 2.2), grey.darkened(0.3))
+	_wbox(Vector3(9.75, H2 * 0.5, 5.5 * sd), Vector3(19.3, H2, 0.2), grey)
+	_wbox(Vector3(10.5, H2 * 0.5, 7.5 * sd), Vector3(21.0, H2, 0.2), grey)
+	_wbox(Vector3(21.05, H2 * 0.5, 6.5 * sd), Vector3(0.2, H2, 2.2), grey)
+	for x in [4.0, 12.0, 19.0]:
+		part("box", _wing_xf * Vector3(x, H2 - 0.05, 6.5 * sd), Vector3(0.2, 0.08, 0.2), Color(1.0, 0.2, 0.15), null, Vector3.ZERO, 3.0)
+		omni(_wing_xf * Vector3(x, H2 - 0.3, 6.5 * sd), Color(1.0, 0.18, 0.12), 0.0, 6.0, false).name = "EscapeLight"
+	# where it meets the maze: the boundary wall of the next cell, with a steel door in it
+	var along_z := _exit_dir == 0
+	var edge := _wing_xf * Vector3(0, 0, 5.0 * sd)
+	var o := 1.5 * sd
+	var L := CELL - PILLAR + 0.04
+	var gap0 := minf(o - 0.65, o + 0.65)
+	var gap1 := maxf(o - 0.65, o + 0.65)
+	for seg in [[-L * 0.5, gap0], [gap1, L * 0.5]]:
+		if seg[1] - seg[0] > 0.05:
+			_wall(edge + z_axis * ((seg[0] + seg[1]) * 0.5), along_z, seg[1] - seg[0], WALL_A)
+	var lintel_h := WALL_H - 2.2
+	box(edge + z_axis * o + Vector3(0, 2.2 + lintel_h * 0.5, 0), _wsize(Vector3(THICK, lintel_h, 1.3)), WALL_A)
+	var inward := -_wing_xf.basis.x
+	var dpos := edge + z_axis * o - inward * 0.02
+	_escape_door = door(dpos, rad_to_deg(atan2(inward.x, inward.z)), Color(0.42, 0.44, 0.46), 1.08, 2.14, "metal")
+	_escape_block = solid_box(dpos + Vector3(0, 1.07, 0), _wsize(Vector3(0.2, 2.14, 1.1)), Color(0, 0, 0, 0))
+	_escape_block.get_child(1).visible = false
+	interactable(dpos + Vector3(0, 1.1, 0) + inward * 0.2, _wsize(Vector3(0.3, 2.1, 1.16)), func(): return "Locked door",
+		func(): Game.hud.show_thought("Locked. It doesn't even have a handle on this side.", 2.5), func(): return _escape_block != null and is_instance_valid(_escape_block))
+
+
+func _open_escape() -> void:
+	Sfx.play_at("grind", self, _shutter.global_position, 4.0, 30.0)
+	create_tween().tween_property(_shutter, "position:y", _shutter.position.y + 2.45, 1.6).set_trans(Tween.TRANS_SINE)
+	open_door(_escape_door, 100.0, 1.0)
+	_escape_block.queue_free()
+	for n in find_children("EscapeLight", "OmniLight3D", true, false):
+		(n as OmniLight3D).light_energy = 1.1
+
+
 func _open_maint() -> void:
 	_maint_block.visible = false
 	_maint_block.get_child(0).disabled = true
 	Sfx.play("door_creak", -2.0, 0.9)
-	create_tween().tween_property(_maint_door, "rotation_degrees:y", _maint_door.rotation_degrees.y + 95.0, 1.4).set_trans(Tween.TRANS_SINE)
+	open_door(_maint_door, 100.0, 1.4)     # into the wing, on its hinge
 
 
 func _flip(b: Dictionary) -> void:
@@ -739,7 +817,9 @@ func _power_on() -> void:
 		_set_dynamic(w, not w.open)
 	_lift_light.light_energy = 1.5
 	_lift_sign.material_override = Shapes.material(Color(1.0, 0.25, 0.15), 0.4, 3.0)
-	Game.hud.show_thought("Power. ...The lift. Back where I started. It was there the whole time.", 4.0)
+	Game.hud.show_thought("Power. ...The lift. Back where I started. And the shutter - it's opening.", 4.0)
+	_open_escape()
+	_trail.clear()
 	_portals()
 	await get_tree().create_timer(3.0, false).timeout
 	if not is_inside_tree():
@@ -801,25 +881,39 @@ func _hunt(delta: float) -> void:
 		return
 	var p: Vector3 = Game.player.global_position
 	var me := _stalker.global_position
-	# in the wing: straight down the corridor to the door, then the maze's own passages
+	# both in the yellow rooms: the maze's own passages. Otherwise (the wing, the service passage): your footsteps.
 	var in_wing := (_wing_xf.affine_inverse() * me).x > 0.3
-	_path_t -= delta
-	if _path_t <= 0.0:
-		_path_t = 0.4
-		_path = _route(cell_at(me), cell_at(p)) if not in_wing else [_wing_xf * Vector3(-1.0, 0, 0)]
+	var both_in := _in_grid(p) and _in_grid(me)
 	var target := p
-	if not _path.is_empty():
-		target = _path[0]
-		if Vector2(me.x - target.x, me.z - target.z).length() < 0.4:
-			_path.pop_front()
+	if both_in:
+		_trail.clear()
+		_path_t -= delta
+		if _path_t <= 0.0:
+			_path_t = 0.4
+			_path = _route(cell_at(me), cell_at(p))
+		if not _path.is_empty():
+			target = _path[0]
+			if Vector2(me.x - target.x, me.z - target.z).length() < 0.4:
+				_path.pop_front()
+	elif not _trail.is_empty():
+		target = _trail[0]
+		if Vector2(me.x - target.x, me.z - target.z).length() < 0.5:
+			_trail.pop_front()
 	var dist := me.distance_to(p)
 	var spd := 3.35 if dist > 4.0 else 3.7
 	if in_wing and (_wing_xf.affine_inverse() * me).z < -1.2:
 		target = _wing_xf * Vector3(9.25, 0, 0)
 	_stalker.move_to(target if dist > 1.6 else p, spd, delta)
+	if _trail.size() > 400:
+		_trail = _trail.slice(-400)
 	if dist < 1.1:
 		_hunting = false
 		Game.entity_death("stalker", _stalker)
+
+
+## Inside the maze proper (not the wing or the service passage)?
+func _in_grid(p: Vector3) -> bool:
+	return p.x > -0.5 * CELL and p.z > -0.5 * CELL and p.x < (W - 0.5) * CELL - THICK * 0.5 and p.z < (H - 0.5) * CELL - THICK * 0.5
 
 
 ## Shortest walk through the maze's current openings (BFS over cells), as world points.

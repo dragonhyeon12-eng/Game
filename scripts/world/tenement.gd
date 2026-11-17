@@ -473,8 +473,7 @@ func _open_exit() -> void:
 	Sfx.play("door_creak", -2.0, 0.8)
 	Sfx.stinger("braam", -6.0)
 	_exit_block.queue_free()
-	var tw := create_tween()
-	tw.tween_property(_exit_door, "position:z", _exit_door.position.z - 0.9, 1.6).set_trans(Tween.TRANS_SINE)   # it slides away into the wall
+	open_door(_exit_door, 100.0, 2.0)     # swinging out into the corridor
 	Game.hud.show_thought("7. ...The door's open.", 3.0)
 
 

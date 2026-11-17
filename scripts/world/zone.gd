@@ -270,27 +270,41 @@ func solid_box(pos: Vector3, size: Vector3, color: Color, parent: Node3D = null,
 
 
 ## A proper door: frame, slab with raised panels, lever handle and kick plate.
-## The door faces +Z of its yaw (handle side = +X). Returns the door's root.
+## The door faces +Z of its yaw (handle side = +X). Returns the door's root; the moving part is its "Leaf"
+## child, hinged at the -X edge of the frame (see open_door).
 func door(pos: Vector3, yaw_deg: float, color: Color, width := 0.92, height := 2.05, surface := "wood") -> Node3D:
 	var d := group(pos, yaw_deg)
 	var frame := color.darkened(0.25)
 	part("box", Vector3(-width * 0.5 - 0.04, height * 0.5, 0), Vector3(0.08, height + 0.04, 0.14), frame, d, Vector3.ZERO, 0.0, surface)
 	part("box", Vector3(width * 0.5 + 0.04, height * 0.5, 0), Vector3(0.08, height + 0.04, 0.14), frame, d, Vector3.ZERO, 0.0, surface)
 	part("box", Vector3(0, height + 0.04, 0), Vector3(width + 0.16, 0.08, 0.14), frame, d, Vector3.ZERO, 0.0, surface)
-	part("box", Vector3(0, height * 0.5, 0), Vector3(width, height, 0.045), color, d, Vector3.ZERO, 0.0, surface)
+	var leaf := Node3D.new()
+	leaf.name = "Leaf"
+	leaf.position = Vector3(-width * 0.5, 0, 0)
+	d.add_child(leaf)
+	var c := width * 0.5    # the leaf's own x runs from the hinge (0) to the latch (width)
+	part("box", Vector3(c, height * 0.5, 0), Vector3(width, height, 0.045), color, leaf, Vector3.ZERO, 0.0, surface)
 	for row in 2:
 		var ph := height * (0.38 if row == 1 else 0.3)
 		var py := height * (0.7 if row == 1 else 0.27)
 		for col in 2:
-			var px := (col - 0.5) * width * 0.44
-			part("box", Vector3(px, py, 0.026), Vector3(width * 0.34, ph, 0.012), color.lightened(0.04), d, Vector3.ZERO, 0.0, surface)
-			part("box", Vector3(px, py, -0.026), Vector3(width * 0.34, ph, 0.012), color.lightened(0.04), d, Vector3.ZERO, 0.0, surface)
+			var px := c + (col - 0.5) * width * 0.44
+			part("box", Vector3(px, py, 0.026), Vector3(width * 0.34, ph, 0.012), color.lightened(0.04), leaf, Vector3.ZERO, 0.0, surface)
+			part("box", Vector3(px, py, -0.026), Vector3(width * 0.34, ph, 0.012), color.lightened(0.04), leaf, Vector3.ZERO, 0.0, surface)
 	var brass := Color(0.75, 0.62, 0.35)
 	for side in [1.0, -1.0]:
-		part("cylinder", Vector3(width * 0.38, 1.0, 0.045 * side), Vector3(0.05, 0.03, 0.05), brass, d, Vector3(90, 0, 0), 0.0, "metal")
-		part("box", Vector3(width * 0.38 - 0.05, 1.0, 0.07 * side), Vector3(0.12, 0.022, 0.022), brass, d, Vector3.ZERO, 0.0, "metal")
-		part("box", Vector3(0, 0.12, 0.027 * side), Vector3(width * 0.9, 0.2, 0.006), brass.darkened(0.3), d, Vector3.ZERO, 0.0, "metal")
+		part("cylinder", Vector3(c + width * 0.38, 1.0, 0.045 * side), Vector3(0.05, 0.03, 0.05), brass, leaf, Vector3(90, 0, 0), 0.0, "metal")
+		part("box", Vector3(c + width * 0.38 - 0.05, 1.0, 0.07 * side), Vector3(0.12, 0.022, 0.022), brass, leaf, Vector3.ZERO, 0.0, "metal")
+		part("box", Vector3(c, 0.12, 0.027 * side), Vector3(width * 0.9, 0.2, 0.006), brass.darkened(0.3), leaf, Vector3.ZERO, 0.0, "metal")
 	return d
+
+
+## Swing a door() open on its hinge. Positive degrees swing it away from the side it faces (its -Z).
+func open_door(d: Node3D, degrees := 95.0, seconds := 1.4) -> void:
+	var leaf := d.get_node_or_null("Leaf") as Node3D
+	if leaf == null:
+		return
+	create_tween().tween_property(leaf, "rotation_degrees:y", degrees, seconds).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 
 func group(pos: Vector3, yaw_deg := 0.0) -> Node3D:

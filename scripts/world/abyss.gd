@@ -229,7 +229,7 @@ func _rooms(tile: Color) -> void:
 		interactable(Vector3(x, 1.0, -43.8), Vector3(1.1, 2.0, 0.4), func(): return "Open the door",
 			func():
 				if real:
-					dg.visible = false
+					open_door(dg, 100.0, 1.2)
 					blk.queue_free()
 					Sfx.play("door_creak", -4.0)
 					Game.set_flag("abyss_room1")
