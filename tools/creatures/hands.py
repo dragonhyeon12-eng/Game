@@ -29,6 +29,7 @@ from mathutils.bvhtree import BVHTree
 from dp import geo, scene, tex
 
 HI_VOXEL = 0.00055
+SLIM = 0.92        # finger girth
 LO_TRIS = 9000
 TEX = 1024
 
@@ -59,10 +60,10 @@ def chains():
         pts = [Vector(mcp)]
         for ln in lens:
             pts.append(pts[-1] + d * ln)
-        out.append((name, pts, Vector((0, 0, 1)), list(radii)))
+        out.append((name, pts, Vector((0, 0, 1)), [r * SLIM for r in radii]))
     up = (THUMB_UP - THUMB_DIR * THUMB_UP.dot(THUMB_DIR)).normalized()
     pts = [THUMB_CMC, THUMB_MCP, THUMB_MCP + THUMB_DIR * THUMB_LEN[0], THUMB_MCP + THUMB_DIR * (THUMB_LEN[0] + THUMB_LEN[1])]
-    out.append(("thumb", pts, up, [0.0135, 0.0112, 0.0101, 0.0087]))
+    out.append(("thumb", pts, up, [r * SLIM for r in (0.0135, 0.0112, 0.0101, 0.0087)]))
     return out
 
 
@@ -144,16 +145,16 @@ def _convert(objs):
 def _form():
     palm = _family("Palm")
     # the palm block, the pads, the dorsal ridges of the metacarpals and the knuckle heads
-    _ellipsoid(palm, Vector((0.0, 0.050, -0.002)), (0.034, 0.036, 0.0095))
+    _ellipsoid(palm, Vector((0.0, 0.050, -0.002)), (0.033, 0.036, 0.0086))
     _ellipsoid(palm, Vector((-0.024, 0.031, -0.010)), (0.0135, 0.024, 0.0115), Quaternion((0, 0, 1), math.radians(-28)))
     _ellipsoid(palm, Vector((0.027, 0.040, -0.006)), (0.0095, 0.030, 0.0092), Quaternion((0, 0, 1), math.radians(6)))
     _ellipsoid(palm, Vector((0.0, 0.081, -0.0065)), (0.036, 0.0095, 0.0075))
     for name, mcp, splay, lens, radii in FINGERS:
         m = Vector(mcp)
         _capsule(palm, Vector((m.x * 0.55, 0.012, 0.004)), m + Vector((0, -0.006, 0.0015)), 0.0068)
-        _ball(palm, m + Vector((0, 0, 0.0015)), radii[0] * 1.02)
+        _ball(palm, m + Vector((0, 0, 0.001)), radii[0] * SLIM * 0.95)
         a = math.radians(splay)
-        _capsule(palm, m, m + Vector((math.sin(a), math.cos(a), 0)) * 0.010, radii[0] * 0.98)
+        _capsule(palm, m, m + Vector((math.sin(a), math.cos(a), 0)) * 0.010, radii[0] * SLIM * 0.96)
     # the web between thumb and index, and the base of the thumb
     _capsule(palm, THUMB_MCP + Vector((0.004, 0.002, 0.002)), Vector(FINGERS[0][1]) + Vector((-0.002, -0.012, -0.004)), 0.0046)
     _capsule(palm, THUMB_CMC, THUMB_MCP, 0.0128)
@@ -173,11 +174,10 @@ def _form():
             mid = a.lerp(b, 0.5)
             _capsule(ob, a, mid, (ra + (ra + rb) * 0.5) * 0.5)
             _capsule(ob, mid, b, ((ra + rb) * 0.5 + rb) * 0.5)
-            _ball(ob, b, rb * 0.97)
             # the pad on the palm side of each segment
             d = (b - a).normalized()
             q = Vector((0, 1, 0)).rotation_difference(d)
-            _ellipsoid(ob, mid - up * rb * 0.35, (rb * 0.8, (b - a).length * 0.32, rb * 0.62), q)
+            _ellipsoid(ob, mid - up * rb * 0.3, (rb * 0.72, (b - a).length * 0.3, rb * 0.5), q)
         # the fingertip: a rounded pad, slightly flattened
         tip, d = pts[3], (pts[3] - pts[2]).normalized()
         q = Vector((0, 1, 0)).rotation_difference(d)
@@ -193,8 +193,8 @@ def _form():
     rm.mode = 'VOXEL'
     rm.voxel_size = HI_VOXEL
     sm = hand.modifiers.new("Smooth", 'SMOOTH')
-    sm.factor = 0.6
-    sm.iterations = 6
+    sm.factor = 0.7
+    sm.iterations = 14
     scene.apply_modifiers(hand)
     return hand
 
@@ -391,6 +391,148 @@ def _detail(hand):
     return segs
 
 
+# ------------------------------------------------------------------ gloves
+
+# what you wear on your hands in each realm (see FPHands.VARIANT_BY_ZONE)
+VARIANTS = {
+    "bare": {"file": "fp_hand.glb"},
+    "hazmat": {"file": "fp_hand_hazmat.glb", "glove": (0.86, 0.62, 0.08), "glove_rough": 0.32, "sleeve": (0.88, 0.76, 0.18),
+               "sleeve_rough": 0.45, "thick": 0.0016, "cuff": -0.105, "gauntlet": 0.0045, "sleeve_thick": 0.0065,
+               "folds": 0.00045, "seam": None, "grain": "rubber", "dirt": (0.42, 0.38, 0.30)},
+    "diving": {"file": "fp_hand_diving.glb", "glove": (0.035, 0.037, 0.042), "glove_rough": 0.72, "sleeve": (0.03, 0.032, 0.036),
+               "sleeve_rough": 0.68, "thick": 0.0013, "cuff": -0.035, "gauntlet": 0.0, "sleeve_thick": 0.0035,
+               "folds": 0.0002, "seam": (0.22, 0.23, 0.25), "stitch": False, "grain": "neoprene", "dirt": None},
+    "leather": {"file": "fp_hand_leather.glb", "glove": (0.33, 0.19, 0.10), "glove_rough": 0.5, "sleeve": (0.17, 0.19, 0.22),
+                "sleeve_rough": 0.85, "thick": 0.001, "cuff": -0.045, "gauntlet": 0.0015, "sleeve_thick": 0.0075,
+                "folds": 0.00035, "seam": (0.62, 0.50, 0.33), "stitch": True, "grain": "leather", "dirt": None, "wear": 1.35},
+    "work": {"file": "fp_hand_work.glb", "glove": (0.84, 0.83, 0.78), "glove_rough": 0.92, "sleeve": (0.27, 0.28, 0.27),
+             "sleeve_rough": 0.9, "thick": 0.0009, "cuff": -0.05, "gauntlet": 0.0012, "sleeve_thick": 0.006,
+             "folds": 0.00025, "seam": (0.7, 0.69, 0.64), "stitch": True, "grain": "cotton", "dirt": (0.45, 0.40, 0.33)},
+}
+
+
+def _glove_detail(hand, v):
+    """Gloves over the hand and a sleeve over the forearm: thickness, a cuff, folds, seams, colour."""
+    me = hand.data
+    nv = len(me.vertices)
+    P = np.zeros(nv * 3)
+    me.vertices.foreach_get("co", P)
+    P = P.reshape(-1, 3)
+    N = np.zeros(nv * 3)
+    me.vertices.foreach_get("normal", N)
+    N = N.reshape(-1, 3)
+    segs = [("forearm", np.array([0, -0.28, 0.003]), np.array([0, -0.01, 0.0]), np.array([0, 0, 1.0]))]
+    segs.append(("hand", np.array([0, -0.01, 0.0]), np.array([0, 0.085, 0.0]), np.array([0, 0, 1.0])))
+    for name, pts, up, radii in chains():
+        for i in range(3):
+            segs.append((f"{name}_{i + 1}", np.array(pts[i]), np.array(pts[i + 1]), np.array(up)))
+    dists = np.stack([_seg_param(P, a, b)[0] - (0.02 if n in ("hand", "forearm") else 0.0) for n, a, b, u in segs], 1)
+    owner = np.argmin(dists, 1)
+    names = [sg[0] for sg in segs]
+    up_all = np.stack([sg[3] for sg in segs])[owner]
+    dorsal = np.einsum("ij,ij->i", N, up_all)
+    dmask = np.clip((dorsal - 0.2) / 0.5, 0, 1)
+    y = P[:, 1]
+    cuff = v["cuff"]
+    sleeve = y < cuff - 0.004
+    noise = _noise3(P, 700.0, 3, 2)
+    big = _noise3(P, 60.0, 4, 3)
+    disp = np.where(sleeve, v["sleeve_thick"], v["thick"]).astype(float)
+    cav = np.zeros(nv)        # folds, for darkening
+    seam = np.zeros(nv)
+    # the glove's cuff: flaring toward its edge, with a rolled rim; the sleeve's end beside it
+    if v["gauntlet"] > 0:
+        g = np.clip((0.0 - y) / (0.0 - cuff), 0, 1) * (~sleeve)
+        disp += v["gauntlet"] * g ** 1.5
+    rim = np.exp(-((y - (cuff - 0.002)) / 0.0025) ** 2)
+    disp += rim * 0.0011
+    cav += np.exp(-((y - (cuff - 0.006)) / 0.002) ** 2) * 0.8
+    # sleeve: cloth folds, bunched toward the wrist
+    ang = np.arctan2(P[:, 2], P[:, 0])
+    near_cuff = np.clip(1 - (cuff - y) / 0.12, 0.3, 1)
+    folds = (np.sin(y * math.tau / 0.034 + big * 4 + np.sin(ang * 2) * 1.5) * 0.0013
+             + np.sin(ang * 3 + y * 55 + big * 3) * 0.0007) * near_cuff
+    disp += np.where(sleeve, folds, 0)
+    cav += np.where(sleeve, np.clip(-folds / 0.0015, 0, 1) * 0.6, 0)
+    # the glove: folds over the knuckles and in the palm, a little looseness
+    for name, pts, up, radii in chains():
+        for j in (0, 1, 2) if name != "thumb" else (1, 2):
+            a, jp = np.array(pts[max(j - 1, 0)]), np.array(pts[j])
+            b = np.array(pts[j + 1])
+            ax = (b - a) / np.linalg.norm(b - a)
+            s = (P - jp) @ ax
+            sel = np.isin(owner, [k for k, n in enumerate(names) if n.startswith(name)] + ([names.index("hand")] if j == 0 else []))
+            ridges = np.sin(s * math.tau / 0.0032 + noise * 2.5) * np.exp(-(s / 0.0065) ** 2)
+            disp += sel * dmask * ridges * v["folds"] * (~sleeve)
+            cav += sel * dmask * np.clip(-ridges, 0, 1) * 0.5 * (~sleeve)
+    disp += big * 0.00035 * (~sleeve)
+    # seams down the sides of the fingers (and three down the back, for stitched gloves)
+    if v.get("seam") is not None:
+        for name, pts, up, radii in chains():
+            a, b = np.array(pts[0]), np.array(pts[3])
+            ax = (b - a) / np.linalg.norm(b - a)
+            sel = np.isin(owner, [k for k, n in enumerate(names) if n.startswith(name)])
+            side_line = np.exp(-(np.einsum("ij,j->i", N, np.array(up)) / 0.13) ** 2)
+            seam += sel * side_line
+        if v.get("stitch"):
+            P2 = P[:, :2]
+            for path in ([(-0.019, 0.08), (-0.014, 0.035)], [(0.0, 0.085), (0.0, 0.035)], [(0.019, 0.08), (0.014, 0.035)]):
+                dd = _polyline_dist(P2, path)
+                seam += np.exp(-(dd / 0.0005) ** 2) * dmask * (owner == names.index("hand"))
+        seam = np.clip(seam, 0, 1) * (~sleeve)
+        disp += seam * 0.00028
+    P2n = P + N * disp[:, None]
+    me.vertices.foreach_set("co", P2n.ravel())
+    me.update()
+
+    gl = _lin(v["glove"])
+    sl = _lin(v["sleeve"])
+    col = np.where(sleeve[:, None], sl[None, :], gl[None, :]).astype(float)
+    col *= (0.95 + 0.07 * big)[:, None]
+    col *= (1 - np.clip(cav, 0, 1) * 0.35)[:, None]
+    if v.get("wear"):
+        tips = np.zeros(nv)
+        for name, pts, up, radii in chains():
+            tips += np.exp(-(np.linalg.norm(P - np.array(pts[3]), axis=1) / 0.009) ** 2)
+            tips += np.exp(-(np.linalg.norm(P - (np.array(pts[0]) + np.array([0, 0, 0.008])), axis=1) / 0.008) ** 2)
+        w = np.clip(tips, 0, 1) * (~sleeve) * 0.5
+        col *= (1 + w * (v["wear"] - 1))[:, None]
+    if v.get("dirt") is not None:
+        tips = np.zeros(nv)
+        for name, pts, up, radii in chains():
+            tips += np.exp(-(np.linalg.norm(P - np.array(pts[3]), axis=1) / 0.012) ** 2)
+        dirt = np.clip(tips * (0.6 + 0.6 * big) + (1 - dmask) * 0.15 * (big > 0.2), 0, 0.7) * (~sleeve)
+        col = col * (1 - dirt[:, None]) + _lin(v["dirt"])[None, :] * dirt[:, None]
+    if v.get("seam") is not None:
+        sc = _lin(v["seam"])
+        if v.get("stitch"):
+            st = (np.sin((P[:, 1] + P[:, 0] * 0.3) * math.tau / 0.0026) > 0.2).astype(float)
+            sm = seam * st * 0.85
+        else:
+            sm = seam * 0.8
+        col = col * (1 - sm[:, None]) + sc[None, :] * sm[:, None]
+    attr = me.color_attributes.new("Col", 'FLOAT_COLOR', 'POINT')
+    attr.data.foreach_set("color", np.hstack([col, np.ones((nv, 1))]).ravel())
+
+
+def _grain(kind):
+    """Fine surface texture (height) for the normal map: pores, rubber, neoprene, leather, cotton."""
+    if kind == "rubber":
+        return tex.fbm(TEX, TEX, 60, 60, 81, 2) * 0.25, 0.08
+    if kind == "neoprene":
+        return tex.fbm(TEX, TEX, 380, 380, 82, 2), 0.22
+    if kind == "leather":
+        f1, f2 = tex.cellular(TEX, TEX, 150, 150, 83)
+        return (f2 - f1) * 0.6 + tex.fbm(TEX, TEX, 200, 200, 84, 2) * 0.3, 0.3
+    if kind == "cotton":
+        x = np.arange(TEX)
+        weave = np.sin(x[None, :] * math.tau / 3.0) * np.sin(x[:, None] * math.tau / 3.0)
+        return weave * 0.5 + tex.fbm(TEX, TEX, 300, 300, 85, 1) * 0.4, 0.22
+    pores = tex.fbm(TEX, TEX, 420, 420, 77, 1)
+    f1, _f2 = tex.cellular(TEX, TEX, 260, 260, 78)
+    return pores * 0.5 - np.exp(-(f1 / 0.22) ** 2) * 0.6, 0.16
+
+
 # ------------------------------------------------------------------ nails
 
 def _nails(hand):
@@ -402,7 +544,7 @@ def _nails(hand):
         side = d.cross(up).normalized()
         r = radii[3]
         L = (b - a).length * (0.62 if name != "thumb" else 0.66)
-        w = r * 1.55
+        w = r * 1.38
         rows, cols = 9, 7
         bm = bmesh.new()
         uvl = bm.loops.layers.uv.new("UVMap")
@@ -420,7 +562,7 @@ def _nails(hand):
                 p0 = along + side * (u * width) + up * 0.02
                 hit = bvh.ray_cast(p0, -up, 0.05)
                 if hit[0] is not None and v < 0.93:
-                    p = hit[0] + hit[1] * 0.00022
+                    p = hit[0] + hit[1] * (0.00024 - 0.0002 * abs(u) ** 3 * 8 * 0.125)   # edges tuck into the skin
                 else:
                     # the free edge: carries on the curve of the last row, out in the air
                     p = (grid[-1][j] if grid else p0) + d * (0.0018 / max(1, rows - 1) * 2.0) - up * 0.0001
@@ -527,12 +669,33 @@ def _bake(high, low, img, kind):
     nodes.remove(node)
 
 
-def build(out_path):
+def build_all(out_dir):
+    """Every variant: models/fp_hand.glb (bare) and fp_hand_<glove>.glb. Returns the last rig for previews."""
+    if out_dir.endswith(".glb"):
+        out_dir = os.path.dirname(out_dir)
+    out = None
+    for name in VARIANTS:
+        print(f"  -- {name}")
+        out = build(os.path.join(out_dir, VARIANTS[name]["file"]), name)
+        pdir = os.environ.get("HANDS_PREVIEW")
+        if pdir:
+            from dp import preview as pv
+            pv.render_views(pdir, "v_" + name, [("top", (0.06, -0.12, 0.2), (0, 0.03, 0), 42),
+                                                ("side", (-0.22, 0.0, 0.07), (0, 0.02, 0), 42)], res=(640, 480), samples=24)
+    return out
+
+
+def build(out_path, variant="bare"):
+    v = VARIANTS[variant]
+    bare = variant == "bare"
     scene.reset()
     _calibrate()
     high = _form()
     print(f"  high-res hand: {len(high.data.vertices)} verts")
-    _detail(high)
+    if bare:
+        _detail(high)
+    else:
+        _glove_detail(high, v)
     # emission material on the high mesh shows its vertex colours to the baker
     hm = bpy.data.materials.new("HighCol")
     hm.use_nodes = True
@@ -578,23 +741,31 @@ def build(out_path):
     _bake(high, low, nor_img, "NORMAL")
     # pores: fine height noise folded into the baked normals
     n = np.array(nor_img.pixels[:]).reshape(TEX, TEX, 4)
-    pores = tex.fbm(TEX, TEX, 420, 420, 77, 1)
-    f1, _f2 = tex.cellular(TEX, TEX, 260, 260, 78)
-    h = pores * 0.5 - np.exp(-(f1 / 0.22) ** 2) * 0.6     # tiny pits
+    h, k = _grain("skin" if bare else v["grain"])
     gy, gx = np.gradient(h)
-    k = 0.16
     n[..., 0] = np.clip(n[..., 0] - gx * k, 0, 1)
     n[..., 1] = np.clip(n[..., 1] + gy * k, 0, 1)
     nor_img.pixels[:] = n.ravel()
     low.data.materials.clear()
-    skin = scene.material("Skin", base_tex=col_img, normal_tex=nor_img, normal_strength=1.0, roughness=0.55)
-    low.data.materials.append(skin)
-    for img, fname in ((col_img, "fp_hand_col.png"), (nor_img, "fp_hand_nor.png")):
+    if bare:
+        low.data.materials.append(scene.material("Skin", base_tex=col_img, normal_tex=nor_img, normal_strength=1.0, roughness=0.55))
+    else:
+        low.data.materials.append(scene.material("Glove", base_tex=col_img, normal_tex=nor_img, roughness=v["glove_rough"]))
+        low.data.materials.append(scene.material("Sleeve", base_tex=col_img, normal_tex=nor_img, roughness=v["sleeve_rough"]))
+        for poly in low.data.polygons:
+            if poly.center.y < v["cuff"] - 0.004:
+                poly.material_index = 1
+    stem = os.path.splitext(os.path.basename(out_path))[0]
+    col_img.name = stem + "_col"
+    nor_img.name = stem + "_nor"
+    for img, fname in ((col_img, stem + "_col.png"), (nor_img, stem + "_nor.png")):
         img.filepath_raw = os.path.join(os.path.dirname(out_path), fname)
         img.file_format = 'PNG'
 
-    nails = _nails(high)
-    nails.data.materials.append(scene.material("Nail", base_tex=_nail_texture(), roughness=0.28))
+    nails = None
+    if bare:
+        nails = _nails(high)
+        nails.data.materials.append(scene.material("Nail", base_tex=_nail_texture(), roughness=0.28))
     bpy.data.objects.remove(high)
 
     arm = _rig()
@@ -603,10 +774,11 @@ def build(out_path):
         o.select_set(o in (low, arm))
     bpy.context.view_layer.objects.active = arm
     bpy.ops.object.parent_set(type='ARMATURE_AUTO')
-    nails.parent = arm
-    mod = nails.modifiers.new("Armature", 'ARMATURE')
-    mod.object = arm
-    scene.export_glb(out_path, [arm, low, nails])
+    if nails is not None:
+        nails.parent = arm
+        mod = nails.modifiers.new("Armature", 'ARMATURE')
+        mod.object = arm
+    scene.export_glb(out_path, [arm, low] + ([nails] if nails is not None else []))
     return arm, low, nails
 
 

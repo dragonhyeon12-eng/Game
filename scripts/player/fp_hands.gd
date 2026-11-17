@@ -67,15 +67,31 @@ func _ready() -> void:
 
 ## The Blender hand. Returns false if the file can't be used.
 func _build_model(side: float) -> bool:
-	var inst := Models.instance(["fp_hand"])
+	var root := _pivot(self, Vector3(0.18 * side, -0.2, -0.3), Vector3(6, -8 * side, -38 * side))
+	_hands[side] = {"root": root, "rest": root.transform}
+	if not _attach_model(side, "fp_hand"):
+		_hands.erase(side)
+		root.free()
+		return false
+	if side > 0.0:
+		right_socket = _pivot(root, Vector3(-0.01, -0.05, -0.05))
+		right_socket.basis = root.basis.inverse()
+	return true
+
+
+## Put a hand model (bare, or one of the gloves) on a hand, replacing the one it has.
+func _attach_model(side: float, slot: String) -> bool:
+	var inst := Models.instance([slot, "fp_hand"])
 	if inst == null:
 		return false
 	var found := inst.find_children("*", "Skeleton3D", true, false)
 	if found.is_empty():
 		inst.free()
 		return false
-	var root := _pivot(self, Vector3(0.18 * side, -0.2, -0.3), Vector3(6, -8 * side, -38 * side))
-	var rest := root.transform
+	var hand: Dictionary = _hands[side]
+	if hand.has("inst") and is_instance_valid(hand.inst):
+		hand.inst.queue_free()
+	var root: Node3D = hand.root
 	root.add_child(inst)
 	inst.position = MODEL_OFFSET
 	if side < 0.0:
@@ -100,17 +116,37 @@ func _build_model(side: float) -> bool:
 					sm.subsurf_scatter_strength = 0.35
 					sm.subsurf_scatter_skin_mode = true
 					sm.roughness = 0.58
-					sm.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
 					sm.rim_enabled = true
 					sm.rim = 0.12
 					sm.rim_tint = 0.6
 					sm.normal_scale = 0.5          # pores and creases: there, not leathery
 				m.set_surface_override_material(si, sm)
-	if side > 0.0:
-		right_socket = _pivot(root, Vector3(-0.01, -0.05, -0.05))
-		right_socket.basis = root.basis.inverse()
-	_hands[side] = {"root": root, "rest": rest, "sk": sk, "ids": ids, "rests": rests}
+	hand["inst"] = inst
+	hand["sk"] = sk
+	hand["ids"] = ids
+	hand["rests"] = rests
+	hand["slot"] = slot
 	return true
+
+
+## What you have on your hands in each realm.
+const VARIANT_BY_ZONE := {
+	"maze": "fp_hand_hazmat",
+	"deep": "fp_hand_diving", "seabed": "fp_hand_diving", "abyss": "fp_hand_diving",
+	"compression": "fp_hand_work", "tenement": "fp_hand_work",
+	"above": "fp_hand_leather",
+}
+var _zone_seen := "-"
+
+
+func _update_variant() -> void:
+	if Game.zone_type == _zone_seen:
+		return
+	_zone_seen = Game.zone_type
+	var slot: String = VARIANT_BY_ZONE.get(_zone_seen, "fp_hand")
+	for side in _hands:
+		if _hands[side].has("sk") and _hands[side].get("slot", "") != slot:
+			_attach_model(side, slot)
 
 
 func _bone(hand: Dictionary, bone: String, curl_deg: float, spread_deg := 0.0) -> void:
@@ -222,6 +258,7 @@ func add_sway(mouse_delta: Vector2) -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	_update_variant()
 	_sway = _sway.lerp(Vector2.ZERO, clampf(delta * 8.0, 0.0, 1.0))
 	_reach = maxf(0.0, _reach - delta * 3.0)
 	var player = get_parent().get_parent().get_parent() if get_parent() else null

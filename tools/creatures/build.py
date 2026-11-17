@@ -35,7 +35,7 @@ CREATURES = {
     "stalker": (player.build_stalker, "models/creatures/stalker.glb"),
     "foliage": (foliage.build, "models/props"),
     "kit": (kit.build, "models/props"),
-    "hands": (hands.build, "models/fp_hand.glb"),
+    "hands": (hands.build_all, "models"),
 }
 
 
