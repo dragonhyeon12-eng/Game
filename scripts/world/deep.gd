@@ -212,8 +212,8 @@ func _water(r: Rect2, level: float) -> Node3D:
 	var mi := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(r.size.x, r.size.y)
-	plane.subdivide_width = 8
-	plane.subdivide_depth = 8
+	plane.subdivide_width = int(r.size.x * 2.0)
+	plane.subdivide_depth = int(r.size.y * 2.0)
 	mi.mesh = plane
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://scripts/world/water.gdshader")
@@ -223,8 +223,22 @@ func _water(r: Rect2, level: float) -> Node3D:
 	return root
 
 
+func _caustics(r: Rect2, y: float) -> void:
+	var mi := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(r.size.x, r.size.y)
+	mi.mesh = plane
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://scripts/world/caustics.gdshader")
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.position = Vector3(r.position.x + r.size.x * 0.5, y, r.position.y + r.size.y * 0.5)
+	add_child(mi)
+
+
 func _main_pool() -> void:
 	_basin(MAIN, MAIN_DEPTH, true)
+	_caustics(MAIN, -MAIN_DEPTH + 0.015)
 	# lane lines on the bottom
 	for i in range(1, 8):
 		var z := MAIN.position.y + i * 2.0

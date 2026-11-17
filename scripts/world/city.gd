@@ -84,7 +84,7 @@ func build() -> void:
 # ------------------------------------------------------------------ geometry
 
 func _ground() -> void:
-	box(Vector3(0, -0.25, 0), Vector3(800, 0.5, 800), ASPHALT, true, 0.0, "concrete")
+	box(Vector3(0, -0.25, 0), Vector3(800, 0.5, 800), ASPHALT, true, 0.0, "asphalt")
 	for i in range(-HALF, HALF + 1):
 		for j in range(-HALF, HALF + 1):
 			box(Vector3(i * PITCH, CURB * 0.5, j * PITCH), Vector3(BLOCK, CURB, BLOCK), PAVEMENT, true, 0.0, "pavers")
@@ -287,12 +287,12 @@ func _lighting() -> void:
 	sun.directional_shadow_max_distance = 120.0
 	add_child(sun)
 
-	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.22, 0.45, 0.85)
-	sky_mat.sky_horizon_color = Color(0.72, 0.82, 0.92)
-	sky_mat.ground_horizon_color = Color(0.72, 0.8, 0.88)
-	sky_mat.ground_bottom_color = Color(0.3, 0.32, 0.35)
-	sky_mat.sun_angle_max = 12.0
+	# a perfect summer afternoon: deep blue overhead, hazy at the horizon, fair-weather clouds drifting
+	var sky_mat := ShaderMaterial.new()
+	sky_mat.shader = load("res://scripts/world/sky.gdshader")
+	sky_mat.set_shader_parameter("zenith", Color(0.18, 0.4, 0.82))
+	sky_mat.set_shader_parameter("horizon", Color(0.74, 0.84, 0.94))
+	sky_mat.set_shader_parameter("cloud_cover", 0.42)
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
 	var env := make_env(Color(0.6, 0.7, 0.85), 0.6)

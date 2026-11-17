@@ -1,0 +1,54 @@
+{
+	"textures/concrete": {
+		"tile": 3.0,
+		"tint": true
+	},
+	"textures/asphalt": {
+		"tile": 4.0,
+		"tint": true
+	},
+	"textures/pavers": {
+		"tile": 2.4,
+		"tint": true
+	},
+	"textures/tiles_floor": {
+		"tile": 1.2,
+		"tint": true
+	},
+	"textures/tiles_pool": {
+		"tile": 0.5,
+		"tint": true
+	},
+	"textures/tiles_ceiling": {
+		"tile": 1.2,
+		"tint": true
+	},
+	"textures/wallpaper": {
+		"tile": 1.0,
+		"tint": true
+	},
+	"textures/carpet": {
+		"tile": 2.0,
+		"tint": true
+	},
+	"textures/grass": {
+		"tile": 3.0,
+		"tint": false
+	},
+	"textures/wood": {
+		"tile": 1.6,
+		"tint": true
+	},
+	"textures/plaster": {
+		"tile": 2.5,
+		"tint": true
+	},
+	"textures/metal": {
+		"tile": 1.5,
+		"tint": true
+	},
+	"textures/fabric": {
+		"tile": 0.5,
+		"tint": true
+	}
+}

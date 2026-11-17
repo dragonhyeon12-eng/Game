@@ -327,7 +327,7 @@ func _build_all() -> void:
 	streams["water"] = _to_wav(_water(3.0), true)
 	streams["hum"] = _to_wav(_hum(2.0), true)
 	streams["drone"] = _to_wav(_drone(6.0), true)
-	for surface in ["concrete", "wood", "carpet", "grass"]:
+	for surface in ["concrete", "wood", "carpet", "grass", "metal", "wet"]:
 		for v in 4:
 			streams["step_%s_%d" % [surface, v]] = _to_wav(_footstep(surface, v), false)
 	streams["knock"] = _to_wav(_knock(), false)
@@ -347,6 +347,26 @@ func _build_all() -> void:
 	streams["grind"] = _to_wav(_grind(2.0), true)
 	streams["breath"] = _to_wav(_breath(4.0), true)
 	streams["creak"] = _to_wav(_creak(), false)
+	# horror cues and events
+	streams["screech"] = _to_wav(_screech(), false)
+	streams["braam"] = _to_wav(_braam(), false)
+	streams["riser"] = _to_wav(_riser(), false)
+	streams["hit"] = _to_wav(_hit(), false)
+	streams["sub_drop"] = _to_wav(_sub_drop(), false)
+	streams["whisper"] = _to_wav(_whisper(), false)
+	streams["scream_far"] = _to_wav(_scream_far(), false)
+	streams["door_creak"] = _to_wav(_door_creak(), false)
+	streams["metal_screech"] = _to_wav(_metal_screech(), false)
+	streams["scrape"] = _to_wav(_scrape(), false)
+	streams["heartbeat"] = _to_wav(_heartbeat(), false)
+	streams["bubbles"] = _to_wav(_bubbles(), false)
+	streams["glitch"] = _to_wav(_glitch(), false)
+	streams["switch"] = _to_wav(_switch(), false)
+	streams["ding"] = _to_wav(_ding(), false)
+	streams["splash_big"] = _to_wav(_splash_big(), false)
+	streams["underwater"] = _to_wav(_underwater(6.0), true)
+	streams["buzz"] = _to_wav(_buzz(2.0), true)
+	streams["motor"] = _to_wav(_motor(3.0), true)
 	print("Sfx: synthesized %d sounds in %d ms" % [streams.size(), Time.get_ticks_msec() - t0])
 
 
@@ -476,6 +496,19 @@ func _footstep(surface: String, variant: int) -> PackedFloat32Array:
 				lp2 += (lp - lp2) * 0.2
 				v += sin(TAU * thump_f * 0.85 * t) * exp(-t * 38.0) * 0.6
 				v += lp2 * 6.0 * exp(-t * 22.0) * minf(1.0, t * 120.0)
+			"metal":
+				# a steel beam or grating: a dull clang that rings on
+				lp += (x - lp) * 0.4
+				v += sin(TAU * thump_f * 1.6 * t) * exp(-t * 30.0) * 0.4
+				v += (sin(TAU * 1230.0 * t) * 0.5 + sin(TAU * 1870.0 * t) * 0.3 + sin(TAU * 2950.0 * t) * 0.2) * exp(-t * 11.0) * 0.18
+				v += (x - lp) * exp(-t * 120.0) * 0.4
+			"wet":
+				# bare feet on wet tile: a slap and a little squelch
+				lp += (x - lp) * 0.35
+				v += (x - lp) * exp(-t * 70.0) * 0.8 + sin(TAU * thump_f * 1.2 * t) * exp(-t * 60.0) * 0.4
+				var t2 := t - heel_to_toe * 1.4
+				if t2 > 0.0:
+					v += sin(TAU * (500.0 - t2 * 900.0) * t2) * exp(-t2 * 40.0) * 0.12
 			"grass":
 				# crunchy grains
 				lp += (x - lp) * 0.6
@@ -722,3 +755,266 @@ func _creak() -> PackedFloat32Array:
 		var pulse := 1.0 if fmod(ph, 1.0) < 0.08 else 0.0
 		s[i] = (pulse * 0.5 + _noise() * 0.05) * sin(PI * t / 0.9)
 	return s
+
+
+# ------------------------------------------------------------------ horror cues and event sounds
+
+func _buf(sec: float) -> PackedFloat32Array:
+	var s := PackedFloat32Array()
+	s.resize(int(sec * RATE))
+	return s
+
+
+## Strings scraped hard, a cluster sliding up: the classic stinger.
+func _screech() -> PackedFloat32Array:
+	var s := _buf(2.4)
+	var ph := [0.0, 0.0, 0.0, 0.0, 0.0]
+	var base := [880.0, 932.0, 1245.0, 1318.0, 1760.0]
+	for i in s.size():
+		var t := float(i) / RATE
+		var env := minf(1.0, t * 30.0) * exp(-t * 1.4)
+		var v := 0.0
+		for k in 5:
+			var f: float = base[k] * (1.0 + 0.18 * t) * (1.0 + 0.006 * sin(TAU * 6.0 * t + k))
+			ph[k] = fmod(ph[k] + f / RATE, 1.0)
+			v += (ph[k] * 2.0 - 1.0) * 0.18           # saw: bowed string
+		v += _noise() * 0.25 * exp(-t * 4.0)           # bow noise
+		s[i] = clampf(v * env * 1.4, -1.0, 1.0) * 0.8
+	return s
+
+
+## The low brass "BRAAM": detuned saws through a closing filter, overdriven.
+func _braam() -> PackedFloat32Array:
+	var s := _buf(3.5)
+	var ph := [0.0, 0.0, 0.0, 0.0]
+	var lp := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		var v := 0.0
+		for k in 4:
+			ph[k] = fmod(ph[k] + (43.65 * (1.0 + k * 0.004) * (2.0 if k == 3 else 1.0)) / RATE, 1.0)
+			v += ph[k] * 2.0 - 1.0
+		var cutoff := 0.02 + 0.25 * exp(-t * 2.5)
+		lp += (v * 0.3 - lp) * cutoff
+		s[i] = tanh(lp * 3.0) * minf(1.0, t * 12.0) * exp(-t * 0.9) * 0.9
+	return s
+
+
+## Noise and a tone rising to a cut: tension before something happens.
+func _riser() -> PackedFloat32Array:
+	var s := _buf(3.0)
+	var ph := 0.0
+	var bp := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		var k := t / 3.0
+		ph += (200.0 + 1800.0 * k * k) / RATE
+		bp += (_noise() - bp) * (0.05 + 0.4 * k)
+		s[i] = (sin(TAU * ph) * 0.25 + bp * 0.9) * k * k * 0.9
+	return s
+
+
+## A jump-scare impact: transient crack, body boom and a ringing tail.
+func _hit() -> PackedFloat32Array:
+	var s := _buf(2.2)
+	for i in s.size():
+		var t := float(i) / RATE
+		var boom := sin(TAU * (60.0 - 25.0 * t) * t) * exp(-t * 3.0)
+		var crack := _noise() * exp(-t * 60.0)
+		var ring := (sin(TAU * 523.0 * t) + sin(TAU * 554.0 * t) * 0.7 + sin(TAU * 1108.0 * t) * 0.3) * exp(-t * 2.2) * 0.15
+		s[i] = clampf((boom * 0.9 + crack * 0.8 + ring), -1.0, 1.0)
+	return s
+
+
+func _sub_drop() -> PackedFloat32Array:
+	var s := _buf(2.5)
+	var ph := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		ph += (80.0 * exp(-t * 1.2) + 22.0) / RATE
+		s[i] = sin(TAU * ph) * minf(1.0, t * 20.0) * exp(-t * 0.8) * 0.95
+	return s
+
+
+## Breathy syllables with no words in them.
+func _whisper() -> PackedFloat32Array:
+	var s := _buf(2.6)
+	var bp := 0.0
+	var lp := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		var syl := maxf(0.0, sin(TAU * 3.1 * t + sin(TAU * 0.7 * t) * 2.0))
+		var center := 0.15 + 0.12 * sin(TAU * 1.9 * t)
+		lp += (_noise() - lp) * center
+		bp += (lp - bp) * 0.5
+		s[i] = (lp - bp) * syl * syl * minf(1.0, t * 4.0) * minf(1.0, (2.6 - t) * 3.0) * 2.2
+	return s
+
+
+## Far away, someone: a falling, formant-shaped wail.
+func _scream_far() -> PackedFloat32Array:
+	var s := _buf(3.0)
+	var ph := 0.0
+	var f1 := 0.0
+	var f2 := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		var pitch := 620.0 - 180.0 * t + 25.0 * sin(TAU * 5.5 * t)
+		ph += pitch / RATE
+		var src := (fmod(ph, 1.0) * 2.0 - 1.0) + _noise() * 0.3
+		f1 += (src - f1) * 0.18
+		f2 += (f1 - f2) * 0.35
+		s[i] = (f1 - f2 * 0.6) * minf(1.0, t * 3.0) * exp(-t * 0.9) * 0.6
+	return s
+
+
+func _door_creak() -> PackedFloat32Array:
+	var s := _buf(1.8)
+	var ph := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		var f := 70.0 + 50.0 * sin(t * 3.0) + 40.0 * sin(t * 11.0) * sin(t * 2.0)
+		ph += f / RATE
+		var stick := 1.0 if fmod(ph, 1.0) < 0.06 else 0.0
+		s[i] = (stick * 0.6 + _noise() * 0.04) * sin(PI * t / 1.8)
+	return s
+
+
+func _metal_screech() -> PackedFloat32Array:
+	var s := _buf(2.2)
+	var ph := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		var f := 2100.0 + 600.0 * sin(TAU * 0.6 * t) + 90.0 * sin(TAU * 13.0 * t)
+		ph += f / RATE
+		var v := sin(TAU * ph) * 0.5 + sin(TAU * ph * 1.51) * 0.25 + _noise() * 0.15
+		s[i] = v * sin(PI * t / 2.2) * 0.6
+	return s
+
+
+func _scrape() -> PackedFloat32Array:
+	var s := _buf(1.6)
+	var lp := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		lp += (_noise() - lp) * 0.12
+		var judder := 0.5 + 0.5 * absf(sin(TAU * 9.0 * t + sin(TAU * 2.0 * t)))
+		s[i] = lp * judder * sin(PI * t / 1.6) * 1.6
+	return s
+
+
+func _heartbeat() -> PackedFloat32Array:
+	var s := _buf(0.7)
+	for i in s.size():
+		var t := float(i) / RATE
+		var a := sin(TAU * 55.0 * t) * exp(-t * 22.0)
+		var t2 := t - 0.2
+		var b: float = sin(TAU * 48.0 * t2) * exp(-t2 * 26.0) * 0.7 if t2 > 0.0 else 0.0
+		s[i] = (a + b) * 0.9
+	return s
+
+
+func _bubbles() -> PackedFloat32Array:
+	var s := _buf(1.4)
+	var next := 0.0
+	var f := 600.0
+	var bt := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		if t >= next:
+			next = t + _rng.randf_range(0.02, 0.12)
+			f = _rng.randf_range(350.0, 1200.0)
+			bt = t
+		var lt := t - bt
+		s[i] = sin(TAU * f * (1.0 + lt * 4.0) * lt) * exp(-lt * 35.0) * 0.45 * (1.0 - t / 1.4)
+	return s
+
+
+func _glitch() -> PackedFloat32Array:
+	var s := _buf(0.6)
+	var hold := 0.0
+	var v := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		if _rng.randf() < 0.004:
+			hold = _rng.randf_range(-0.8, 0.8)
+		v = hold if _rng.randf() < 0.7 else _noise()
+		s[i] = (v * 0.6 + sin(TAU * 60.0 * t) * 0.2 * sign(sin(TAU * 7.0 * t))) * (1.0 - t / 0.6)
+	return s
+
+
+func _switch() -> PackedFloat32Array:
+	var s := _buf(0.5)
+	for i in s.size():
+		var t := float(i) / RATE
+		var t2 := t - 0.05
+		s[i] = (_noise() * exp(-t * 200.0) + sin(TAU * 140.0 * t) * exp(-t * 40.0) * 0.6
+			+ (sin(TAU * 220.0 * t2) * exp(-t2 * 30.0) * 0.5 if t2 > 0.0 else 0.0)) * 0.8
+	return s
+
+
+func _ding() -> PackedFloat32Array:
+	var s := _buf(2.0)
+	for i in s.size():
+		var t := float(i) / RATE
+		var a := (sin(TAU * 1046.0 * t) + sin(TAU * 2093.0 * t) * 0.3) * exp(-t * 3.0)
+		var t2 := t - 0.35
+		var b: float = (sin(TAU * 784.0 * t2) + sin(TAU * 1568.0 * t2) * 0.3) * exp(-t2 * 2.5) if t2 > 0.0 else 0.0
+		s[i] = (a + b) * 0.3
+	return s
+
+
+func _splash_big() -> PackedFloat32Array:
+	var s := _buf(1.8)
+	var lp := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		lp += (_noise() - lp) * (0.4 * exp(-t * 2.0) + 0.05)
+		s[i] = (lp * 1.4 * exp(-t * 2.2) + sin(TAU * 70.0 * t) * exp(-t * 12.0) * 0.6) * minf(1.0, t * 80.0)
+	return s
+
+
+## Under water: pressure, a deep slow swell, the odd far-off creak of something enormous.
+func _underwater(sec: float) -> PackedFloat32Array:
+	var n := int(sec * RATE)
+	var s := PackedFloat32Array()
+	s.resize(n + 3000)
+	var lp := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		lp += (_noise() - lp) * 0.008
+		var swell := 0.6 + 0.4 * sin(TAU * t / sec)
+		s[i] = lp * 3.5 * swell + sin(TAU * 32.0 * t) * 0.08
+	_seam(s, 3000)
+	return s
+
+
+## Old electrics: 60 Hz hum with harmonics and an irregular crackle.
+func _buzz(sec: float) -> PackedFloat32Array:
+	var n := int(sec * RATE)
+	var s := PackedFloat32Array()
+	s.resize(n)
+	for i in n:
+		var t := float(i) / RATE
+		var hum: float = sin(TAU * 60.0 * t) * 0.3 + sin(TAU * 120.0 * t) * 0.25 + sign(sin(TAU * 180.0 * t)) * 0.06
+		var crack: float = _noise() * 0.6 if _rng.randf() < 0.002 else 0.0
+		s[i] = (hum + crack) * 0.4
+	return s
+
+
+func _motor(sec: float) -> PackedFloat32Array:
+	var n := int(sec * RATE)
+	var s := PackedFloat32Array()
+	s.resize(n + 2000)
+	var lp := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		lp += (_noise() - lp) * 0.03
+		s[i] = (sin(TAU * 98.0 * t) * 0.2 + sin(TAU * 196.0 * t) * 0.1 + lp * 0.8) * 0.6
+	_seam(s, 2000)
+	return s
+
+
+## A horror cue, slightly varied each time so repeats don't sound identical.
+func stinger(name: String, volume_db := 0.0) -> void:
+	play(name, volume_db + linear_to_db(maxf(Settings.audio_intensity, 0.05)), randf_range(0.94, 1.06))

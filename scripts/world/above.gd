@@ -367,8 +367,19 @@ func _sky() -> void:
 	add_child(moon)
 	moon.look_at_from_position(Vector3(-180, 120, -260).normalized() * 10.0, Vector3.ZERO, Vector3.UP)
 	var env := make_env(Color(0.35, 0.4, 0.55), 0.22)
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.015, 0.02, 0.045)
+	# night: stars, the moon, thin cloud catching its light
+	var sky_mat := ShaderMaterial.new()
+	sky_mat.shader = load("res://scripts/world/sky.gdshader")
+	for kv in [["zenith", Color(0.008, 0.012, 0.035)], ["horizon", Color(0.05, 0.065, 0.11)], ["ground", Color(0.03, 0.035, 0.05)],
+			["sun_color", Color(0.75, 0.82, 1.0)], ["cloud_light", Color(0.32, 0.36, 0.48)], ["cloud_shadow", Color(0.04, 0.05, 0.08)]]:
+		sky_mat.set_shader_parameter(kv[0], kv[1])
+	sky_mat.set_shader_parameter("cloud_cover", 0.3)
+	sky_mat.set_shader_parameter("stars", 1.0)
+	sky_mat.set_shader_parameter("sun_size", 0.9997)
+	var sky := Sky.new()
+	sky.sky_material = sky_mat
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.06, 0.07, 0.11)
 	env.fog_density = 0.006

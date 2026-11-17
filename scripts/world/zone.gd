@@ -251,6 +251,37 @@ func interactable(pos: Vector3, size: Vector3, prompt: Callable, action: Callabl
 	return a
 
 
+## An invisible volume that runs `fn` when the player walks into it (once, unless once = false).
+## For scares, sounds and story beats placed in the world.
+func trigger(center: Vector3, size: Vector3, fn: Callable, once := true) -> Area3D:
+	var a := Area3D.new()
+	a.collision_layer = 0
+	a.collision_mask = 2          # the player
+	a.monitorable = false
+	var cs := CollisionShape3D.new()
+	var b := BoxShape3D.new()
+	b.size = size
+	cs.shape = b
+	a.add_child(cs)
+	a.position = center
+	add_child(a)
+	a.body_entered.connect(func(body):
+		if body is Player and not Game.in_sequence:
+			fn.call()
+			if once:
+				a.queue_free())
+	return a
+
+
+## A scare: a sting of sound and a jolt of fear (a stinger name from Sfx, e.g. "screech", "braam", "hit").
+func scare(sound: String, fear := 8.0, volume_db := 0.0, jolt := Vector3.ZERO) -> void:
+	Sfx.stinger(sound, volume_db)
+	if Game.player:
+		Game.player.dread.add_fear(fear, "scare")
+		if jolt != Vector3.ZERO:
+			Game.player.jolt(jolt)
+
+
 func blocker(center: Vector3, size: Vector3) -> void:
 	var cs := CollisionShape3D.new()
 	var b := BoxShape3D.new()
