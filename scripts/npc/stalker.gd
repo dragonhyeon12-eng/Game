@@ -74,44 +74,129 @@ func _rot(bone: String, axis: Vector3, deg: float) -> void:
 		_R[bone] = Quaternion(axis, deg_to_rad(deg)) * _R.get(bone, Quaternion.IDENTITY)
 
 
+## Smooth periodic curve through keyframes [[phase 0..1, value], ...] (wraps around).
+static func _curve(keys: Array, p: float) -> float:
+	p = fposmod(p, 1.0)
+	for k in keys.size():
+		var a: Array = keys[k]
+		var b: Array = keys[(k + 1) % keys.size()]
+		var pb: float = b[0] if k + 1 < keys.size() else b[0] + 1.0
+		if p >= a[0] and p <= pb:
+			var pa: float = a[0]
+			var f: float = (p - pa) / maxf(pb - pa, 0.0001)
+			f = f * f * (3.0 - 2.0 * f)
+			return lerpf(float(a[1]), float(b[1]), f)
+	return float(keys[0][1])
+
+
+# One stride = two steps. Left leg at phase p, right at p + 0.5. Positive thigh = forward, knee = bend.
+const THIGH_WALK := [[0.0, 26.0], [0.5, -22.0], [0.72, -6.0], [0.88, 34.0]]
+const KNEE_WALK := [[0.0, 6.0], [0.12, 22.0], [0.45, 8.0], [0.68, 64.0], [0.85, 30.0]]
+const THIGH_RUN := [[0.0, 38.0], [0.42, -34.0], [0.6, -10.0], [0.8, 62.0]]
+const KNEE_RUN := [[0.0, 18.0], [0.15, 40.0], [0.4, 22.0], [0.62, 118.0], [0.82, 70.0]]
+
+var _held := 0.0          # a stutter: the pose freezes for a moment while it keeps moving
+var _hold_t := 3.0
+var _look_target := Vector3.ZERO
+var _look_w := 0.0
+
+
+## Where its head turns to (the player, usually). Its body doesn't have to agree.
+func watch(point: Vector3) -> void:
+	_look_target = point
+	_look_w = 1.0
+
+
 func _process(delta: float) -> void:
 	_t += delta
 	if _sk == null:
 		return
+	# the stutter: every few seconds the animation hangs for a split second, then jerks on
+	_hold_t -= delta
+	if _held > 0.0:
+		_held -= delta
+		return
+	if _hold_t <= 0.0:
+		_hold_t = randf_range(1.8, 4.5)
+		_held = randf_range(0.08, 0.22)
 	_R.clear()
-	var run := clampf((speed - 2.0) / 2.0, 0.0, 1.0)
-	var amp := clampf(speed / 2.0, 0.0, 1.3)
-	_phase += delta * speed / 1.9 * TAU
-	var s := sin(_phase)
+	var moving := speed > 0.1
+	var run := clampf((speed - 2.0) / 1.7, 0.0, 1.0)
+	var walk := clampf(speed / 1.2, 0.0, 1.0)
+	# stride length grows with speed; the cadence is slow and heavy when walking, frantic when running
+	_phase += delta * speed / lerpf(2.1, 3.4, run)
 	var X := Vector3.RIGHT
 	var Z := Vector3.BACK
-	# hunched, head forward and tilted; it leans into a run
-	_rot("spine", X, -14.0 - 16.0 * run)
-	_rot("chest", X, -10.0 - 8.0 * run)
+	var Y := Vector3.UP
+
+	# --- legs, with a limp: the right leg drags (shorter forward swing, stiffer knee) while walking
+	var hip_drop := 0.0
+	for side in ["L", "R"]:
+		var p := _phase + (0.0 if side == "L" else 0.5)
+		var limp := 0.55 if side == "R" else 1.0
+		limp = lerpf(1.0, limp, 1.0 - run)
+		var th := lerpf(_curve(THIGH_WALK, p), _curve(THIGH_RUN, p), run) * walk
+		var kn := lerpf(_curve(KNEE_WALK, p), _curve(KNEE_RUN, p), run) * walk
+		if th > 0.0:
+			th *= limp
+		kn *= lerpf(limp, 1.0, 0.4)
+		_rot("thigh." + side, X, th + 8.0 * run)
+		_rot("shin." + side, X, -kn - 4.0)
+		# the foot: toes up as the heel strikes, pointed as it leaves the ground
+		_rot("foot." + side, X, kn * 0.35 - th * 0.25)
+		# a slight outward splay: it walks wide
+		_rot("thigh." + side, Z, (4.0 if side == "L" else -4.0) * walk)
+		if side == "R" and fposmod(p, 1.0) < 0.5:
+			hip_drop = sin(fposmod(p, 1.0) * TAU) * 0.06 * (1.0 - run) * walk   # dropping onto the bad leg
+
+	# --- body: pitched forward, rolling with each step, twisting against the legs
+	var s := sin(_phase * TAU)
+	var lean := 10.0 + 30.0 * run
+	_rot("hips", X, -lean * 0.4)
+	_rot("spine", X, -lean * 0.6 - 6.0)
+	_rot("chest", X, -lean * 0.5 - 8.0)
+	_rot("spine", Y, s * 9.0 * walk)
+	_rot("chest", Y, -s * 14.0 * walk)
+	_rot("hips", Z, s * 5.0 * walk + hip_drop * 60.0)
+	_rot("chest", Z, -s * 6.0 * walk)
+
+	# --- arms: too long, hanging, swinging late and loose; flailing behind it when it runs
+	for side in ["L", "R"]:
+		var sg := 1.0 if side == "L" else -1.0
+		var p := _phase + (0.5 if side == "L" else 0.0) - 0.12      # opposite the leg, and late
+		var swing := sin(p * TAU)
+		# (positive X = forward for a hanging arm)
+		_rot("upperarm." + side, Z, sg * (ARM_REST_DEG - 1.0))
+		# the torso leans forward; the arms still hang down (gravity), then swing
+		var torso_pitch := lean * 1.5 + 14.0
+		_rot("upperarm." + side, X, torso_pitch * 0.92 + (swing * (22.0 + 14.0 * run) + 6.0 * run) * walk)
+		var elbow := 10.0 + 14.0 * walk + 38.0 * run * (0.4 + 0.6 * maxf(swing, 0.0))
+		_rot("forearm." + side, X, elbow)
+		_rot("forearm." + side, Y, sg * 10.0 * run)
+		# hands flop at the wrist
+		_rot("hand." + side, X, 18.0 * sin(p * TAU - 1.2) * walk + 10.0)
+
+	# --- head: twitching; while running it stays locked level (the body heaves under it)
 	_twitch_t -= delta
 	if _twitch_t <= 0.0:
-		_twitch_t = randf_range(0.4, 2.2)
-		_twitch = randf_range(-35.0, 35.0)
-	_rot("neck", X, 18.0)
-	_rot("head", Z, 12.0 + _twitch * (0.3 if speed > 0.1 else 1.0))
-	_rot("head", Vector3.UP, _twitch * 0.4)
-	# arms hang (and swing late, loose, too far)
-	_rot("upperarm.L", Z, ARM_REST_DEG - 4.0)
-	_rot("upperarm.R", Z, -(ARM_REST_DEG - 4.0))
-	var lag := sin(_phase - 0.9)
-	_rot("upperarm.L", X, -30.0 * amp * lag - 10.0 * run)
-	_rot("upperarm.R", X, 30.0 * amp * lag - 10.0 * run)
-	_rot("forearm.L", X, 6.0 + 20.0 * amp * maxf(0.0, -lag))
-	_rot("forearm.R", X, 6.0 + 20.0 * amp * maxf(0.0, lag))
-	# legs: a long stride with a stiff knee
-	for side in ["L", "R"]:
-		var sw := s if side == "L" else -s
-		_rot("thigh." + side, X, sw * (24.0 + 14.0 * run) * amp + 6.0 * run)
-		var knee := (8.0 + 46.0 * maxf(0.0, sin(_phase + 1.2 + (0.0 if side == "L" else PI)))) * amp
-		_rot("shin." + side, X, -knee)
-		_rot("foot." + side, X, knee * 0.4 - sw * 6.0 * amp)
+		_twitch_t = randf_range(0.3, 2.0) if moving else randf_range(0.8, 3.5)
+		_twitch = randf_range(-40.0, 40.0) if randf() < 0.6 else randf_range(-85.0, 85.0)
+	_rot("neck", X, 10.0 + lean * 0.7)          # counter the lean: the face stays on you
+	_rot("head", X, lean * 0.3)
+	_rot("head", Z, _twitch * (0.25 if moving else 0.8))
+	_rot("head", Y, _twitch * 0.3)
+	if not moving:
+		# standing: barely swaying, breathing, the head creeping round
+		var br := sin(_t * 1.1)
+		_rot("chest", X, br * 2.5)
+		_rot("spine", Z, sin(_t * 0.37) * 3.0)
+		_rot("upperarm.L", X, br * 3.0)
+		_rot("upperarm.R", X, -br * 3.0)
+
 	for bone in _ids:
 		var q: Quaternion = _R.get(bone, Quaternion.IDENTITY)
 		var b: Quaternion = _B[bone]
 		_sk.set_bone_pose_rotation(_ids[bone], _L[bone] * (b.inverse() * q * b))
-	_sk.set_bone_pose_position(_ids["hips"], _hip_rest + Vector3(0, 0.05 * amp * absf(cos(_phase)) - 0.08 * run, 0))
+	# the hips bob: lowest as each foot lands; lower overall when running
+	var bob := (0.07 * absf(cos(_phase * TAU)) - 0.035) * walk - 0.12 * run - hip_drop
+	_sk.set_bone_pose_position(_ids["hips"], _hip_rest + Vector3(0, bob, 0.05 * run))

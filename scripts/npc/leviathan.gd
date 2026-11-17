@@ -43,6 +43,7 @@ var _segs: Array[Node3D] = []
 var _trail: Array[Vector3] = []   # head positions, newest first, every `_step` metres
 var _step := 0.6
 var _blocked_t := 0.0
+var _laid_out := false
 var _blocked_at := Vector3.ZERO
 var _eye_mat: StandardMaterial3D
 
@@ -455,6 +456,7 @@ func place_head(pos: Vector3, dir: Vector3) -> void:
 	var back := -dir.normalized()
 	for i in _trail.size():
 		_trail[i] = pos + back * (i * _step)
+	_laid_out = false     # a jump: no turning from wherever it was
 	_layout()
 
 
@@ -496,7 +498,7 @@ func _process(delta: float) -> void:
 		Mode.BLOCKED:
 			_blocked_t += delta
 			# jaw snapping and thrashing at the opening
-			var thrash := Vector3(sin(_t * 9.0) * 1.2, sin(_t * 13.0) * 0.6, -absf(sin(_t * 5.0)) * 1.5)
+			var thrash := Vector3(sin(_t * 3.6) * 1.4, sin(_t * 5.1) * 0.5, -absf(sin(_t * 2.4)) * 1.6)
 			target = _blocked_at + thrash
 			_eye_mat.emission_energy_multiplier = 3.0 + sin(_t * 30.0) * 1.5
 			if _blocked_t > 4.5:
@@ -531,20 +533,36 @@ func _advance(new_head: Vector3) -> void:
 			_trail.pop_back()
 
 
+## A point down the body: d in trail steps from the head.
+func _trail_point(d: float) -> Vector3:
+	var a := int(d)
+	var f := d - a
+	var p0: Vector3 = _trail[mini(a, _trail.size() - 1)]
+	var p1: Vector3 = _trail[mini(a + 1, _trail.size() - 1)]
+	return p0.lerp(p1, f)
+
+
 func _layout() -> void:
+	var dt := get_process_delta_time()
+	var span := maxf(spacing / _step, 1.0)
 	for i in segments:
 		var d := i * spacing / _step
-		var a := int(d)
-		var f := d - a
-		var p0: Vector3 = _trail[mini(a, _trail.size() - 1)]
-		var p1: Vector3 = _trail[mini(a + 1, _trail.size() - 1)]
-		var pos := p0.lerp(p1, f)
+		var pos := _trail_point(d)
+		# which way this part of the body points: measured across a whole segment's length - never across the
+		# sliver between the two newest trail points, which is noise (the head used to shake like maracas)
+		var fwd := _trail_point(maxf(d - span, 0.0)) - _trail_point(d + span)
+		if fwd.length() < 0.05:
+			fwd = -_segs[i].global_transform.basis.z
+		var z := -fwd.normalized()
+		# keep the up direction steady when the body points straight up or down (no sudden roll)
+		var up := Vector3.UP if absf(z.y) < 0.95 else _segs[i].global_transform.basis.y
+		var x := up.cross(z).normalized()
+		var y := z.cross(x)
+		var target := Basis(x, y, z).get_rotation_quaternion()
+		var q := target
+		if _laid_out:
+			q = _segs[i].global_transform.basis.get_rotation_quaternion().slerp(target, clampf(dt * 12.0, 0.0, 1.0))
 		# a slow travelling wave down the body
 		var wave := sin(_t * 2.0 - i * 0.45) * 0.6 * (float(i) / segments)
-		var ahead: Vector3 = _trail[maxi(a - 1, 0)] if a > 0 else pos + (p0 - p1)
-		var fwd := (ahead - pos)
-		if fwd.length() < 0.001:
-			fwd = Vector3.FORWARD
-		var side := fwd.normalized().cross(Vector3.UP)
-		_segs[i].global_position = pos + side * wave
-		_segs[i].look_at(_segs[i].global_position + fwd.normalized(), Vector3.UP if absf(fwd.normalized().y) < 0.98 else Vector3.RIGHT)
+		_segs[i].global_transform = Transform3D(Basis(q), pos + x * wave)
+	_laid_out = true
