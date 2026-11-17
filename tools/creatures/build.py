@@ -25,6 +25,7 @@ import draped     # noqa: E402
 import player     # noqa: E402
 import foliage    # noqa: E402
 import kit        # noqa: E402
+import hands      # noqa: E402
 
 CREATURES = {
     "leviathan": (leviathan.build, "models/creatures/leviathan.glb"),
@@ -34,6 +35,7 @@ CREATURES = {
     "stalker": (player.build_stalker, "models/creatures/stalker.glb"),
     "foliage": (foliage.build, "models/props"),
     "kit": (kit.build, "models/props"),
+    "hands": (hands.build, "models/fp_hand.glb"),
 }
 
 
@@ -61,9 +63,11 @@ def main(argv):
         fn, rel = CREATURES[name]
         t0 = time.time()
         print(f"building {name}")
-        fn(os.path.join(ROOT, rel))
+        result = fn(os.path.join(ROOT, rel))
         print(f"  done in {time.time() - t0:.1f}s")
-        if preview_dir:
+        if preview_dir and name == "hands":
+            hands.preview(preview_dir, result[0])
+        elif preview_dir:
             from dp import preview
             for p in preview.render_views(preview_dir, name, PREVIEWS[name]):
                 print("  preview", p)

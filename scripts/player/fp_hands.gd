@@ -1,7 +1,8 @@
 class_name FPHands
 extends Node3D
-## The dreamer's own hands, built procedurally: palm, knuckles, four fingers with three jointed
-## segments each, a two-segment thumb, nails, wrist and a pajama sleeve. Poses blend smoothly:
+## The dreamer's own hands: a sculpted, rigged hand and forearm made in Blender (models/fp_hand.glb,
+## tools/creatures/hands.py; the left is the right one mirrored), its finger bones driven here. Without that
+## file: built procedurally (palm, knuckles, four three-jointed fingers, a thumb, nails, forearm). Poses blend smoothly:
 ## relaxed, holding something, reaching toward what you use, and conjuring (while picturing an object).
 ## Placed close to the camera (inside the player's capsule), so they never clip through walls.
 
@@ -41,9 +42,68 @@ const STROKE := [
 ]
 
 
+const FINGER_NAMES := ["index", "middle", "ring", "pinky"]
+const MODEL_OFFSET := Vector3(0.0, 0.004, 0.072)   # the model's origin is the wrist; the hand frame's is the palm
+
+
 func _ready() -> void:
+	var use_model := Models.find("fp_hand") != ""
 	for side in [1.0, -1.0]:
-		_build(side)
+		if not (use_model and _build_model(side)):
+			_build(side)
+
+
+## The Blender hand. Returns false if the file can't be used.
+func _build_model(side: float) -> bool:
+	var inst := Models.instance(["fp_hand"])
+	if inst == null:
+		return false
+	var found := inst.find_children("*", "Skeleton3D", true, false)
+	if found.is_empty():
+		inst.free()
+		return false
+	var root := _pivot(self, Vector3(0.18 * side, -0.2, -0.3), Vector3(6, -8 * side, -38 * side))
+	var rest := root.transform
+	root.add_child(inst)
+	inst.position = MODEL_OFFSET
+	if side < 0.0:
+		inst.scale = Vector3(-1, 1, 1)    # the left hand: the right one, mirrored
+	var sk: Skeleton3D = found[0]
+	var ids := {}
+	var rests := {}
+	for i in sk.get_bone_count():
+		ids[sk.get_bone_name(i)] = i
+		rests[sk.get_bone_name(i)] = sk.get_bone_rest(i).basis.get_rotation_quaternion()
+	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		var m: MeshInstance3D = mi
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		for si in m.mesh.get_surface_count():
+			var mat := m.mesh.surface_get_material(si)
+			if mat is StandardMaterial3D:
+				var sm := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+				if String(mat.resource_name).to_lower().contains("skin"):
+					# light goes into skin and comes back out redder
+					sm.subsurf_scatter_enabled = true
+					sm.subsurf_scatter_strength = 0.35
+					sm.subsurf_scatter_skin_mode = true
+					sm.roughness = 0.58
+					sm.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
+					sm.rim_enabled = true
+					sm.rim = 0.12
+					sm.rim_tint = 0.6
+				m.set_surface_override_material(si, sm)
+	if side > 0.0:
+		right_socket = _pivot(root, Vector3(-0.01, -0.05, -0.05))
+		right_socket.basis = root.basis.inverse()
+	_hands[side] = {"root": root, "rest": rest, "sk": sk, "ids": ids, "rests": rests}
+	return true
+
+
+func _bone(hand: Dictionary, bone: String, curl_deg: float, spread_deg := 0.0) -> void:
+	if not hand.ids.has(bone):
+		return
+	var q: Quaternion = hand.rests[bone] * Quaternion(Vector3.RIGHT, deg_to_rad(-curl_deg)) * Quaternion(Vector3.FORWARD, deg_to_rad(spread_deg))
+	(hand.sk as Skeleton3D).set_bone_pose_rotation(hand.ids[bone], q)
 
 
 func _mesh(parent: Node3D, kind: String, pos: Vector3, scl: Vector3, mat: Material, rot := Vector3.ZERO) -> MeshInstance3D:
@@ -174,16 +234,25 @@ func _process(delta: float) -> void:
 		_thumb[side] = lerpf(_thumb[side], p.thumb, k)
 		_spread[side] = lerpf(_spread[side], p.spread, k)
 
-		for f in 4:
-			var joints: Array = hand.fingers[f]
-			var spread_deg: float = (f - 1.5) * _spread[side] * side
-			for j in 3:
-				# fingers curl a bit more toward the pinky, like a real resting hand
+		if hand.has("sk"):
+			for f in 4:
 				var extra := f * 3.0 if pose == "relaxed" else 0.0
-				joints[j].rotation_degrees = Vector3(-(_curl[side][j] + extra), spread_deg if j == 0 else 0.0, 0)
-		var thumb: Array = hand.thumb
-		thumb[1].rotation_degrees.x = -_thumb[side] * 0.6
-		thumb[2].rotation_degrees.x = -_thumb[side]
+				for j in 3:
+					_bone(hand, "%s_%d" % [FINGER_NAMES[f], j + 1], _curl[side][j] + extra, (f - 1.5) * _spread[side] if j == 0 else 0.0)
+			_bone(hand, "thumb_1", _thumb[side] * 0.25)
+			_bone(hand, "thumb_2", _thumb[side] * 0.6)
+			_bone(hand, "thumb_3", _thumb[side])
+		else:
+			for f in 4:
+				var joints: Array = hand.fingers[f]
+				var spread_deg: float = (f - 1.5) * _spread[side] * side
+				for j in 3:
+					# fingers curl a bit more toward the pinky, like a real resting hand
+					var extra := f * 3.0 if pose == "relaxed" else 0.0
+					joints[j].rotation_degrees = Vector3(-(_curl[side][j] + extra), spread_deg if j == 0 else 0.0, 0)
+			var thumb: Array = hand.thumb
+			thumb[1].rotation_degrees.x = -_thumb[side] * 0.6
+			thumb[2].rotation_degrees.x = -_thumb[side]
 
 		# placement: rest + walking bob + sway + reach + conjure lift
 		var rest: Transform3D = hand.rest
