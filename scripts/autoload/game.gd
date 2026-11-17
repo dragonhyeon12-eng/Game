@@ -877,16 +877,19 @@ func _death_sequence(prelude := "fade") -> void:
 	player.set_locked(true)
 	hud.fade_to(0.0, 2.5)
 	if not await _wait(2.2, t): return
-	hud.show_thought("...I'm awake. Okay. I'm awake.", 3.0)
+	hud.show_thought("I'm awake. Okay. I'm awake.", 3.0)
 	if not await _wait(3.5, t): return
 	# Something, right behind you.
 	var behind := player.global_position + player.global_transform.basis.z * 1.2 + Vector3.UP * 1.2
 	Sfx.play_at("thud", zone, behind, 4.0, 10.0)
 	if not await _wait(0.8, t): return
-	player.play_shoulder_grab()
+	player.play_shoulder_grab()      # (over your face now: long fingers, claws)
 	player.jolt(Vector3(-7, 4, -3))
+	Sfx.play("scrape", 2.0, 1.4)
+	hud.clear_text()
+	hud.panic_text("No. No. No no no no no NONO NO N-")
 	# a moment to see them, gripping
-	if not await _wait(1.3, t): return
+	if not await _wait(1.6, t): return
 	player.jolt(Vector3(-4, -3, 2))
 	Sfx.play("thud", -2.0, 0.8)
 	if not await _wait(0.35, t): return

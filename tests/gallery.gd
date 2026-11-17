@@ -34,6 +34,16 @@ func _zone_t(z: String) -> void:
 	Game.hud.clear_text()
 
 
+## The hands over your face, `w` seconds after they grab (the shot is taken ~1.5 s after the view starts).
+func _grab_view(w: float) -> void:
+	_zone("bedroom")
+	Game.set_mode("cinematic")
+	_look(Vector3(0.2, 1.6, 0.8), Vector3(-1.5, 1.2, -1.5))
+	await get_tree().create_timer(maxf(1.5 - w, 0.0)).timeout
+	Game.player.play_shoulder_grab()
+	Game.hud.panic_text("No. No. No no no no no NONO NO N-")
+
+
 func _zone(z: String) -> void:
 	Game.hud.close_menu()
 	Game.enter_zone(z)
@@ -317,6 +327,18 @@ func _run() -> void:
 			_zone("city")
 			Game.set_mode("game")
 			Game._death_sequence("fade"),
+		"death_grab_a": func():
+			_zone("city")
+			Game.set_mode("game")
+			Game._death_sequence("fade"),
+		"death_grab_b": func():
+			_zone("city")
+			Game.set_mode("game")
+			Game._death_sequence("fade"),
+		"grab_1": func(): _grab_view(0.15),
+		"grab_2": func(): _grab_view(0.35),
+		"grab_3": func(): _grab_view(0.6),
+		"grab_4": func(): _grab_view(1.0),
 		"pool_climb": func():
 			_zone("deep")
 			Game.set_mode("game")
@@ -391,6 +413,10 @@ func _run() -> void:
 			views[name].call()
 			if name == "death_hands" or name == "above_path":
 				await get_tree().create_timer(6.6).timeout
+			if name == "death_grab_a":
+				await get_tree().create_timer(6.05).timeout
+			if name == "death_grab_b":
+				await get_tree().create_timer(6.75).timeout
 			if name == "pool_climb":
 				await get_tree().create_timer(1.5).timeout
 				print("pool_climb before y=%.2f swimming=%s" % [Game.player.global_position.y, Game.player.swimming])

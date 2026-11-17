@@ -297,6 +297,36 @@ func set_gameplay_visible(v: bool) -> void:
 
 # ------------------------------------------------------------------ text
 
+## Panic: the words come faster and faster and run off the side of the page.
+func panic_text(text: String) -> void:
+	var full := Loc.t(text)
+	var l := UIStyle.shadowed(UIStyle.label("", 30, Color(0.95, 0.92, 0.9)))
+	l.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED     # it's translated already; parts of it wouldn't be
+	l.autowrap_mode = TextServer.AUTOWRAP_OFF
+	add_child(l)
+	var vp := get_viewport().get_visible_rect().size
+	l.position = Vector2(vp.x * 0.32, vp.y * 0.66)
+	var n := 0.0
+	var speed := 14.0       # letters per second, rising
+	var drift := 0.0        # px per second, rising
+	var t := 0.0
+	while is_instance_valid(l) and l.position.x < vp.x + 40.0 and t < 4.0:
+		var d := get_process_delta_time()
+		t += d
+		speed += d * 40.0
+		n = minf(n + speed * d, float(full.length()))
+		l.text = full.substr(0, int(n))
+		# once the words start to run together, the line starts to slide away off the right edge
+		if n > full.length() * 0.4:
+			drift += d * 1400.0
+			l.position.x += drift * d
+		l.position.y += sin(t * 60.0) * 0.6
+		l.add_theme_font_size_override("font_size", UIStyle.size(30.0 + n * 0.35))
+		await get_tree().process_frame
+	if is_instance_valid(l):
+		l.queue_free()
+
+
 # ------------------------------------------------------------------ jumpscare
 
 const SCARE_IMAGES := ["res://assets/jumpscare/scare_1.png", "res://assets/jumpscare/scare_2.jpg", "res://assets/jumpscare/scare_3.jpg",

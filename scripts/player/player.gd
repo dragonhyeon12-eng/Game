@@ -506,29 +506,62 @@ func prompt() -> String:
 # ------------------------------------------------------------------ the hands
 
 func _build_hands() -> void:
-	# Two black, slightly-too-long hands that reach over the shoulders when you "wake up".
-	var mat := Shapes.void_material()
+	# Two black hands, too long, with claws: from behind your head, over your face.
+	var skin := Shapes.void_material()
+	var claw := StandardMaterial3D.new()
+	claw.albedo_color = Color(0.22, 0.2, 0.17)
+	claw.roughness = 0.25
+	claw.metallic_specular = 0.9
+	var lens := [[0.06, 0.045, 0.035], [0.068, 0.05, 0.038], [0.063, 0.047, 0.036], [0.05, 0.038, 0.03]]
 	for side in [-1.0, 1.0]:
+		# built in camera space: the palm faces you; the fingers point across your face toward the middle
 		var hand := Node3D.new()
 		hand.visible = false
 		camera.add_child(hand)
-		var parts := [
-			["box", Vector3(0, 0, 0), Vector3(0.09, 0.025, 0.11), Vector3.ZERO],
-			["cylinder", Vector3(0, 0.01, 0.22), Vector3(0.05, 0.4, 0.05), Vector3(90, 0, 0)],
-		]
+		var inward := Vector3(-side, 0, 0)
+		_hpart(hand, "box", Vector3.ZERO, Vector3(0.1, 0.11, 0.026), skin)
+		_hpart(hand, "cylinder", Vector3(side * 0.13, -0.03, 0.02), Vector3(0.05, 0.18, 0.045), skin, Vector3(0, 0, 90))   # the wrist, off to the side
+		var fingers := []
 		for f in 4:
-			parts.append(["cylinder", Vector3((-0.03 + f * 0.02) * side, -0.03, -0.09), Vector3(0.016, 0.13, 0.016), Vector3(-70, 0, 0)])
-		parts.append(["cylinder", Vector3(-0.055 * side, -0.02, -0.02), Vector3(0.018, 0.08, 0.018), Vector3(-40, 0, 50 * side)])
-		for p in parts:
-			var mi := MeshInstance3D.new()
-			mi.mesh = Shapes.mesh(p[0])
-			mi.material_override = mat
-			mi.position = p[1]
-			mi.scale = p[2]
-			mi.rotation_degrees = p[3]
-			hand.add_child(mi)
+			var joint := Node3D.new()
+			joint.position = Vector3(-side * 0.05, 0.045 - f * 0.03, 0)
+			hand.add_child(joint)
+			var chain := []
+			var parent := joint
+			for seg in 3:
+				var L: float = lens[f][seg] * 1.35
+				var w := 0.017 - seg * 0.002
+				_hpart(parent, "capsule", inward * L * 0.5, Vector3(w, L * 0.5 + w * 0.3, w * 0.9), skin, Vector3(0, 0, 90))
+				chain.append(parent)
+				var nxt := Node3D.new()
+				nxt.position = inward * L
+				parent.add_child(nxt)
+				parent = nxt
+			# the claw: long, hooked, catching the light
+			_hpart(parent, "cone", inward * 0.022 + Vector3(0, 0, 0.004), Vector3(0.012, 0.05, 0.012), claw, Vector3(-12, 0, 90.0 * side))
+			chain.append(parent)
+			fingers.append(chain)
+		# the thumb, from below
+		var tj := Node3D.new()
+		tj.position = Vector3(-side * 0.02, -0.06, 0.005)
+		hand.add_child(tj)
+		_hpart(tj, "capsule", Vector3(-side * 0.02, -0.03, 0), Vector3(0.018, 0.045, 0.016), skin, Vector3(0, 0, 35 * side))
+		_hpart(tj, "cone", Vector3(-side * 0.045, -0.072, 0.004), Vector3(0.011, 0.04, 0.011), claw, Vector3(0, 0, 145 * side))
 		hand.set_meta("side", side)
+		hand.set_meta("fingers", fingers)
 		_hands.append(hand)
+
+
+func _hpart(parent: Node3D, kind: String, pos: Vector3, scl: Vector3, mat: Material, rot := Vector3.ZERO) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = Shapes.mesh(kind)
+	mi.material_override = mat
+	mi.position = pos
+	mi.scale = scl
+	mi.rotation_degrees = rot
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+	return mi
 
 
 func _update_hands(delta: float) -> void:
@@ -536,12 +569,23 @@ func _update_hands(delta: float) -> void:
 	if _hands_t < 0.0:
 		return
 	_hands_t += delta
-	var a := clampf(_hands_t / 0.35, 0.0, 1.0)
-	var e := 1.0 - pow(1.0 - a, 3.0)
+	# 0-0.3 s: in from behind your head, fingers spread; then they close over your face, claws first
+	var reach := clampf(_hands_t / 0.3, 0.0, 1.0)
+	reach = 1.0 - pow(1.0 - reach, 3.0)
+	var grip := clampf((_hands_t - 0.25) / 0.45, 0.0, 1.0)
+	grip = grip * grip * (3.0 - 2.0 * grip)
 	for h in _hands:
 		var side: float = h.get_meta("side")
-		# from behind the shoulders, fingers curling down over them into the bottom corners of view
-		var from := Vector3(0.36 * side, -0.5, 0.15)
-		var to := Vector3(0.24 * side, -0.19, -0.25)
-		h.position = from.lerp(to, e)
-		h.rotation_degrees = Vector3(-8.0 + 20.0 * (1.0 - e), -14.0 * side, -6.0 * side)
+		var from := Vector3(0.75 * side, 0.08, 0.05)
+		var to := Vector3(0.36 * side, 0.02, -0.34)
+		var tremble := Vector3(sin(_hands_t * 47.0 + side), sin(_hands_t * 39.0), 0) * 0.003 * grip
+		h.position = from.lerp(to, reach) + tremble + Vector3(-side * 0.05, -0.01, 0.1) * grip
+		h.rotation_degrees = Vector3(0, -25.0 * side * (1.0 - reach), -10.0 * side * (1.0 - reach))
+		var fingers: Array = h.get_meta("fingers")
+		for f in fingers.size():
+			var chain: Array = fingers[f]
+			var spread := (f - 1.5) * 9.0 * (1.0 - grip)
+			for j in chain.size() - 1:
+				# curl toward you (onto the face): about the vertical axis, signed by hand
+				var curl := (12.0 + 55.0 * grip) * (1.0 if j > 0 else 0.6)
+				(chain[j] as Node3D).rotation_degrees = Vector3(spread if j == 0 else 0.0, -curl * side, 0)
