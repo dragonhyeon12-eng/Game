@@ -44,6 +44,7 @@ const STROKE := [
 
 const FINGER_NAMES := ["index", "middle", "ring", "pinky"]
 const MODEL_OFFSET := Vector3(0.0, 0.004, 0.072)   # the model's origin is the wrist; the hand frame's is the palm
+const HAND_LAYER := 1 << 18                          # render layer 19: what the hand fill light touches
 
 
 func _ready() -> void:
@@ -51,6 +52,17 @@ func _ready() -> void:
 	for side in [1.0, -1.0]:
 		if not (use_model and _build_model(side)):
 			_build(side)
+	if use_model:
+		# a faint fill that only lights your own hands, so they don't go black in a dark room
+		var fill := OmniLight3D.new()
+		fill.position = Vector3(0, 0.12, 0.05)
+		fill.light_energy = 0.22
+		fill.omni_range = 0.9
+		fill.light_color = Color(1.0, 0.93, 0.86)
+		fill.light_cull_mask = HAND_LAYER
+		fill.shadow_enabled = false
+		fill.light_specular = 0.2
+		add_child(fill)
 
 
 ## The Blender hand. Returns false if the file can't be used.
@@ -77,6 +89,7 @@ func _build_model(side: float) -> bool:
 	for mi in inst.find_children("*", "MeshInstance3D", true, false):
 		var m: MeshInstance3D = mi
 		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		m.layers = 1 | HAND_LAYER
 		for si in m.mesh.get_surface_count():
 			var mat := m.mesh.surface_get_material(si)
 			if mat is StandardMaterial3D:
@@ -91,6 +104,7 @@ func _build_model(side: float) -> bool:
 					sm.rim_enabled = true
 					sm.rim = 0.12
 					sm.rim_tint = 0.6
+					sm.normal_scale = 0.5          # pores and creases: there, not leathery
 				m.set_surface_override_material(si, sm)
 	if side > 0.0:
 		right_socket = _pivot(root, Vector3(-0.01, -0.05, -0.05))

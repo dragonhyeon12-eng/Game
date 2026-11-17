@@ -173,7 +173,7 @@ def _form():
             mid = a.lerp(b, 0.5)
             _capsule(ob, a, mid, (ra + (ra + rb) * 0.5) * 0.5)
             _capsule(ob, mid, b, ((ra + rb) * 0.5 + rb) * 0.5)
-            _ball(ob, b, rb * 1.03)
+            _ball(ob, b, rb * 0.97)
             # the pad on the palm side of each segment
             d = (b - a).normalized()
             q = Vector((0, 1, 0)).rotation_difference(d)
@@ -200,6 +200,32 @@ def _form():
 
 
 # ------------------------------------------------------------------ skin detail
+
+def _noise3(P, freq, seed=0, octaves=3):
+    """Smooth 3D value noise (fbm) at many points at once, in [-1, 1]."""
+    out = np.zeros(len(P))
+    amp, total = 1.0, 0.0
+    for o in range(octaves):
+        X = P * freq * (2 ** o) + seed * 17.13 + o * 3.7
+        i0 = np.floor(X).astype(np.int64)
+        f = X - i0
+        f = f * f * (3 - 2 * f)
+        acc = np.zeros(len(P))
+        for dx in (0, 1):
+            for dy in (0, 1):
+                for dz in (0, 1):
+                    h = (i0[:, 0] + dx) * 73856093 ^ (i0[:, 1] + dy) * 19349663 ^ (i0[:, 2] + dz) * 83492791
+                    h = (h * 2654435761) & 0xFFFFFFFF
+                    r = (h % 10007) / 10007.0 * 2 - 1
+                    wx = f[:, 0] if dx else 1 - f[:, 0]
+                    wy = f[:, 1] if dy else 1 - f[:, 1]
+                    wz = f[:, 2] if dz else 1 - f[:, 2]
+                    acc += r * wx * wy * wz
+        out += amp * acc
+        total += amp
+        amp *= 0.5
+    return out / total
+
 
 def _seg_param(P, a, b):
     ab = b - a
@@ -256,8 +282,7 @@ def _detail(hand):
     dmask = np.clip((dorsal - 0.2) / 0.5, 0, 1)
     pmask = np.clip((-dorsal - 0.2) / 0.5, 0, 1)
 
-    noise = np.array([geo.fbm(Vector(p) * 900.0, 2) for p in P[::7]])
-    noise = np.repeat(noise, 7)[:nv]
+    noise = _noise3(P, 900.0, 1, 2)
 
     # finger joints: palm-side flexion creases, knuckle bumps and wrinkles on the back
     for name, pts, up, radii in chains():
@@ -304,12 +329,12 @@ def _detail(hand):
         ([(-0.026, 0.004), (0.026, 0.006)], 0.0004), ([(-0.025, -0.006), (0.025, -0.005)], 0.00028),     # wrist
     ):
         dd = _polyline_dist(P2, path)
-        g = np.exp(-(dd / 0.00065) ** 2)
-        disp -= hsel * g * depth
-        crease += hsel * g * (depth / 0.0005)
+        g = np.exp(-(dd / 0.0008) ** 2)
+        disp -= hsel * g * depth * 0.75
+        crease += hsel * g * (depth / 0.0005) * 0.7
     # many fine palm creases
     fine = np.sin((P2[:, 0] * 0.7 + P2[:, 1]) * 1400.0 + noise * 6.0)
-    disp -= hsel * np.clip(fine - 0.85, 0, 1) * 0.0006
+    disp -= hsel * np.clip(fine - 0.9, 0, 1) * 0.0004
 
     # veins on the back of the hand and up the forearm
     vsel = np.isin(owner, [names.index("hand"), names.index("forearm")]) * dmask
@@ -323,8 +348,8 @@ def _detail(hand):
         sp = _smooth_path(path, 60)
         sp = [(x + 0.0012 * math.sin(y * 140.0), y) for x, y in sp]
         dd = _polyline_dist(P2, sp)
-        g = np.exp(-(dd / 0.0011) ** 2)
-        disp += vsel * g * 0.00065
+        g = np.exp(-(dd / 0.0017) ** 2)
+        disp += vsel * g * 0.0004
         vein += vsel * g
     # fine irregularity everywhere
     disp += noise * 0.00005
@@ -337,7 +362,7 @@ def _detail(hand):
     palm_c = _lin((0.88, 0.67, 0.59))
     red = _lin((0.80, 0.50, 0.45))
     dark = _lin((0.58, 0.39, 0.34))
-    vein_c = _lin((0.60, 0.60, 0.66))
+    vein_c = _lin((0.62, 0.55, 0.60))
     frk = _lin((0.66, 0.46, 0.35))
     inner_arm = _lin((0.89, 0.71, 0.61))
     col = np.tile(base, (nv, 1))
@@ -349,12 +374,11 @@ def _detail(hand):
         tips += np.exp(-(np.linalg.norm(P - np.array(pts[3]), axis=1) / 0.009) ** 2)
     redness = np.clip(knuck * 0.45 + tips * 0.5 + pmask * 0.12, 0, 0.8)
     col = col * (1 - redness[:, None]) + red * redness[:, None]
-    cr = np.clip(crease, 0, 1) * 0.65
+    cr = np.clip(crease, 0, 1) * 0.4
     col = col * (1 - cr[:, None]) + dark * cr[:, None]
-    vv = np.clip(vein, 0, 1) * 0.35
+    vv = np.clip(vein, 0, 1) * 0.22
     col = col * (1 - vv[:, None]) + vein_c * vv[:, None]
-    mott = np.array([geo.fbm(Vector(p) * 120.0, 3) for p in P[::5]])
-    mott = np.repeat(mott, 5)[:nv]
+    mott = _noise3(P, 120.0, 2, 3)
     col *= (0.96 + 0.08 * mott)[:, None]
     fr = (rng.random(nv) < 0.0009) & (dmask > 0.5)
     spots = np.zeros(nv)
@@ -389,14 +413,14 @@ def _nails(hand):
             for j in range(cols):
                 u = j / (cols - 1) - 0.5
                 # rounded at the base, straight-ish at the free edge, slightly past the fingertip
-                width = w * (0.80 + 0.2 * math.sin(min(1.0, v * 3.0) * math.pi * 0.5))
+                width = w * (0.86 + 0.14 * math.sin(min(1.0, v * 2.0) * math.pi * 0.5))
                 along = b - d * (L - v * (L + 0.0018))
-                if v < 0.25:
-                    width *= math.sqrt(max(0.15, 1 - ((0.25 - v) / 0.25) ** 2 * 0.6))
+                if v < 0.32:
+                    width *= math.sqrt(max(0.08, 1 - ((0.32 - v) / 0.32) ** 2))   # the rounded cuticle end
                 p0 = along + side * (u * width) + up * 0.02
                 hit = bvh.ray_cast(p0, -up, 0.05)
                 if hit[0] is not None and v < 0.93:
-                    p = hit[0] + hit[1] * 0.00035
+                    p = hit[0] + hit[1] * 0.00022
                 else:
                     # the free edge: carries on the curve of the last row, out in the air
                     p = (grid[-1][j] if grid else p0) + d * (0.0018 / max(1, rows - 1) * 2.0) - up * 0.0001
@@ -442,10 +466,10 @@ def _nail_texture():
     W, H = 64, 128
     v = np.linspace(0, 1, H)[:, None] * np.ones((1, W))
     u = np.linspace(-1, 1, W)[None, :] * np.ones((H, 1))
-    pink = np.array([0.90, 0.70, 0.68])
-    white = np.array([0.96, 0.93, 0.88])
-    lunula = np.clip(1 - (((v - 0.03) / 0.16) ** 2 + (u / 0.55) ** 2), 0, 1)[..., None]
-    free = np.clip((v - 0.86) / 0.04, 0, 1)[..., None]
+    pink = np.array([0.84, 0.60, 0.57])
+    white = np.array([0.93, 0.89, 0.84])
+    lunula = np.clip(1 - (((v - 0.02) / 0.12) ** 2 + (u / 0.45) ** 2), 0, 1)[..., None] * 0.5
+    free = np.clip((v - 0.9) / 0.03, 0, 1)[..., None]
     streaks = 0.97 + 0.03 * np.sin(u * 40.0 + np.sin(v * 7.0))[..., None]
     c = pink[None, None, :] * (1 - free) + white[None, None, :] * free
     c = c * (1 - lunula * 0.6) + white[None, None, :] * lunula * 0.6
@@ -554,11 +578,11 @@ def build(out_path):
     _bake(high, low, nor_img, "NORMAL")
     # pores: fine height noise folded into the baked normals
     n = np.array(nor_img.pixels[:]).reshape(TEX, TEX, 4)
-    pores = tex.fbm(TEX, TEX, 340, 340, 77, 2)
-    f1, _f2 = tex.cellular(TEX, TEX, 180, 180, 78)
+    pores = tex.fbm(TEX, TEX, 420, 420, 77, 1)
+    f1, _f2 = tex.cellular(TEX, TEX, 260, 260, 78)
     h = pores * 0.5 - np.exp(-(f1 / 0.22) ** 2) * 0.6     # tiny pits
     gy, gx = np.gradient(h)
-    k = 0.9
+    k = 0.16
     n[..., 0] = np.clip(n[..., 0] - gx * k, 0, 1)
     n[..., 1] = np.clip(n[..., 1] + gy * k, 0, 1)
     nor_img.pixels[:] = n.ravel()
