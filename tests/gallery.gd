@@ -321,6 +321,22 @@ func _run() -> void:
 			Game.player.set_locked(false)
 			Game.player.global_position = Vector3(-8, -1.2, 7.2)
 			Game.player.rotation.y = PI,
+		"gloves_maze": func():
+			_zone("maze")
+			Game.set_mode("game")
+			_look(Game.zone.player_start().origin + Vector3(0, 1.6, 0), Game.zone.player_start().origin + Vector3(0, 1.0, -3)),
+		"gloves_deep": func():
+			_zone("abyss")
+			Game.set_mode("game")
+			_look(Vector3(0, 1.6, -38), Vector3(0, 1.0, -44)),
+		"gloves_comp": func():
+			_zone("tenement")
+			Game.set_mode("game")
+			_look(Vector3(-4, 1.6, -8), Vector3(-5, 0.9, -11.5)),
+		"gloves_above": func():
+			_zone("above")
+			Game.set_mode("game")
+			_look(Vector3(0, 1.6, 1.5), Vector3(0, 1.0, -3)),
 		"hands": func():
 			_zone("bedroom")
 			Game.set_mode("game")
