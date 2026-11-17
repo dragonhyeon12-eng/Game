@@ -179,7 +179,7 @@ func facade_building(center: Vector3, w: float, d: float, floors: int, style: St
 	return true
 
 
-const BATCH_CELL := 48.0     # batched instances are split into cells this size, so the camera can cull them
+const BATCH_CELL := 64.0     # small scattered things (grass...) are split into cells this size, so the camera can cull them
 
 
 ## Instances [[Transform3D, Color], ...] grouped by cell.
@@ -187,7 +187,7 @@ static func _cells(list: Array) -> Dictionary:
 	var out := {}
 	for it in list:
 		var o: Vector3 = (it[0] as Transform3D).origin
-		var k := Vector2i(floori(o.x / BATCH_CELL), floori(o.z / BATCH_CELL))
+		var k := Vector2i(floori(o.x / BATCH_CELL + 0.5), floori(o.z / BATCH_CELL + 0.5))
 		if not out.has(k):
 			out[k] = []
 		out[k].append(it)
@@ -215,7 +215,7 @@ func _finish_scatter() -> void:
 		var mesh: Mesh = e[0]
 		# small things (grass, pebbles) fade out with distance; nobody sees a grass clump 80 m away
 		var small := mesh != null and mesh.get_aabb().size.length() < 1.6
-		for cell in _cells(e[1]).values():
+		for cell in (_cells(e[1]).values() if small else [e[1]]):
 			var mmi := _multimesh(mesh, cell)
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if e[2] and not small else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			if small:
@@ -229,9 +229,8 @@ func finish_batches() -> void:
 	_finish_scatter()
 	for key in _batches:
 		var parts: PackedStringArray = key.split("|", true, 1)
-		for cell in _cells(_batches[key]).values():
-			var mmi := _multimesh(Shapes.mesh(parts[0]), cell)
-			mmi.material_override = Shapes.surface(parts[1])
+		var mmi := _multimesh(Shapes.mesh(parts[0]), _batches[key])
+		mmi.material_override = Shapes.surface(parts[1])
 	_batches.clear()
 
 

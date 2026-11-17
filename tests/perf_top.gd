@@ -29,7 +29,7 @@ func _run() -> void:
 			rows.append([_tris(mi.mesh), String(mi.get_path()).right(60), mi.cast_shadow != 0])
 		for n in Game.zone.find_children("*", "MultiMeshInstance3D", true, false):
 			var mm: MultiMesh = n.multimesh
-			rows.append([_tris(mm.mesh) * mm.instance_count, "MULTI x%d %s" % [mm.instance_count, String(n.name)], n.cast_shadow != 0])
+			rows.append([_tris(mm.mesh) * mm.instance_count, "MULTI x%d mesh=%s tris=%d aabb=%.2f" % [mm.instance_count, mm.mesh.resource_name, _tris(mm.mesh), mm.mesh.get_aabb().size.length()], n.cast_shadow != 0])
 		rows.sort_custom(func(a, b): return a[0] > b[0])
 		var total := 0
 		for r in rows:
