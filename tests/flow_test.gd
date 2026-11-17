@@ -268,7 +268,10 @@ func _run() -> void:
 	await shot("death_hands")
 	await wait(4.0)
 	await shot("death_card")
-	await wait(8.0)
+	for i in 30:
+		await wait(0.5)
+		if Game.zone_type == "maze" and Game.mode == "game":
+			break
 	check(Game.zone_type == "maze" and Game.mode == "game", "back at the maze checkpoint")
 	check(absf(Game.player.dread.fear - 30.0) < 6.0, "fear reset to ~30")
 
@@ -400,7 +403,10 @@ func _run() -> void:
 	ev.action = "jump"
 	ev.pressed = true
 	Input.parse_input_event(ev)
-	await wait(1.0)
+	for i in 30:
+		await wait(0.5)
+		if Game.zone_type == "seabed" and Game.mode == "game":
+			break
 	check(Game.zone_type == "seabed" and Game.mode == "game", "woke up... and back on the seabed")
 	sb = Game.zone
 	print("== the cave")
