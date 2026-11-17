@@ -179,7 +179,7 @@ func facade_building(center: Vector3, w: float, d: float, floors: int, style: St
 	return true
 
 
-const CELL := 48.0     # batched instances are split into cells this size, so the camera can cull them
+const BATCH_CELL := 48.0     # batched instances are split into cells this size, so the camera can cull them
 
 
 ## Instances [[Transform3D, Color], ...] grouped by cell.
@@ -187,7 +187,7 @@ static func _cells(list: Array) -> Dictionary:
 	var out := {}
 	for it in list:
 		var o: Vector3 = (it[0] as Transform3D).origin
-		var k := Vector2i(floori(o.x / CELL), floori(o.z / CELL))
+		var k := Vector2i(floori(o.x / BATCH_CELL), floori(o.z / BATCH_CELL))
 		if not out.has(k):
 			out[k] = []
 		out[k].append(it)

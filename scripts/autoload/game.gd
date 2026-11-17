@@ -84,10 +84,14 @@ func objectives() -> Array:
 	return out
 
 
-static var _placeholder := RegEx.create_from_string("\\{([a-z_]+)\\}")
+var _placeholder: RegEx
 
 ## "{name}" -> the counter's value as a whole number (0 if it hasn't been counted yet; saves store floats).
 func _fill_counters(text: String) -> String:
+	if not text.contains("{"):
+		return text
+	if _placeholder == null:
+		_placeholder = RegEx.create_from_string("\\{([a-z_]+)\\}")
 	for m in _placeholder.search_all(text):
 		text = text.replace(m.get_string(), str(int(counters.get(m.get_string(1), 0))))
 	return text
