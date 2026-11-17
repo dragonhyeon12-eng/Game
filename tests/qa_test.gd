@@ -94,6 +94,24 @@ func _run() -> void:
 	p = await walk(10.0)
 	check(p.z < AbyssZone.CROSS.z + 9.5 and p.y > -1.0, "across the south arch to the centre (z=%.1f y=%.2f)" % [p.z, p.y])
 
+	print("== THE DEEP: outrunning the leviathan (sprinting straight for the door)")
+	var ab: AbyssZone = Game.zone
+	place(Vector3(0, 0.05, AbyssZone.STATION_Z - 16.0), 0.0)
+	calm()
+	ab._begin_chase()
+	p = await walk(16.0, ["move_forward", "sprint"])
+	check(not Game.in_sequence and p.z < AbyssZone.EXIT_Z + 3.0, "reached the door alive (z=%.1f, caught=%s)" % [p.z, Game.in_sequence])
+	print("== THE DEEP: walking, it catches you")
+	await zone("abyss")
+	ab = Game.zone
+	place(Vector3(0, 0.05, AbyssZone.STATION_Z - 16.0), 0.0)
+	calm()
+	ab._begin_chase()
+	p = await walk(16.0)
+	check(Game.in_sequence, "walking, it's on you before the door (z=%.1f)" % p.z)
+	await wait(1.0)
+	Game._cancel_sequences()
+
 	print("== COMPRESSION: climbing the stairwell on foot")
 	await zone("tenement")
 	var tz: TenementZone = Game.zone
@@ -118,6 +136,14 @@ func _run() -> void:
 	calm()
 	p = await walk(4.0)
 	check(p.x < -46.0, "crawl along the duct (x=%.1f)" % p.x)
+
+	print("== COMPRESSION: outrunning the collapse")
+	await zone("tenement")
+	tz = Game.zone
+	place(Vector3(TenementZone.CORR_X0 + 1.0, 0.05, TenementZone.CORR_Z), -90.0)
+	calm()
+	p = await walk(14.0, ["move_forward", "sprint"])
+	check(tz._collapse == false and Game.has_flag("ten_shaft") and not Game.in_sequence, "sprinting, you make it to the shaft (x=%.1f)" % p.x)
 
 	print("== ABOVE: the floating stairs, on foot")
 	await zone("above")

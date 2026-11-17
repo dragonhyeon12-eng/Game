@@ -65,9 +65,11 @@ func set_flag(f: String) -> void:
 			if o.get("flag", "") == f:
 				Sfx.play("chime", -16.0, 1.25)   # an objective done: a small, cold note
 				break
-	if Journal.on_flag(f) and hud:
+	var journal := Journal.on_flag(f)
+	var notebook := Notebook.on_flag(f)      # both, always: one must never swallow the other
+	if journal and hud:
 		hud.show_hint("Your dream journal has a new entry.\n(Pause > MENU > DREAM JOURNAL)", 6.0)
-	elif Notebook.on_flag(f) and hud:
+	elif notebook and hud:
 		Sfx.play("page", -8.0, 0.9)
 		hud.show_thought("...Something new in the notebook. I didn't write anything.", 3.0)
 

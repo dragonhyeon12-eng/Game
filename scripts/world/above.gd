@@ -89,7 +89,8 @@ func player_start() -> Transform3D:
 
 ## Wind pushes you (Player adds it to its movement unless crouched).
 func wind_at(p: Vector3) -> Vector3:
-	if _gust_phase != 2 or _in_hut(p) or p.y < -6.0 or _in_skyway(p):
+	# gusts belong to the first rooftops and the beam; past roof C the paths are too narrow to be fair
+	if _gust_phase != 2 or _in_hut(p) or p.y < -6.0 or _in_skyway(p) or p.z < -30.0:
 		return Vector3.ZERO
 	return _gust_dir * _gust_strength
 
