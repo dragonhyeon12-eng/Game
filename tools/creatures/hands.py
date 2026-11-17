@@ -555,8 +555,8 @@ def build(out_path):
     # pores: fine height noise folded into the baked normals
     n = np.array(nor_img.pixels[:]).reshape(TEX, TEX, 4)
     pores = tex.fbm(TEX, TEX, 340, 340, 77, 2)
-    cells = tex.cellular(TEX, TEX, 180, 180, 78)
-    h = pores * 0.5 + np.clip(cells, 0, 1) * 0.6
+    f1, _f2 = tex.cellular(TEX, TEX, 180, 180, 78)
+    h = pores * 0.5 - np.exp(-(f1 / 0.22) ** 2) * 0.6     # tiny pits
     gy, gx = np.gradient(h)
     k = 0.9
     n[..., 0] = np.clip(n[..., 0] - gx * k, 0, 1)
