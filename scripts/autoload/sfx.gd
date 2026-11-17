@@ -241,13 +241,26 @@ func _track_maze() -> PackedFloat32Array:
 	return buf
 
 
+var _oneshots := {}
+
+## A stream for one-shot use: looping streams (grind, motor, static...) play through once.
+func _oneshot(name: String) -> AudioStream:
+	if not _oneshots.has(name):
+		var st: AudioStream = streams[name]
+		if st is AudioStreamWAV and (st as AudioStreamWAV).loop_mode != AudioStreamWAV.LOOP_DISABLED:
+			st = st.duplicate()
+			(st as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_DISABLED
+		_oneshots[name] = st
+	return _oneshots[name]
+
+
 ## Play a non-positional one-shot (footsteps, page, chime...).
 func play(name: String, volume_db := 0.0, pitch := 1.0) -> void:
 	if not streams.has(name):
 		return
 	var p := _foley_pool[_next_foley]
 	_next_foley = (_next_foley + 1) % _foley_pool.size()
-	p.stream = streams[name]
+	p.stream = _oneshot(name)
 	p.volume_db = volume_db
 	p.pitch_scale = pitch
 	p.play()
@@ -258,7 +271,7 @@ func play_at(name: String, parent: Node, position: Vector3, volume_db := 0.0, ma
 	if not streams.has(name) or parent == null:
 		return
 	var p := AudioStreamPlayer3D.new()
-	p.stream = streams[name]
+	p.stream = _oneshot(name)
 	p.volume_db = volume_db
 	p.max_distance = max_distance
 	p.unit_size = 6.0

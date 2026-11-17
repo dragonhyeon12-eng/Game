@@ -162,9 +162,34 @@
 			"after": "above_cross"
 		},
 		{
-			"flag": "above_mast",
-			"text": "Climb the mast to the light",
+			"flag": "above_lift",
+			"text": "Take the sky lift",
 			"after": "above_bridge"
+		},
+		{
+			"flag": "above_stairs",
+			"text": "Climb the stairs to the unfinished tower",
+			"after": "above_lift"
+		},
+		{
+			"flag": "above_crane",
+			"text": "Up the scaffolding. Swing the crane's girder across the gap",
+			"after": "above_stairs"
+		},
+		{
+			"flag": "above_skyway",
+			"text": "Cross the skyway",
+			"after": "above_crane"
+		},
+		{
+			"flag": "above_mast",
+			"text": "Climb the mast to the red light",
+			"after": "above_skyway"
+		},
+		{
+			"flag": "above_escaped",
+			"text": "Follow the path to the door in the sky",
+			"after": "above_mast"
 		}
 	],
 	"bedroom_dream": [

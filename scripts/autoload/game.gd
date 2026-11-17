@@ -58,9 +58,18 @@ func has_flag(f: String) -> bool:
 
 
 func set_flag(f: String) -> void:
+	var fresh := not flags.has(f)
 	flags[f] = true
+	if fresh and hud:
+		for o in Data.objectives.get(zone_type, []):
+			if o.get("flag", "") == f:
+				Sfx.play("chime", -16.0, 1.25)   # an objective done: a small, cold note
+				break
 	if Journal.on_flag(f) and hud:
 		hud.show_hint("Your dream journal has a new entry.\n(Pause > MENU > DREAM JOURNAL)", 6.0)
+	elif Notebook.on_flag(f) and hud:
+		Sfx.play("page", -8.0, 0.9)
+		hud.show_thought("...Something new in the notebook. I didn't write anything.", 3.0)
 
 
 ## The current zone's objectives as [[text, done], ...] (see data/Objectives.json).
@@ -608,7 +617,7 @@ func _on_overwhelmed() -> void:
 	if zone_type == "seabed" or zone_type == "abyss" or (zone_type == "deep" and player.global_position.y < DeepZone.OCEAN_TOP):
 		ankle_grab(true)
 	else:
-		_death_sequence("fade")
+		entity_death("observer")
 
 
 ## Black hands rise from the sea floor and take your ankles. `death` = wake up (lose);
@@ -685,6 +694,64 @@ func entity_death(kind: String, who: Node3D = null) -> void:
 			Sfx.play("thud", 6.0, 0.6)
 			hud.set_fade(1.0, Color(0.05, 0.0, 0.0))
 			if not await _wait(0.8, t): return
+		"sheet":
+			# it was right there when you turned. the sheet comes over your face.
+			var head := who.global_position + Vector3(0, 1.5, 0)
+			look_toward(head, 0.25)
+			Sfx.stinger("screech", -2.0)
+			if not await _wait(0.4, t): return
+			var cam := player.camera.global_position
+			var fwd := -player.camera.global_transform.basis.z
+			fwd.y = 0.0
+			fwd = fwd.normalized()
+			create_tween().tween_property(who, "global_position", Vector3(cam.x, who.global_position.y, cam.z) + fwd * 0.35, 0.22)
+			Sfx.play("whoosh", 0.0, 1.2)
+			player.jolt(Vector3(-8, 3, 4))
+			hud.fade_to(0.9, 0.35, Color(0.86, 0.85, 0.8))
+			if not await _wait(0.4, t): return
+			Sfx.play("breath", 4.0, 1.4)
+			for i in 8:
+				player.jolt(Vector3(randf_range(-4, -1), randf_range(-2, 2), randf_range(-2, 2)))
+				Sfx.play("scrape", -10.0, randf_range(1.5, 2.0))
+				if not await _wait(0.16, t): return
+			Sfx.play("breath", -4.0, 0.7)
+			hud.fade_to(1.0, 1.4, Color(0.08, 0.08, 0.07))
+			if not await _wait(1.6, t): return
+		"fall":
+			# down. the wind, the lights of other buildings going up past you. then nothing.
+			var pd := player.global_position + Vector3(0, -30, 0) - player.global_transform.basis.z * 6.0
+			look_toward(pd, 1.2)
+			Sfx.play("whoosh", 6.0, 0.4)
+			Sfx.play("wind", 4.0, 1.3)
+			Sfx.stinger("riser", 0.0)
+			hud.show_thought("No no no no no", 1.5)
+			for i in 16:
+				hud.set_post(0.3 + i * 0.04, 0.2 + i * 0.03, 1.0, 1.0 + i * 0.15)
+				player.jolt(Vector3(randf_range(-1.5, 1.5), randf_range(-1.5, 1.5), randf_range(-2, 2)))
+				if not await _wait(0.12, t): return
+			Sfx.play("hit", 8.0, 0.35)
+			Sfx.play("thud", 8.0, 0.3)
+			hud.set_fade(1.0)
+			Sfx.stop_music(0.01)
+			if not await _wait(1.5, t): return
+		"observer":
+			# the man who doesn't move. right in front of you. he's always been right in front of you.
+			var fwd := -player.camera.global_transform.basis.z
+			fwd.y = 0.0
+			fwd = fwd.normalized()
+			var o := Observer.new()
+			zone.add_child(o)
+			o.global_position = player.global_position + fwd * 0.75
+			o.rotation.y = atan2(-fwd.x, -fwd.z)
+			o.seen_threshold = 100.0
+			Sfx.play("static_burst", 4.0)
+			Sfx.stinger("braam", 4.0)
+			player.jolt(Vector3(-6, 2, 0))
+			hud.set_post(1.0, 0.8, 1.0, 2.0)
+			if not await _wait(1.1, t): return
+			Sfx.play("glitch", 4.0, 0.6)
+			hud.set_fade(1.0)
+			if not await _wait(0.6, t): return
 		"crush":
 			# the corridor folds shut on you: ceiling, walls, the light going out of the gap
 			Sfx.play("grind", 6.0, 0.4)
@@ -756,17 +823,7 @@ func sudden_death() -> void:
 
 ## Falling, a long way.
 func fall_death() -> void:
-	if in_sequence:
-		return
-	in_sequence = true
-	var t := _seq
-	set_mode("cinematic")
-	hud.clear_text()
-	Sfx.play("whoosh", 4.0, 0.5)
-	hud.show_thought("No no no no no", 2.0)
-	hud.fade_to(1.0, 1.8)
-	if not await _wait(2.2, t): return
-	_death_sequence("wake")
+	entity_death("fall")
 
 
 var _death_skippable := false

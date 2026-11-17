@@ -3,9 +3,9 @@
 First-person psychological horror about lucid dreaming, unstable reality and subconscious fear.
 Made with **Godot 4.7** (free, open source, no account needed). Runs on Mac, Windows and Linux.
 
-Playable now: bedroom → tutorial video → notebook → summer dream city (ice cream, people, the Observer)
-→ falling into the yellow maze → **THE DEEP** (aquaphobia) → **COMPRESSION** (claustrophobia)
-→ **ABOVE** (fear of heights). Every area has an **objectives** list in the top-right corner.
+Playable now, five realms, each a full expedition with a beginning, middle, climax and escape:
+bedroom → the summer **CITY** → the **BACKROOMS** → **THE DEEP** → **COMPRESSION** → **ABOVE**.
+Every area has an **objectives** list in the top-right corner.
 
 ---
 
@@ -43,33 +43,49 @@ It takes effect when you enter the next area.
 
 - **Bedroom, 3 AM.** Watch *"HOW TO LUCID DREAM TONIGHT! (100% WORKING)"* on the PC; the five rules
   get written into your notebook. Take the notebook. Go to bed.
-- **The summer city.** Bright, warm and peaceful on purpose. Hold Q to picture an ice cream. Talk to
-  Mina (the ice cream vendor with no ice cream), Mr. Halvorsen and his pigeons, Theo and his kite, the jogger.
-  Some questions break the notebook's rules. The **Observer** stands at the far end of the avenue.
-  He never moves while you watch him. Hold T to wake up.
-- **THE DEEP** (aquaphobia). The maze's exit door leads to a night-time swimming complex.
-  1. The PUMP ROOM door is jammed. Swim through the dark hole under the water at the far end of the main pool.
-  2. The DRAIN lever's handle has been snapped off. It's lying on the bottom of the main pool (dive for it).
-  3. Pull the DRAIN lever. The water only goes down **while you watch the well** - look away and it refills.
-  4. The deep pool is fenced off and padlocked. The key is in locker 13. There are twelve lockers.
-  5. Unlock the gate and step into the empty well. It has no bottom: below it is an
-     impossibly vast sea, a trench walled by cliffs, where leviathans circle. **Looking down fills DREAD fast.**
-     Near the sea floor, black hands come up and pull you under (if DREAD overwhelms you here, they kill you).
-  6. **The seabed** (part two): pitch dark, you walk slowly. Hold Q to picture a flashlight. The path is
-     invisible - only glowing stones mark it. Stray from it and the leviathan comes for you.
-  7. At the cliff, get into the sea cave before it catches you - it can't fit through. Step through the glowing doorway.
-- **COMPRESSION** (claustrophobia). A basement under a building: narrow corridors, low ceilings, bare bulbs.
-  The way you came in turns into wall. Tight spaces raise DREAD by themselves. The freight elevator needs 3 fuses:
-  1. **The vent** - crouch (C / Ctrl) and crawl. Something breathes behind you. Fingers come through the slats.
-  2. **The press** - the walls move in whenever you're *not* looking at them. Look left, look right, keep going.
-  3. **The drying room** - sheets on lines, and shapes under three of them that come closer while you look away.
-  Put the fuses in the box, call the elevator (max 1 person), get in. It gets smaller on the way up.
-- **ABOVE** (fear of heights). A rooftop above the clouds at night; the towers go down forever.
-  1. Walk out along the plank over the drop to get the key at the end.
-  2. Cross the steel beam to the next roof. **When the wind comes, crouch** or it pushes you off. The beam won't be there behind you.
-  3. Use the key on the bridge controls, cross to the last roof, climb the mast, touch the light.
+- **The summer city** (explore, experiment). You wake in a sunlit copy of your bedroom: do a reality check
+  (read the clock, look away, read it again) and go outside. Explore the neighbourhood (fountain, ice-cream
+  cart, bus stop). Hold Q to picture things; change the dream (start the fountain, repaint a car, light the lamps).
+  Talk to the residents - tell one of them they're dreaming and see what happens. Find the man who doesn't
+  move (the **Observer**), then the quiet place to sleep: the hammock under the big tree on the hill.
+- **The Backrooms** (navigate, investigate). Yellow rooms that rearrange themselves when unobserved; things
+  from the city in them (a bench, a street sign, a melted ice-cream cart). A maintenance door leads to locked
+  doors, a dark room behind glass with something very tall standing in it, and a power room. Three notes give
+  the breaker order. Power on: the lights go red, the walls shift, two doorways lead elsewhere - and the glass
+  breaks. Run back to the lift where you started. It opens onto water.
+- **THE DEEP** (activate, discover, escape).
+  1. A night-time swimming complex: the jammed PUMP ROOM (swim under), the snapped DRAIN lever (dive for the
+     handle), water that only drains **while you watch it**, locker 13 of twelve. Step into the empty well.
+  2. An impossibly vast sea. Black hands from the sea floor pull you under.
+  3. **The seabed**: pitch dark, slow. Picture a flashlight. Glowing stones mark an invisible path - stray and
+     the floor takes you. Something huge passes overhead. Through the glowing doorway in the sea cave:
+  4. **The flooded maze**: narrow service tunnels; turn two valve wheels to open the bulkhead.
+  5. **The rooms**: three doors (two open back into the same room); a room with no doors (walk through the wall
+     the bubbles leak through); a door that only exists while you aren't looking at it.
+  6. **The Abyssal Cross**: four trenches, a beacon across each. Light all four and a bridge of light reaches
+     the station whose lights you saw from the start.
+  7. **The leviathan**: the station goes dark. Out the far side, it comes for you across open sand. Run for the
+     glowing door in the cliff.
+- **COMPRESSION** (spatial puzzles). A basement: the way in becomes wall; tight spaces raise DREAD. Three fuses
+  (the vent, **the press** - walls that move while unwatched - and **the drying room**) power a freight elevator
+  that goes *up*, into a tenement that doesn't fit inside itself:
+  apartment 3B is far bigger inside than the building (a park bench in the living room, a yellow humming hallway,
+  a child's room, the Observer in its corner); the bathroom vent narrows as you crawl; in the stairwell going **up**
+  brings you back to the same floor and going **down** raises the floor number - the roof is from floor 7;
+  floor 7's corridor collapses a step behind you, ceiling and walls folding shut; a narrow shaft climbs to a door at the top.
+- **ABOVE** (traverse, climb). Rooftops above the clouds at night. The red light of the mast on the last tower is
+  visible from the very first roof.
+  1. The plank over the drop for the key. 2. The steel beam (**crouch in the wind**; it won't be there behind you)
+  and the bridge. 3. A sky lift that runs sideways through floors that don't exist. 4. Stairs in the open air,
+  there only when you're close to them. 5. An unfinished tower: scaffolding, and a crane to swing a girder across
+  the gap. 6. A glass skyway; the floor cracks and the lights die behind you. 7. Climb the mast and touch the
+  light: the platform takes itself apart and builds a path into the sky, to a door.
   Looking down fills DREAD. Sometimes, far away, someone falls.
   Swimming: Space up, C dive, watch your breath. Space at the surface next to the edge climbs out.
+- **Every entity kills differently**: the tall one in the Backrooms, the leviathan's jaws, the sheet figures,
+  the corridor folding shut, the long fall, the hands from the sea floor, the Observer when DREAD overwhelms you.
+  Every death wakes you in your bedroom. Probably.
+- **The notebook** gains new lines at milestones - in your handwriting, and not always agreeing with the old ones.
 - **Dream journal** (title screen, or Pause > MENU): an entry for every part of the dream you have made it through.
 - **The yellow maze.** You fall through the floor instead. Fluorescent hum, stained carpet, a maze that
   is always solvable but rearranges itself when you aren't looking. Your notebook has a sixth rule now.
@@ -102,12 +118,12 @@ scripts/core/            Observation ("is the player looking at this?"), Effects
                          Models (finds, sizes and animates optional model files)
 scripts/player/          Player controller (incl. swimming/breath), FPHands, Dread, Manifestation, ManifestedObject
 scripts/world/           Zone (base + geometry builder), BedroomZone, CityZone, MazeZone, DeepZone, SeabedZone,
-                         CompressionZone, AboveZone, water shader
+                         AbyssZone, CompressionZone, TenementZone, AboveZone; water, caustics and sky shaders
 data/Objectives.json     the objective list for every area
 scripts/npc/             Human (procedural people), ModelBody (people from model files), NPC,
-                         Observer (+ glitch shader)
+                         Observer (+ glitch shader), Stalker (the Backrooms' entity)
 scripts/ui/              HUD, menus, notebook, tutorial video, DREAD post-process shader
-tests/flow_test.tscn     automated playthrough of everything, title to the top of ABOVE
+tests/flow_test.tscn     automated playthrough of everything, title to the door in the sky, plus every death
 tests/gallery.tscn       renders review screenshots of each area
 tools/creatures/          Blender (bpy) generators for the custom creature models -> models/*.glb (not used by the game)
 unreal/                  the earlier Unreal Engine 5 version (archived, ignored by Godot)

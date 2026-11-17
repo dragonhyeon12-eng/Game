@@ -18,6 +18,8 @@ const STATION_Z := -150.0
 const EXIT_Z := -205.0
 
 var leviathan: Leviathan
+var observer: Observer
+var _beacon_posts := {}
 var _valves := {}
 var _bulkhead: StaticBody3D
 var _room3_block: StaticBody3D
@@ -35,6 +37,7 @@ var _t := 0.0
 var _hint := 0
 var _snow: CPUParticles3D
 var _lamps: Array[OmniLight3D] = []
+var _noise_t := 8.0
 
 
 func zone_id() -> String: return "abyss"
@@ -96,6 +99,23 @@ func build() -> void:
 	leviathan.speed = 7.0
 	add_child(leviathan)
 	_snow = marine_snow()
+	observer = Observer.new()
+	add_child(observer)
+	observer.hide_now()
+	observer.position = Vector3(0, -100, 0)
+	observer.seen_max_distance = 60.0
+	observer.seen.connect(func():
+		Game.set_flag("observer_deep")
+		Sfx.stinger("braam", -4.0)
+		Game.player.dread.add_fear(10.0, "observer")
+		Game.hud.show_thought("Someone's standing by the last light. Down here. Standing.", 3.5))
+	# a street lamp from the summer city, standing on the sea floor, still lit
+	var lamp_p := Vector3(2.3, 0, -72.0)
+	if prop("lamp_post", lamp_p, 200.0, 1.1) == null:
+		shape_at("cylinder", lamp_p + Vector3(0, 2.0, 0), Vector3(0.12, 4.0, 0.12), Color(0.15, 0.17, 0.16), true, Vector3.ZERO, "metal")
+	omni(lamp_p + Vector3(0, 4.2, 0), Color(1.0, 0.8, 0.5), 1.2, 9.0, false)
+	trigger(lamp_p + Vector3(0, 1, 0), Vector3(4, 2.4, 4), func():
+		Game.hud.show_thought("A street lamp. From the park. On the bottom of the sea, still on.", 3.5))
 	ambient("underwater", Vector3.ZERO, false, -8.0)
 	ambient("drone", Vector3.ZERO, false, -18.0)
 
@@ -284,6 +304,7 @@ func _cross(rock: Color) -> void:
 		var lamp := part("sphere", post + Vector3(0, 2.6, 0), Vector3.ONE * 0.5, Color(0.1, 0.18, 0.22), null, Vector3.ZERO, 0.2)
 		var l := omni(post + Vector3(0, 2.6, 0), Color(0.3, 0.8, 1.0), 0.0, 22.0, false)
 		_beacon_lights[id] = [l, lamp]
+		_beacon_posts[id] = post
 		interactable(post + Vector3(0, 1.2, 0), Vector3(0.9, 2.4, 0.9), func(): return "Light the beacon" if not _beacons.has(id) else "",
 			func(): _light_beacon(id), func(): return not _beacons.has(id))
 	# the trenches: dark, bottomless, with faint lights a long way down
@@ -312,6 +333,12 @@ func _light_beacon(id: String) -> void:
 		_raise_bridge()
 	else:
 		Game.hud.show_thought("%d. Far below, something turned toward the light." % _beacons.size(), 3.0)
+		if _beacons.size() == 2:
+			for other in _beacon_posts:
+				if not _beacons.has(other):
+					var d: Vector3 = (_beacon_posts[other] - CROSS).normalized()
+					observer.try_appear_at(_beacon_posts[other] + d.cross(Vector3.UP) * 1.4)
+					break
 
 
 func _raise_bridge() -> void:
@@ -446,6 +473,12 @@ func _process(delta: float) -> void:
 		_lamps[i].light_energy = 0.7 * (0.15 if sin(_t * (7.0 + i * 3.1)) * sin(_t * 1.3 + i) > 0.85 else 1.0)
 	if Game.in_sequence:
 		return
+	# the deep is never quiet: metal groaning somewhere, something vast moving, a voice that isn't one
+	_noise_t -= delta
+	if _noise_t <= 0.0:
+		_noise_t = randf_range(10.0, 24.0)
+		var n: String = ["metal_screech", "sub_drop", "scream_far", "creak", "bubbles"][randi() % 5]
+		Sfx.play(n, randf_range(-24.0, -16.0), randf_range(0.4, 0.7))
 	if _hint == 0 and _t > 2.0:
 		_hint = 1
 		Game.hud.show_thought("Another door. Another place under the sea. It doesn't end.", 4.0)

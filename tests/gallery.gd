@@ -255,6 +255,35 @@ func _run() -> void:
 			z._update_collapse(0.016)
 			z._collapse = false
 			_look(Vector3(-30, 1.6, -24.8), Vector3(-40, 1.0, -24.8)),
+		"above_far": func():
+			_zone("above")
+			_look(Vector3(2, 1.6, -5), Vector3(19, 30, -157)),
+		"above_lift": func():
+			_zone("above")
+			_look(Vector3(24, 1.6, -22), Vector3(24, 1.2, -40)),
+		"above_stairs": func():
+			_zone("above")
+			Game.player.global_position = Vector3(24, 4.05, -80.2)
+			await get_tree().physics_frame
+			Game.zone._update_stairs(Vector3(24, 4.0, -80.2))
+			_look(Vector3(24, 5.7, -79.0), Vector3(24, 6, -86)),
+		"above_site": func():
+			_zone("above")
+			_look(Vector3(24, 13.6, -97.0), Vector3(24, 16, -110)),
+		"above_crane": func():
+			_zone("above")
+			Game.zone._swing_jib(true)
+			_look(Vector3(19, 21.6, -110), Vector3(19, 20.5, -122)),
+		"above_skyway": func():
+			_zone("above")
+			Game.zone._swing_jib(true)
+			_look(Vector3(19, 21.6, -121), Vector3(19, 21.0, -150)),
+		"above_path": func():
+			_zone("above")
+			Game.player.global_position = AboveZone.MAST + Vector3(0, AboveZone.MAST_H + 0.05, 0)
+			Game.zone._rearrange()
+			await get_tree().create_timer(5.5).timeout
+			_look(AboveZone.MAST + Vector3(0, AboveZone.MAST_H + 1.6, 0.8), AboveZone.MAST + Vector3(0, AboveZone.MAST_H + 4, -20)),
 		"comp_sheets": func():
 			_zone("compression")
 			_look(Vector3(-9.2, 1.6, -12.4), Vector3(-9.6, 1.2, -4)),
@@ -312,7 +341,7 @@ func _run() -> void:
 	for name in views:
 		if only.is_empty() or only.has(name):
 			views[name].call()
-			if name == "death_hands":
+			if name == "death_hands" or name == "above_path":
 				await get_tree().create_timer(6.6).timeout
 			if name == "pool_climb":
 				await get_tree().create_timer(1.5).timeout

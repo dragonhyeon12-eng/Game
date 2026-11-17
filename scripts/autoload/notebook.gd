@@ -77,6 +77,19 @@ func break_rule(id: String) -> void:
 	Effects.apply_all(effects.duplicate())
 
 
+## Story milestones add lines to the notebook (rules with "revealOn": flag). Returns true if any did.
+func on_flag(flag: String) -> bool:
+	var any := false
+	for id in Data.rules:
+		var def: Dictionary = Data.rules[id]
+		if def.get("revealOn", "") == flag and _known(id):
+			var r := _rule(id)
+			if not r.written and not r.pending:
+				reveal_on_next_open(id)
+				any = true
+	return any
+
+
 ## Call right before the notebook UI opens.
 func on_opened() -> void:
 	var reread_breaks: Array[String] = []

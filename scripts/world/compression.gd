@@ -429,7 +429,7 @@ func _update_press(delta: float, p: Vector3) -> void:
 	var lo: float = PRESS_CENTER_Z - _press_h[0] + 0.36
 	var hi: float = PRESS_CENTER_Z + _press_h[1] - 0.36
 	if hi - lo < 0.05:
-		Game.sudden_death()
+		Game.entity_death("crush")
 		return
 	if p.z < lo or p.z > hi:
 		Game.player.global_position.z = clampf(p.z, lo, hi)
@@ -581,7 +581,7 @@ func _update_drying(delta: float, p: Vector3) -> void:
 			_figure_hint = 2
 			Game.hud.show_hint("They only move when you aren't looking.", 6.0)
 		if d < 0.75:
-			Game.sudden_death()
+			Game.entity_death("sheet", f)
 			return
 
 
