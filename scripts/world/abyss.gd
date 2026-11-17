@@ -460,9 +460,11 @@ func _process(delta: float) -> void:
 	var door_pos := Vector3(0, 1.0, -64.0)
 	var seen := Observation.is_observed(door_pos, 0.6, [_room3_block])
 	_room3_block.visible = seen
-	_room3_block.get_child(0).disabled = seen
+	# a wall while you look at it (never closing on you while you stand in the doorway); a door while you don't
+	var in_doorway: bool = absf(pl.global_position.z + 64.0) < 0.4 and absf(pl.global_position.x) < 0.75   # inside the wall itself
+	_room3_block.get_child(0).disabled = not seen or in_doorway
 	_room3_door.visible = not seen
-	if not seen and pl.global_position.z < -64.5 and not Game.has_flag("abyss_room3"):
+	if pl.global_position.z < -64.5 and not Game.has_flag("abyss_room3"):
 		Game.set_flag("abyss_room3")
 		Game.hud.show_thought("...Backwards. Through a door I couldn't look at.", 3.0)
 	_snow.global_position = pl.global_position

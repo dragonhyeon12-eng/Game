@@ -80,8 +80,17 @@ func objectives() -> Array:
 		var after: String = o.get("after", "")
 		if after != "" and not has_flag(after) and not done:
 			continue
-		out.append([String(o.get("text", "")).format(counters), done])
+		out.append([_fill_counters(String(o.get("text", ""))), done])
 	return out
+
+
+static var _placeholder := RegEx.create_from_string("\\{([a-z_]+)\\}")
+
+## "{name}" -> the counter's value as a whole number (0 if it hasn't been counted yet; saves store floats).
+func _fill_counters(text: String) -> String:
+	for m in _placeholder.search_all(text):
+		text = text.replace(m.get_string(), str(int(counters.get(m.get_string(1), 0))))
+	return text
 
 
 func clear_flag(f: String) -> void:

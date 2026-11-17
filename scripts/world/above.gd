@@ -684,7 +684,8 @@ func _sky_lift() -> void:
 	part("box", Vector3(24.94, 1.2, LIFT_Z0 - 1.6), Vector3(0.04, 0.3, 0.2), Color(0.2, 0.2, 0.2), _lift, Vector3.ZERO, 0.0, "metal")
 	_lift.get_child(_lift.get_child_count() - 1).position = Vector3(0.94, 1.2, -0.4)
 	# D: the far roof, a lamp and a melted ice-cream cart from somebody else's dream
-	box(Vector3(24, 0.15, -72.0 + 0.1), Vector3(10, 0.3, 0.2), Color(0.42, 0.42, 0.44), true, 0.0, "concrete")
+	for x in [21.3, 26.7]:   # a parapet, with a gap where the stairs start
+		box(Vector3(x, 0.15, -72.0 + 0.1), Vector3(4.6, 0.3, 0.2), Color(0.42, 0.42, 0.44), true, 0.0, "concrete")
 	omni(Vector3(24, 2.5, -66), Color(0.6, 0.7, 1.0), 0.5, 10.0, false)
 	var cart := Vector3(27, 0, -69)
 	part("box", cart + Vector3(0, 0.6, 0), Vector3(1.2, 0.7, 0.7), Color(0.85, 0.82, 0.78), null, Vector3(0, 0, -6), 0.0, "metal")
@@ -767,7 +768,7 @@ func _floating_stairs() -> void:
 		for i in 16:
 			y += 0.25
 			z -= 0.45
-			_step(Vector3(24, y - 0.1, z + 0.225), Vector3(1.3, 0.2, 0.47), mat)
+			_step(Vector3(24, y - 0.1, z + 0.225), Vector3(1.3, 0.2, 0.47), mat, true)
 		if flight < 2:
 			_step(Vector3(24, y - 0.1, z - 1.0), Vector3(1.6, 0.2, 2.0), mat)
 			z -= 2.0
@@ -778,7 +779,8 @@ func _floating_stairs() -> void:
 		Game.hud.show_thought("Solid. Solid ground. ...An unfinished building, up here.", 3.0))
 
 
-func _step(pos: Vector3, size: Vector3, mat: Material) -> void:
+## One step (or landing). Steps are walked as a ramp - you can't climb a 25 cm riser without one.
+func _step(pos: Vector3, size: Vector3, mat: Material, ramp := false) -> void:
 	var mi := MeshInstance3D.new()
 	mi.mesh = Shapes.mesh("box")
 	mi.material_override = mat
@@ -792,6 +794,12 @@ func _step(pos: Vector3, size: Vector3, mat: Material) -> void:
 	var b := BoxShape3D.new()
 	b.size = size
 	cs.shape = b
+	if ramp:
+		# from this step's front-bottom edge to its back-top edge, one riser's worth of slope
+		var slope := atan2(0.25, 0.45)
+		b.size = Vector3(size.x, 0.06, Vector2(0.45, 0.25).length() + 0.02)
+		body.position = pos + Vector3(0, 0.1 - 0.125 - 0.03, 0)
+		body.rotation.x = slope
 	cs.disabled = true
 	body.add_child(cs)
 	add_child(body)
