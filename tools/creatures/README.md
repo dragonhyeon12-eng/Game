@@ -12,6 +12,7 @@ exported `.glb` files, through the optional-model slots in `models/README.md`.
 |---|---|---|---|---|
 | `leviathan` | `models/creatures/leviathan.glb` | THE DEEP, the seabed | ~35k (Godot adds LODs on import) | skinned: 34 spine bones + jaw |
 | `observer` | `models/observer.glb` | everywhere he appears | ~12.5k | static; the game turns him black and glitchy |
+| `player` | `models/player.glb` | the player's own body (first person, shadow, future mirrors) | ~7k in 3 meshes | rigged (17 bones), animated by `scripts/player/body.gd` |
 | `draped` | `models/creatures/draped.glb` | COMPRESSION's drying room | ~9k sheet + ~2k body | a dark body under a semi-transparent sheet (alpha blend): its shape shows faintly through the cloth |
 
 ## Running it
@@ -49,6 +50,17 @@ dp/preview.py   studio renders for checking silhouettes
 Each frame the game moves every spine bone onto its segment (and scales it by the creature's
 `thickness`), so the continuous mesh follows the existing movement, chase and blocking code without
 any change to it. Delete the `.glb` and the game falls back to its built-in procedural creature.
+
+## The player's body (`player.py` / `scripts/player/body.gd`)
+
+- Bones `hips, spine, chest, neck, head, upperarm.L/R, forearm.L/R, hand.L/R, thigh.L/R, shin.L/R, foot.L/R`
+  (`.L` = the character's left), A-pose rest (arms 50 degrees from vertical), feet at height 0, facing Godot -Z.
+- Three meshes: `PlayerBody` (torso, legs, feet), `PlayerArms`, `PlayerHead`. The game puts arms and head on
+  render layer 20, which the first-person camera leaves out (they would block the view and double the
+  first-person hands). Shadows still include them, and a **mirror** only has to render with a camera whose
+  `cull_mask` includes layer 20 to show the whole body.
+- No baked animations: walking, running, crouching, jumping and swimming are posed in code every frame from
+  the player's actual movement.
 
 ## Materials
 

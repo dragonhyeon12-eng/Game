@@ -35,6 +35,7 @@ to the right size and stood on the ground automatically.
 | `sea/whale.fbx`, `sea/shark.fbx`, `sea/manta.fbx` | dark shapes far down in the sea (THE DEEP, the seabed) | extra; shown as silhouettes |
 | `sea/fish1.fbx` | a fish in the swimming pool; fish around the glowing stones | extra |
 
+| `player.glb` | your own body, seen in first person (and in mirrors) | made by `tools/creatures/player.py`; delete it and you have no body, as before |
 | `creatures/leviathan.glb` | THE DEEP's leviathan | made by `tools/creatures` (skinned: its bones follow the game's body segments) |
 
 **Included now**: the people, rat, spider, snake, whale, shark, manta and fish are CC0 models by

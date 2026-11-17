@@ -6,7 +6,7 @@ extends Node3D
 ## Placed close to the camera (inside the player's capsule), so they never clip through walls.
 
 const SKIN := Color(0.86, 0.66, 0.54)
-const SLEEVE := Color(0.18, 0.22, 0.36)
+const SLEEVE := Color(0.83, 0.63, 0.52)   # bare forearms: the T-shirt's sleeves end above the elbow
 
 ## Per-finger joint curl (degrees) for each pose: [base, middle, tip]
 const POSES := {
@@ -28,6 +28,17 @@ var _spread := {1.0: 4.0, -1.0: 4.0}
 var _sway := Vector2.ZERO
 var _reach := 0.0
 var _t := 0.0
+var _swim := 0.0          # 0..1 blend into the breaststroke
+var _stroke := 0.0        # stroke cycle position
+
+## Breaststroke keyframes: [cycle position, offset (x toward the outside for each hand), roll degrees]
+const STROKE := [
+	[0.0, Vector3(-0.05, 0.05, -0.16), 0.0],    # hands meeting in front
+	[0.3, Vector3(-0.06, 0.07, -0.32), 0.0],    # glide, arms out straight
+	[0.55, Vector3(0.16, 0.02, -0.18), 38.0],   # sweep outward, palms turned out
+	[0.8, Vector3(0.02, -0.03, 0.0), 12.0],     # pull in under the chin
+	[1.0, Vector3(-0.05, 0.05, -0.16), 0.0],
+]
 
 
 func _ready() -> void:
@@ -118,6 +129,17 @@ func reach() -> void:
 	_reach = 1.0
 
 
+## Offset and roll of a hand at a point of the breaststroke cycle (smoothly between keyframes).
+func _stroke_at(p: float) -> Array:
+	for i in STROKE.size() - 1:
+		var a: Array = STROKE[i]
+		var b: Array = STROKE[i + 1]
+		if p <= b[0]:
+			var f := smoothstep(0.0, 1.0, (p - a[0]) / (b[0] - a[0]))
+			return [(a[1] as Vector3).lerp(b[1], f), lerpf(a[2], b[2], f)]
+	return [STROKE[0][1], 0.0]
+
+
 ## Mouse movement makes the hands lag a little behind the view.
 func add_sway(mouse_delta: Vector2) -> void:
 	_sway += mouse_delta * 0.00012
@@ -130,8 +152,14 @@ func _process(delta: float) -> void:
 	_reach = maxf(0.0, _reach - delta * 3.0)
 	var player = get_parent().get_parent().get_parent() if get_parent() else null
 	var speed := 0.0
+	var swimming := false
 	if player is CharacterBody3D:
 		speed = Vector2(player.velocity.x, player.velocity.z).length()
+		swimming = bool(player.get("swimming"))
+	_swim = lerpf(_swim, 1.0 if swimming else 0.0, clampf(delta * 4.0, 0.0, 1.0))
+	if _swim > 0.01:
+		var moving: bool = player is CharacterBody3D and player.velocity.length() > 0.4
+		_stroke = fmod(_stroke + delta * (0.85 if moving else 0.4), 1.0)
 
 	for side in _hands:
 		var hand: Dictionary = _hands[side]
@@ -169,8 +197,14 @@ func _process(delta: float) -> void:
 		if conjuring:
 			lift = Vector3(-0.05 * side, 0.08, -0.05)
 			tremble = Vector3(sin(_t * 31.0), sin(_t * 27.0 + side), 0) * 0.0015
+		var swim_rot := 0.0
+		if _swim > 0.01 and not (side > 0.0 and pose == "hold"):
+			var st := _stroke_at(_stroke)
+			var o: Vector3 = st[0]
+			offset += Vector3(o.x * side, o.y, o.z) * _swim * (1.0 if speed > 0.3 else 0.6)
+			swim_rot = st[1] * side * _swim
 		root.position = root.position.lerp(rest.origin + offset + lift + tremble, clampf(delta * 14.0, 0.0, 1.0))
-		var target_rot := rest.basis.get_euler()
+		var target_rot := rest.basis.get_euler() + Vector3(0, 0, deg_to_rad(swim_rot))
 		if conjuring:
 			target_rot += Vector3(deg_to_rad(15), 0, deg_to_rad(30 * side))
 		root.rotation = root.rotation.lerp(target_rot, clampf(delta * 10.0, 0.0, 1.0))

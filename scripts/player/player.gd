@@ -16,6 +16,7 @@ var hold_point: Node3D
 var dread: Dread
 var manifestation: Manifestation
 var hands: FPHands
+var body: PlayerBody      # your own body below the camera (if models/player.glb exists)
 var ray: RayCast3D
 
 var controls_locked := true
@@ -102,6 +103,9 @@ func _ready() -> void:
 	_drone.volume_db = -80.0
 	_drone.play()
 	_build_hands()
+	body = PlayerBody.create(self)
+	if body:
+		add_child(body)
 	Settings.changed.connect(apply_settings)
 	apply_settings()
 
@@ -248,6 +252,10 @@ func _interact() -> void:
 	if focused and is_instance_valid(focused) and focused.can_interact():
 		hands.reach()
 		focused.interact()
+
+
+func is_crouched() -> bool:
+	return _crouched
 
 
 func _set_crouch(on: bool) -> void:

@@ -55,6 +55,36 @@ func _run() -> void:
 		"mina": func():
 			_zone("city")
 			_look(Vector3(2.4, 1.6, -7.4), Vector3(2.4, 1.35, -10.4)),
+		"feet_beam": func():
+			_zone("above")
+			Game.set_mode("game")
+			_look(Vector3(11, 1.62, 0), Vector3(11.4, 0, -0.2)),
+		"feet_walk": func():
+			_zone("deep")
+			Game.set_mode("game")
+			_look(Vector3(-6, 1.62, 15), Vector3(-6, 0, 13.6))
+			Input.action_press("move_forward"),
+		"swim_view": func():
+			_zone("deep")
+			Game.set_mode("game")
+			_look(Vector3(-10, 0.3, 2), Vector3(-10, -0.6, -3))
+			Input.action_press("move_forward"),
+		"body_3p": func():
+			_zone("deep")
+			Game.set_mode("game")
+			_look(Vector3(-6, 1.62, 15), Vector3(-6, 1.62, 13))
+			Input.action_press("move_forward")
+			Game.player.camera.cull_mask = 0xFFFFF
+			Game.player.camera.position = Vector3(-2.2, -0.5, -2.2)
+			Game.player.camera.rotation_degrees = Vector3(0, -135, 0),
+		"swim_3p": func():
+			_zone("deep")
+			Game.set_mode("game")
+			_look(Vector3(-10, 0.3, 2), Vector3(-10, 0.3, -3))
+			Input.action_press("move_forward")
+			Game.player.camera.cull_mask = 0xFFFFF
+			Game.player.camera.position = Vector3(-3.0, 0.4, 0.0)
+			Game.player.camera.rotation_degrees = Vector3(-5, -90, 0),
 		"face": func():
 			_zone("city")
 			_look(Vector3(2.4, 1.55, -9.3), Vector3(2.4, 1.5, -10.4)),
@@ -225,4 +255,5 @@ func _run() -> void:
 				await get_tree().create_timer(1.5).timeout
 				print("pool_climb after pos=%s swimming=%s floor=%s" % [Game.player.global_position, Game.player.swimming, Game.player.is_on_floor()])
 			await _shot(name)
+			Input.action_release("move_forward")
 	get_tree().quit()

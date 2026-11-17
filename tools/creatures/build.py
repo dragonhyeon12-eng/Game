@@ -22,11 +22,13 @@ import bpy  # noqa: E402,F401  (must come first: it makes mathutils/bmesh import
 import leviathan  # noqa: E402
 import observer   # noqa: E402
 import draped     # noqa: E402
+import player     # noqa: E402
 
 CREATURES = {
     "leviathan": (leviathan.build, "models/creatures/leviathan.glb"),
     "observer": (observer.build, "models/observer.glb"),
     "draped": (draped.build, "models/creatures/draped.glb"),
+    "player": (player.build, "models/player.glb"),
 }
 
 
@@ -35,6 +37,8 @@ PREVIEWS = {   # label, camera, target, lens (Blender coords: +Y forward, +Z up)
                   ("head_side", (12, 1.5, 1), (0, 1.5, 0), 40), ("front", (0, 16, 2), (0, 0, 0.5), 30)],
     "observer": [("front", (0, -6, 1.2), (0, 0, 1.1), 50), ("side", (6, 0, 1.2), (0, 0, 1.1), 50)],
     "draped": [("front", (0, -5, 1.1), (0, 0, 0.95), 50), ("side34", (3.5, -3.5, 1.3), (0, 0, 0.95), 50)],
+    "player": [("front", (0, 5, 1.0), (0, 0, 0.9), 45), ("side34", (3.2, 3.2, 1.3), (0, 0, 0.9), 45),
+               ("back", (0, -5, 1.0), (0, 0, 0.9), 45)],
 }
 
 
