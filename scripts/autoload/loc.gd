@@ -16,6 +16,8 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	if OS.get_cmdline_user_args().has("--lang=ko"):
 		Settings.language = 1.0
+	elif OS.get_cmdline_user_args().has("--lang=en"):
+		Settings.language = 0.0
 	_tr = LocTranslation.new()
 	_tr.locale = "ko"
 	_tr.log_misses = OS.get_cmdline_user_args().has("--loc-misses")

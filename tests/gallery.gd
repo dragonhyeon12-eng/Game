@@ -27,6 +27,7 @@ func _look(from: Vector3, at: Vector3) -> void:
 
 
 func _zone_t(z: String) -> void:
+	Game.hud.close_menu()
 	Game.enter_zone(z)
 	Game.set_mode("cinematic")
 	Game.hud.set_fade(0.0)
@@ -34,6 +35,7 @@ func _zone_t(z: String) -> void:
 
 
 func _zone(z: String) -> void:
+	Game.hud.close_menu()
 	Game.enter_zone(z)
 	Game.set_mode("cinematic")
 	Game.hud.set_fade(0.0)
@@ -337,6 +339,29 @@ func _run() -> void:
 			_zone("above")
 			Game.set_mode("game")
 			_look(Vector3(0, 1.6, 1.5), Vector3(0, 1.0, -3)),
+		"title": func():
+			Game.show_title(),
+		"pause": func():
+			_zone("city")
+			Game.set_mode("game")
+			_look(Vector3(2, 1.7, 6), Vector3(0, 1.5, -10))
+			Game._last_corrupted = 1e9
+			Game.open_pause(),
+		"maze_door_open": func():
+			_zone("maze")
+			var z: MazeZone = Game.zone
+			z._open_maint()
+			(z._maint_door.get_node("Leaf") as Node3D).rotation_degrees.y = 100.0
+			var c: Vector3 = z.exit_position()
+			var inw: Vector3 = z.exit_inward()
+			_look(c + inw * 3.2 + Vector3(0.9, 1.6, 0.9), c + Vector3(0, 1.1, 0) - inw * 1.5),
+		"maze_shutter": func():
+			_zone("maze")
+			var z: MazeZone = Game.zone
+			z._open_escape()
+			z._shutter.position.y += 2.45
+			(z._escape_door.get_node("Leaf") as Node3D).rotation_degrees.y = 100.0
+			_look(z._wing_xf * Vector3(17.5, 1.62, -1.0 * z._side), z._wing_xf * Vector3(20.2, 1.2, 4.0 * z._side)),
 		"scare": func():
 			_zone("maze")
 			Game.hud.jumpscare(4.0),

@@ -720,8 +720,9 @@ func _escape_passage(grey: Color, floor_c: Color, z_axis: Vector3) -> void:
 	var sd := _side
 	var H2 := 2.8
 	_shutter = solid_box(_wing_xf * Vector3(20.2, 1.25, 3.1 * sd), _wsize(Vector3(1.2, 2.5, 0.14)), Color(0.32, 0.34, 0.33), null, "metal")
-	for k in 6:
-		part("box", _wing_xf * Vector3(20.2, 0.3 + k * 0.4, 3.1 * sd - 0.08 * sd), _wsize(Vector3(1.16, 0.03, 0.02)), Color(0.22, 0.23, 0.22), null, Vector3.ZERO, 0.0, "metal")
+	var face := _wing_xf.basis * Vector3(0, 0, -0.08 * sd)      # the power-room side of the shutter
+	for k in 6:   # slats, riding up with it
+		part("box", Vector3(0, 0.3 + k * 0.4 - 1.25, 0) + face, _wsize(Vector3(1.16, 0.03, 0.02)), Color(0.22, 0.23, 0.22), _shutter, Vector3.ZERO, 0.0, "metal")
 	label(_wing_xf * Vector3(20.2, 2.7, 3.1 * sd - 0.12 * sd), rad_to_deg(atan2(-z_axis.x * sd, -z_axis.z * sd)), "SERVICE", 0.06, Color(0.9, 0.85, 0.3), false)
 	# the stub out of the power room, and the passage back
 	_wbox(Vector3(20.2, -0.05, 4.35 * sd), Vector3(1.4, 0.1, 2.5), floor_c, true, "concrete")
