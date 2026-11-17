@@ -246,7 +246,7 @@ func _process(delta: float) -> void:
 	_crosshair.visible = gameplay and not _dialogue.visible
 	_crosshair.color = Color(1, 1, 1, 0.9 if prompt != "" else 0.35)
 	_prompt.visible = gameplay and not _dialogue.visible and prompt != ""
-	_prompt.text = "[E]  " + prompt
+	_prompt.text = ("USE:  " if TouchControls.wanted() else "[E]  ") + prompt
 
 	var hold := -1.0
 	if player:
@@ -487,6 +487,7 @@ func _settings(back: Callable) -> void:
 		["Graphics quality (next area)", num.call("quality", 0.0, 1.0, 1.0, func(v): return "HIGH" if v >= 1 else "LOW")],
 		["Super duper shaders (strong GPU)", flag.call("super_shaders")],
 		["Show objectives", flag.call("show_objectives")],
+		["Touch controls", num.call("touch_controls", 0.0, 2.0, 1.0, func(v): return ["AUTO", "ON", "OFF"][clampi(roundi(v), 0, 2)])],
 	]
 	var items := []
 	for r in rows:

@@ -180,7 +180,8 @@ kbd {
 			<div class="ctl"><kbd>N</kbd> notebook</div>
 			<div class="ctl"><kbd>P</kbd> pause <kbd>Esc</kbd> free the mouse</div>
 		</div>
-		<p class="notes">Best on a desktop browser with a keyboard, a mouse and headphones. Click the game to capture the mouse.
+		<p class="notes">Best with headphones. On a computer, click the game to capture the mouse. On a phone or tablet,
+			hold it sideways: drag on the left to walk, on the right to look, and use the buttons; MENU and NOTES are at the top.
 			Your progress is saved in this browser. Prefer the full version with all the lighting effects?
 			Get <a href="https://godotengine.org/download/" target="_blank" rel="noopener">Godot 4.7</a> and the
 			<a href="https://github.com/dragonhyeon12-eng/Game/archive/refs/heads/claude/dream-protocol-dev-eom8wy.zip" target="_blank" rel="noopener">project files</a>,
@@ -233,7 +234,7 @@ kbd {
 		canvasResizePolicy: 2,
 		executable: 'index',
 		experimentalVK: false,
-		fileSizes: { 'index.pck': 6925368, 'index.wasm': 39513091 },
+		fileSizes: { 'index.pck': 6932844, 'index.wasm': 39513091 },
 		focusCanvas: true,
 		gdextensionLibs: [],
 		ensureCrossOriginIsolationHeaders: false,
@@ -258,7 +259,16 @@ kbd {
 	}
 
 	let engine = null;
+	const touch = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
 	play.addEventListener('click', function () {
+		if (touch) {
+			// phones: the whole screen, sideways (both optional: some browsers refuse)
+			const el = document.documentElement;
+			const fs = el.requestFullscreen ? el.requestFullscreen() : null;
+			Promise.resolve(fs).then(function () {
+				if (screen.orientation && screen.orientation.lock) return screen.orientation.lock('landscape');
+			}).catch(function () {});
+		}
 		play.disabled = true;
 		play.textContent = 'Loading';
 		status.classList.remove('error');

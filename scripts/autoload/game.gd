@@ -47,6 +47,7 @@ func boot(main_node: Node3D) -> void:
 	player.dread.overwhelmed.connect(_on_overwhelmed)
 	hud = HUD.new()
 	main.add_child(hud)
+	main.add_child(TouchControls.new())
 	show_title()
 
 

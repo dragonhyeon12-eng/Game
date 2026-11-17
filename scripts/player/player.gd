@@ -208,11 +208,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if controls_locked:
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		var s := 0.0022 * Settings.mouse_sensitivity
-		rotate_y(-event.relative.x * s)
-		_pitch = clampf(_pitch - event.relative.y * s * (-1.0 if Settings.invert_y else 1.0), deg_to_rad(-88), deg_to_rad(88))
-		head.rotation.x = _pitch
-		hands.add_sway(event.relative)
+		look(event.relative)
 	elif event.is_action_pressed("interact"):
 		_interact()
 	elif event.is_action_pressed("use_item"):
@@ -235,6 +231,17 @@ func _unhandled_input(event: InputEvent) -> void:
 			wake_hold = 0.0
 	elif event.is_action_released("wake"):
 		wake_hold = -1.0
+
+
+## Turn the view by a mouse-style movement in pixels (mouse, or a drag on the touch screen).
+func look(relative: Vector2) -> void:
+	if controls_locked:
+		return
+	var s := 0.0022 * Settings.mouse_sensitivity
+	rotate_y(-relative.x * s)
+	_pitch = clampf(_pitch - relative.y * s * (-1.0 if Settings.invert_y else 1.0), deg_to_rad(-88), deg_to_rad(88))
+	head.rotation.x = _pitch
+	hands.add_sway(relative)
 
 
 func _interact() -> void:
