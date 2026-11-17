@@ -174,6 +174,8 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 			zone = DeepZone.new()
 		"seabed":
 			zone = SeabedZone.new()
+		"abyss":
+			zone = AbyssZone.new()
 		"compression":
 			zone = CompressionZone.new()
 		"above":
@@ -202,6 +204,9 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 		"maze": Sfx.play_music("maze", 6.0)
 		"deep": Sfx.play_music("deep", 8.0)
 		"seabed": Sfx.play_music("deep", 4.0)
+		"abyss":
+			Sfx.play_music("deep", 4.0)
+			Sfx.music_gain = 0.8
 		"compression": Sfx.stop_music(2.0)   # nothing but the building
 		"above":
 			Sfx.play_music("deep", 6.0)
@@ -495,6 +500,25 @@ func on_maze_exit() -> void:
 
 # ------------------------------------------------------------------ THE DEEP exit (end of the current build)
 
+## Through the glowing doorway in the sea cave: deeper.
+func enter_abyss() -> void:
+	if in_sequence:
+		return
+	in_sequence = true
+	var t := _seq
+	set_mode("cinematic")
+	set_flag("deep_doorway")
+	Sfx.play("whoosh", 0.0, 0.5)
+	Sfx.stinger("riser", -4.0)
+	hud.fade_to(1.0, 1.0, Color(0.85, 0.95, 1.0))
+	if not await _wait(1.6, t): return
+	enter_zone("abyss")
+	save_checkpoint()
+	hud.fade_to(0.0, 2.5)
+	in_sequence = false
+	set_mode("game")
+
+
 func on_deep_exit() -> void:
 	_realm_transition("deep_escaped", "compression", "COMPRESSION", "")
 
@@ -563,7 +587,7 @@ func _on_overwhelmed() -> void:
 	if in_sequence or zone == null or not zone.is_nightmare():
 		return
 	# in the sea, it comes from below
-	if zone_type == "seabed" or (zone_type == "deep" and player.global_position.y < DeepZone.OCEAN_TOP):
+	if zone_type == "seabed" or zone_type == "abyss" or (zone_type == "deep" and player.global_position.y < DeepZone.OCEAN_TOP):
 		ankle_grab(true)
 	else:
 		_death_sequence("fade")
@@ -600,25 +624,7 @@ func ankle_grab(death: bool) -> void:
 
 ## The leviathan comes out of the dark. (Straying from the path on the seabed.)
 func leviathan_kill(lev: Leviathan) -> void:
-	if in_sequence:
-		return
-	in_sequence = true
-	var t := _seq
-	set_mode("cinematic")
-	hud.clear_text()
-	var cam := player.camera.global_position
-	var fwd := -player.camera.global_transform.basis.z
-	lev.place_head(cam + fwd * 45.0 + Vector3(0, 3, 0), -fwd)
-	lev.rush(cam, 34.0)
-	Sfx.play("thud", 4.0, 0.4)
-	for i in 30:
-		if not await _wait(0.05, t): return
-		if lev.head_position().distance_to(cam) < 6.0:
-			break
-	player.jolt(Vector3(-10, 6, -6))
-	hud.set_fade(1.0)
-	Sfx.play("thud", 6.0, 0.5)
-	_death_sequence("wake")
+	entity_death("leviathan", lev)
 
 
 ## Turn the player's view toward a point over `seconds` (cutscenes).
@@ -661,6 +667,38 @@ func entity_death(kind: String, who: Node3D = null) -> void:
 			Sfx.play("thud", 6.0, 0.6)
 			hud.set_fade(1.0, Color(0.05, 0.0, 0.0))
 			if not await _wait(0.8, t): return
+		"leviathan":
+			# it comes out of the dark, mouth already open. you see all of it. then the inside of it.
+			var lev := who as Leviathan
+			var cam := player.camera.global_position
+			var fwd := -player.camera.global_transform.basis.z
+			if lev.head_position().distance_to(cam) > 30.0:
+				lev.place_head(cam + fwd * 30.0 + Vector3(0, 4, 0), -fwd)
+			look_toward(lev.head_position(), 0.5)
+			lev.rush(cam, 3.0)
+			Sfx.stinger("screech", 4.0)
+			Sfx.play("whoosh", 2.0, 0.4)
+			player.jolt(Vector3(-4, 2, 0))
+			hud.set_post(0.6, 0.3, 1.0, 1.0)
+			if not await _wait(0.9, t): return
+			# a heartbeat of stillness, staring into it
+			Sfx.play("heartbeat", 2.0)
+			for i in 12:
+				look_toward(lev.head_position(), 0.08)
+				if not await _wait(0.08, t): return
+			lev.rush(cam, 30.0)
+			for i in 30:
+				if not await _wait(0.03, t): return
+				if lev.head_position().distance_to(cam) < 3.5:
+					break
+			Sfx.play("hit", 6.0, 0.5)
+			Sfx.play("thud", 6.0, 0.4)
+			player.jolt(Vector3(-14, 10, -12))
+			hud.set_fade(1.0, Color(0.08, 0.0, 0.0))
+			if not await _wait(0.5, t): return
+			Sfx.play("bubbles", 0.0, 0.6)
+			Sfx.play("sub_drop", 0.0)
+			if not await _wait(1.2, t): return
 		_:
 			hud.fade_to(1.0, 0.3)
 			if not await _wait(0.4, t): return

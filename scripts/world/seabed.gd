@@ -4,8 +4,9 @@ extends Zone
 ##
 ## Pitch dark. You walk slowly. A light can be pictured into your hand (hold Q) - only a light.
 ## There is a path, but you can't see it: only glowing rocks mark it, here and there. Off the path,
-## the leviathan that circles overhead comes for you. At the end, a sea cave in a cliff: it charges,
-## but it cannot fit through the opening. At the back of the cave is a glowing doorway: the way out.
+## the sea floor itself takes you: hands, from below. Something enormous circles far overhead and
+## never comes down - not here. At the end, a sea cave in a cliff, and at its back a glowing doorway
+## that leads deeper still (AbyssZone).
 
 const PATH := [
 	Vector3(0, 0, 0), Vector3(4, 0, -14), Vector3(-3, 0, -28), Vector3(-11, 0, -40), Vector3(-7, 0, -55),
@@ -132,7 +133,7 @@ func build() -> void:
 	part("box", door + Vector3(0, 2.33, 0), Vector3(1.44, 0.14, 0.2), Color(0.8, 0.95, 1.0), null, Vector3.ZERO, 6.0)
 	part("box", door + Vector3(0, 1.15, -0.05), Vector3(1.16, 2.3, 0.04), Color(0.9, 0.97, 1.0), null, Vector3.ZERO, 3.0)
 	omni(door + Vector3(0, 1.3, 1.2), Color(0.75, 0.9, 1.0), 3.0, 18.0, true)
-	interactable(door + Vector3(0, 1.15, 0.2), Vector3(1.4, 2.3, 0.4), func(): return "Step through", func(): Game.on_deep_exit())
+	interactable(door + Vector3(0, 1.15, 0.2), Vector3(1.4, 2.3, 0.4), func(): return "Step through", func(): Game.enter_abyss())
 
 	# light from nowhere, very little of it
 	var env := make_env(Color(0.04, 0.09, 0.12), 0.07)
@@ -197,33 +198,30 @@ func _process(delta: float) -> void:
 				_warned = true
 				Game.hud.show_thought("Back. Back to the lights.", 3.0)
 			if _off_path_t > GRACE or off > KILL_DISTANCE:
-				Game.leviathan_kill(leviathan)
+				Game.ankle_grab(true)
 				return
 		else:
 			_off_path_t = maxf(0.0, _off_path_t - delta * 2.0)
 			_warned = _off_path_t > 0.0
 
-	# the cave
+	# the cave: something passes overhead, close enough to feel - and doesn't come down. Not yet.
 	if not _chase and p.z < CHASE_START_Z:
 		_chase = true
 		Game.set_flag("seabed_cliff")
-		leviathan.place_head(p + Vector3(0, 6, 70), Vector3(0, 0, -1))
-		leviathan.rush(p, 6.5)
+		leviathan.place_head(p + Vector3(-60, 14, -10), Vector3(1, 0, 0.1))
+		leviathan.rush(p + Vector3(70, 12, -6), 11.0)
 		Sfx.play("whoosh", 0.0, 0.4)
-		Game.hud.show_thought("Something is coming. GET INSIDE.", 3.5)
+		Sfx.stinger("sub_drop", -2.0)
+		pl.jolt(Vector3(-2, 1, 1))
+		pl.dread.add_fear(10.0, "overhead")
+		Game.hud.show_thought("Something huge just went over me. ...Get inside. Get inside the cave.", 4.0)
 	if _chase and not _safe:
-		leviathan.rush_target = p + Vector3(0, 1.0, 0)
+		if leviathan.arrived:
+			leviathan.return_to_orbit(9.0)
 		if p.z < CLIFF_Z - 4.5:
-			# inside. it hits the opening and cannot follow
 			_safe = true
 			Game.set_flag("seabed_cave")
-			# its snout ends right at the opening: far too big to follow
-			leviathan.block_at(MOUTH + Vector3(0, MOUTH_H * 0.6, 3.0 + leviathan.thickness * 4.0))
-			Sfx.play("thud", 6.0, 0.35)
-			pl.jolt(Vector3(-4, 3, 2))
-			Game.hud.show_thought("It doesn't fit. It doesn't fit.", 3.0)
-		elif leviathan.head_position().distance_to(pl.camera.global_position) < 4.0:
-			Game.leviathan_kill(leviathan)
+			Game.hud.show_thought("A doorway. Glowing. Down here.", 3.0)
 
 
 func _hints() -> void:

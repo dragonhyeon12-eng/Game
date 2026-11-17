@@ -121,7 +121,7 @@
 			"after": "seabed_cliff"
 		},
 		{
-			"flag": "deep_escaped",
+			"flag": "deep_doorway",
 			"text": "Step through the glowing doorway",
 			"after": "seabed_cave"
 		}
@@ -176,6 +176,42 @@
 			"flag": "_outside",
 			"text": "Go outside",
 			"after": "city_realitycheck"
+		}
+	],
+	"abyss": [
+		{
+			"flag": "abyss_valves",
+			"text": "Open the flooded bulkhead: turn the valve wheels ({valves}/2)"
+		},
+		{
+			"flag": "abyss_room1",
+			"text": "Find the door that leads somewhere",
+			"after": "abyss_valves"
+		},
+		{
+			"flag": "abyss_room2",
+			"text": "A room with no doors. Find a way through",
+			"after": "abyss_room1"
+		},
+		{
+			"flag": "abyss_room3",
+			"text": "There's a door here - but only when you're not looking at it",
+			"after": "abyss_room2"
+		},
+		{
+			"flag": "abyss_beacons",
+			"text": "Light the four beacons across the trenches ({beacons}/4)",
+			"after": "abyss_cross"
+		},
+		{
+			"flag": "abyss_station",
+			"text": "Cross the bridge of light to the station",
+			"after": "abyss_beacons"
+		},
+		{
+			"flag": "deep_escaped",
+			"text": "Get out the far side. The glowing door in the cliff. RUN.",
+			"after": "abyss_station"
 		}
 	]
 }

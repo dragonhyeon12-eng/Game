@@ -373,6 +373,107 @@ func scare(sound: String, fear := 8.0, volume_db := 0.0, jolt := Vector3.ZERO) -
 			Game.player.jolt(jolt)
 
 
+## A level painted as text: rows of characters, '#' = solid, anything else = open floor with the
+## ceiling height given for that character. `origin` is the outer corner of cell (0, 0). Walls are
+## only built where they touch open space, merged into runs; floors and ceilings are merged too.
+func build_grid(rows: Array, origin: Vector3, cell: float, ceilings: Dictionary, wall_h: float,
+		wall_col: Color, floor_col: Color, ceil_col: Color, wall_surf := "concrete", floor_surf := "concrete") -> void:
+	var h := rows.size()
+	var at := func(c: int, r: int) -> String:
+		if r < 0 or r >= h or c < 0 or c >= (rows[r] as String).length():
+			return "#"
+		return (rows[r] as String)[c]
+	for r in h:
+		var row: String = rows[r]
+		var c := 0
+		while c < row.length():
+			var ch: String = row[c]
+			var c1 := c
+			while c1 + 1 < row.length() and row[c1 + 1] == ch:
+				c1 += 1
+			var x0 := origin.x + c * cell
+			var x1 := origin.x + (c1 + 1) * cell
+			var zc := origin.z + (r + 0.5) * cell
+			if ch == "#":
+				# only the wall cells that face open space
+				var k := c
+				while k <= c1:
+					var touches := false
+					for dr in [-1, 0, 1]:
+						for dc in [-1, 0, 1]:
+							if at.call(k + dc, r + dr) != "#":
+								touches = true
+					if touches:
+						var k1 := k
+						while k1 + 1 <= c1:
+							var t2 := false
+							for dr in [-1, 0, 1]:
+								for dc in [-1, 0, 1]:
+									if at.call(k1 + 1 + dc, r + dr) != "#":
+										t2 = true
+							if not t2:
+								break
+							k1 += 1
+						box(Vector3(origin.x + (k + k1 + 1) * 0.5 * cell, origin.y + wall_h * 0.5, zc), Vector3((k1 - k + 1) * cell, wall_h, cell), wall_col, true, 0.0, wall_surf)
+						k = k1 + 1
+					else:
+						k += 1
+			else:
+				var ceil_h: float = ceilings.get(ch, wall_h)
+				box(Vector3((x0 + x1) * 0.5, origin.y - 0.1, zc), Vector3(x1 - x0, 0.2, cell), floor_col, true, 0.0, floor_surf)
+				box(Vector3((x0 + x1) * 0.5, origin.y + (ceil_h + wall_h) * 0.5 + 0.1, zc), Vector3(x1 - x0, wall_h - ceil_h + 0.2, cell), ceil_col, true, 0.0, wall_surf)
+			c = c1 + 1
+
+
+## Slowly drifting particles in the water around the camera ("marine snow").
+func marine_snow(amount := 600, color := Color(0.7, 0.85, 0.9, 0.5)) -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.amount = amount
+	p.lifetime = 12.0
+	p.preprocess = 12.0
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	p.emission_box_extents = Vector3(14, 8, 14)
+	p.direction = Vector3(0.2, -1, 0.1)
+	p.spread = 30.0
+	p.initial_velocity_min = 0.03
+	p.initial_velocity_max = 0.12
+	p.gravity = Vector3(0, -0.01, 0)
+	p.scale_amount_min = 0.015
+	p.scale_amount_max = 0.04
+	var q := QuadMesh.new()
+	q.size = Vector2.ONE
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	m.billboard_keep_scale = true
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = color
+	m.albedo_texture = _soft_dot()
+	m.disable_receive_shadows = true
+	q.material = m
+	p.mesh = q
+	p.local_coords = false
+	add_child(p)
+	return p
+
+
+static var _dot: GradientTexture2D
+
+static func _soft_dot() -> Texture2D:
+	if _dot == null:
+		_dot = GradientTexture2D.new()
+		_dot.fill = GradientTexture2D.FILL_RADIAL
+		_dot.fill_from = Vector2(0.5, 0.5)
+		_dot.fill_to = Vector2(1.0, 0.5)
+		_dot.width = 32
+		_dot.height = 32
+		var g := Gradient.new()
+		g.set_color(0, Color(1, 1, 1, 1))
+		g.set_color(1, Color(1, 1, 1, 0))
+		_dot.gradient = g
+	return _dot
+
+
 func blocker(center: Vector3, size: Vector3) -> void:
 	var cs := CollisionShape3D.new()
 	var b := BoxShape3D.new()

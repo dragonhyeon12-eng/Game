@@ -209,6 +209,20 @@ func _run() -> void:
 			_zone("maze")
 			var z: MazeZone = Game.zone
 			_look(z._wing_xf * Vector3(18.5, 1.62, 0.8), z._wing_xf * Vector3(22, 1.4, 0)),
+		"abyss_maze": func():
+			_zone("abyss")
+			_look(Vector3(-1, 1.5, -9), Vector3(-3, 1.2, -14)),
+		"abyss_rooms": func():
+			_zone("abyss")
+			_look(Vector3(0, 1.6, -37), Vector3(0, 1.2, -44)),
+		"abyss_cross": func():
+			_zone("abyss")
+			for id in ["S", "N", "E", "W"]:
+				Game.zone._light_beacon(id)
+			_look(Vector3(0, 2.5, -74), Vector3(0, -1, -110)),
+		"abyss_station": func():
+			_zone("abyss")
+			_look(Vector3(0, 2.0, -126), Vector3(0, 1.5, -150)),
 		"comp_sheets": func():
 			_zone("compression")
 			_look(Vector3(-9.2, 1.6, -12.4), Vector3(-9.6, 1.2, -4)),
