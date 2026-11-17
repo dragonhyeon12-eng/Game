@@ -482,7 +482,7 @@ func _open_exit() -> void:
 
 func _corridor() -> void:
 	var wall := Color(0.5, 0.48, 0.42)
-	var n := int((CORR_X1 - CORR_X0) / 2.0)
+	var n := ceili((CORR_X1 - CORR_X0) / 2.0)    # (rounding down left a hole in the floor at the end)
 	for i in n:
 		var x := CORR_X0 + 1.0 + i * 2.0
 		box(Vector3(x, -0.1, CORR_Z), Vector3(2.0, 0.2, 2.4), Color(0.4, 0.3, 0.22), true, 0.0, "wood")

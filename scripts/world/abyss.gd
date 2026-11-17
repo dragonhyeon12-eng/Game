@@ -419,6 +419,7 @@ func _exit() -> void:
 	var door_p := Vector3(0, 0, EXIT_Z - 0.2)
 	_doorway(door_p, true)
 	part("box", door_p + Vector3(0, 1.15, -0.3), Vector3(1.16, 2.3, 0.04), Color(0.9, 0.97, 1.0), null, Vector3.ZERO, 3.0)
+	box(door_p + Vector3(0, 1.15, -1.2), Vector3(2.0, 2.4, 1.8), Color(0.08, 0.09, 0.1), true, 0.0, "concrete")   # rock behind the light
 	omni(door_p + Vector3(0, 1.3, 2.0), Color(0.75, 0.9, 1.0), 3.0, 30.0, false)
 	interactable(door_p + Vector3(0, 1.15, 0.2), Vector3(1.4, 2.3, 0.4), func(): return "Step through", func(): _escape())
 

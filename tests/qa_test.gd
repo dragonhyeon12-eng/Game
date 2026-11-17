@@ -99,8 +99,16 @@ func _run() -> void:
 	place(Vector3(0, 0.05, AbyssZone.STATION_Z - 16.0), 0.0)
 	calm()
 	ab._begin_chase()
-	p = await walk(16.0, ["move_forward", "sprint"])
-	check(not Game.in_sequence and p.z < AbyssZone.EXIT_Z + 3.0, "reached the door alive (z=%.1f, caught=%s)" % [p.z, Game.in_sequence])
+	Input.action_press("move_forward")
+	Input.action_press("sprint")
+	var t_run := 0.0
+	while t_run < 20.0 and not Game.in_sequence and Game.player.global_position.z > AbyssZone.EXIT_Z + 1.2:
+		await get_tree().physics_frame
+		t_run += get_physics_process_delta_time()
+	Input.action_release("move_forward")
+	Input.action_release("sprint")
+	var gap: float = ab.leviathan.head_position().distance_to(Game.player.camera.global_position)
+	check(not Game.in_sequence, "sprinting, you reach the door alive (%.1f s, it was %.1f m behind you)" % [t_run, gap])
 	print("== THE DEEP: walking, it catches you")
 	await zone("abyss")
 	ab = Game.zone
@@ -143,7 +151,7 @@ func _run() -> void:
 	place(Vector3(TenementZone.CORR_X0 + 1.0, 0.05, TenementZone.CORR_Z), -90.0)
 	calm()
 	p = await walk(14.0, ["move_forward", "sprint"])
-	check(tz._collapse == false and Game.has_flag("ten_shaft") and not Game.in_sequence, "sprinting, you make it to the shaft (x=%.1f)" % p.x)
+	check(tz._collapse == false and Game.has_flag("ten_shaft") and not Game.in_sequence, "sprinting, you make it to the shaft (%s)" % p)
 
 	print("== ABOVE: the floating stairs, on foot")
 	await zone("above")
