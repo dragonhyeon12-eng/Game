@@ -316,7 +316,10 @@ func start_new_game() -> void:
 	if not await _wait(2.0, t): return
 	hud.show_thought("Almost three in the morning. The video's still open.", 4.5)
 	if not await _wait(4.0, t): return
-	hud.show_hint("Mouse: look     WASD: move     Shift: run     E: interact\nEsc / P: pause", 9.0)
+	if TouchControls.wanted():
+		hud.show_hint("Left side: drag to move     Right side: drag to look\nUSE to interact     MENU to pause", 9.0)
+	else:
+		hud.show_hint("Mouse: look     WASD: move     Shift: run     E: interact\nEsc / P: pause", 9.0)
 
 
 func continue_game() -> void:

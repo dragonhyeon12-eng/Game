@@ -8,7 +8,8 @@ GODOT=$1; OUT=$2
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 mkdir -p "$OUT/raw"
 "$GODOT" --headless --path "$ROOT" --export-release "Web" "$OUT/raw/index.html"
-cp "$ROOT/tools/web/play.html" "$OUT/"
+PCK=$(stat -c %s "$OUT/raw/index.pck")
+sed "s/PCK_SIZE/$PCK/" "$ROOT/tools/web/play.html" > "$OUT/play.html"
 cp "$OUT/raw/index.js" "$OUT/raw/index.audio.worklet.js" "$OUT/raw/index.audio.position.worklet.js" "$OUT/"
 gzip -9 -c "$OUT/raw/index.wasm" > "$OUT/engine.wasm"     # gzip bytes; play.html decompresses them
 # the host only serves known file types, with a size limit per file: the game data goes up in 3 parts

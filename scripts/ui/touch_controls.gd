@@ -24,6 +24,8 @@ var _stick_vec := Vector2.ZERO
 var _stick_index := -1
 var _run_on := false
 var _was_active := false
+var _last_touch_ms := -100000
+const SPLIT := 0.45             # left of this fraction of the screen: the move stick; right: look
 
 
 func _init() -> void:
@@ -107,6 +109,15 @@ func _process(_delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	if not _active():
 		return
+	# Phone browsers also report every finger as a mouse: a drag on the move stick would turn the view
+	# too, and a tap would "click". While fingers are down (and just after), only touches count.
+	if event is InputEventMouse:
+		if not _touch.is_empty() or Time.get_ticks_msec() - _last_touch_ms < 600 or event.device == InputEvent.DEVICE_ID_EMULATION:
+			if Game.mode in ["game", "cinematic"]:
+				get_viewport().set_input_as_handled()
+		return
+	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		_last_touch_ms = Time.get_ticks_msec()
 	if event is InputEventScreenTouch:
 		if event.pressed:
 			_touch_down(event.index, event.position)
@@ -133,7 +144,7 @@ func _touch_down(index: int, pos: Vector2) -> void:
 			return
 	if Game.mode != "game":
 		return          # menus and dialogue choices take the tap as a click
-	if pos.x < _pad.size.x * 0.4 and _stick_index < 0:
+	if pos.x < get_viewport().get_visible_rect().size.x * SPLIT and _stick_index < 0:
 		_stick_index = index
 		_stick_origin = pos
 		_stick_vec = Vector2.ZERO
@@ -221,6 +232,11 @@ func _draw_pad() -> void:
 		var hint := Vector2(200, _pad.size.y - 190)
 		_pad.draw_arc(hint, STICK_RADIUS, 0, TAU, 48, Color(1, 1, 1, 0.1), 2.0, true)
 		_pad.draw_string(font, hint + Vector2(-40, 6), "MOVE", HORIZONTAL_ALIGNMENT_CENTER, 80, 18, Color(1, 1, 1, 0.25))
+		# where moving ends and looking begins
+		var sx := _pad.size.x * SPLIT
+		for y in range(int(_pad.size.y * 0.2), int(_pad.size.y * 0.95), 26):
+			_pad.draw_line(Vector2(sx, y), Vector2(sx, y + 12), Color(1, 1, 1, 0.07), 2.0)
+		_pad.draw_string(font, Vector2(sx + 30, _pad.size.y * 0.5), "LOOK", HORIZONTAL_ALIGNMENT_LEFT, 80, 18, Color(1, 1, 1, 0.18))
 	for b in _buttons:
 		if not _shown(b):
 			continue
