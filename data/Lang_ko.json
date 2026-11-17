@@ -479,7 +479,13 @@
 		"\"The man in the corner doesn't talk. He just faces the wall when you look.\"": "\"구석에 있는 아저씨는 말을 안 해. 쳐다보면 벽만 보고 있어.\"",
 		"Main supply": "주 전원",
 		"Throw the main supply": "주 전원 올리기",
-		"Ice cream": "아이스크림"
+		"Ice cream": "아이스크림",
+		"OBJECTIVES": "목표",
+		"DREAM PROTOCOL": "DREAM PROTOCOL",
+		"HOW TO LUCID DREAM TONIGHT!\n(100% WORKING)": "오늘 밤 자각몽 꾸는 법!\n(100% 효과)",
+		"LucidLarry  -  2.1M views": "LucidLarry  -  조회수 210만회",
+		"LucidLarry   -   2.1M views  -  4 years ago": "LucidLarry   -   조회수 210만회  -  4년 전",
+		"NO SIGNAL": "신호 없음"
 	},
 	"patterns": [
 		[
@@ -521,6 +527,30 @@
 		[
 			"Picturing: %s  (hold PICTURE)",
 			"상상 중: %s  (상상 버튼 길게 누르기)"
+		],
+		[
+			"[x]  %s",
+			"[x]  %s"
+		],
+		[
+			"[  ]  %s",
+			"[  ]  %s"
+		],
+		[
+			"[E]  %s",
+			"[E]  %s"
+		],
+		[
+			"USE:  %s",
+			"사용:  %s"
+		],
+		[
+			"%d.  %s",
+			"%d.  %s"
+		],
+		[
+			"%d. %s",
+			"%d. %s"
 		]
 	]
 }

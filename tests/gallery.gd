@@ -337,6 +337,10 @@ func _run() -> void:
 			_zone("above")
 			Game.set_mode("game")
 			_look(Vector3(0, 1.6, 1.5), Vector3(0, 1.0, -3)),
+		"settings": func():
+			_zone("bedroom")
+			Game.set_mode("menu")
+			Game.hud._settings(func(): pass),
 		"hands": func():
 			_zone("bedroom")
 			Game.set_mode("game")

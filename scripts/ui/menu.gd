@@ -86,7 +86,7 @@ func set_timeout(seconds: float, callback: Callable) -> void:
 
 func _label_for(it: Dictionary) -> String:
 	if it.has("value"):
-		return "%s     <  %s  >" % [it.label, it.value.call()]
+		return "%s     <  %s  >" % [tr(it.label), tr(str(it.value.call()))]
 	return it.label
 
 
