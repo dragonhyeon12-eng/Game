@@ -143,7 +143,7 @@
 		},
 		{
 			"flag": "comp_elevator",
-			"text": "Take the freight elevator",
+			"text": "Take the freight elevator up",
 			"after": "comp_power"
 		}
 	],
@@ -212,6 +212,37 @@
 			"flag": "deep_escaped",
 			"text": "Get out the far side. The glowing door in the cliff. RUN.",
 			"after": "abyss_station"
+		}
+	],
+	"tenement": [
+		{
+			"flag": "ten_apartment",
+			"text": "Apartment 3B is standing open"
+		},
+		{
+			"flag": "ten_vent",
+			"text": "Find a way through the apartment",
+			"after": "ten_apartment"
+		},
+		{
+			"flag": "ten_stairs",
+			"text": "Squeeze through the vent",
+			"after": "ten_vent"
+		},
+		{
+			"flag": "ten_floor7",
+			"text": "Get to floor 7 (now: {floor})",
+			"after": "ten_stairs"
+		},
+		{
+			"flag": "ten_shaft",
+			"text": "RUN",
+			"after": "ten_collapse"
+		},
+		{
+			"flag": "comp_escaped",
+			"text": "Climb the shaft to the door at the top",
+			"after": "ten_shaft"
 		}
 	]
 }

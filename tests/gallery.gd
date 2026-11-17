@@ -223,6 +223,38 @@ func _run() -> void:
 		"abyss_station": func():
 			_zone("abyss")
 			_look(Vector3(0, 2.0, -126), Vector3(0, 1.5, -150)),
+		"ten_hall": func():
+			_zone("tenement")
+			_look(Vector3(0, 1.6, -1.0), Vector3(-0.4, 1.3, -12)),
+		"ten_living": func():
+			_zone("tenement")
+			_look(Vector3(-2.0, 1.6, -7.0), Vector3(-7, 0.9, -11)),
+		"ten_yellow": func():
+			_zone("tenement")
+			_look(Vector3(-9.6, 1.6, -9.0), Vector3(-30, 1.2, -9.0)),
+		"ten_duct": func():
+			_zone("tenement")
+			_look(Vector3(-41.0, 0.9, -9.0), Vector3(-53, 0.6, -9.0)),
+		"ten_stairs": func():
+			_zone("tenement")
+			var O := TenementZone.O
+			_look(O + Vector3(1.4, 1.6, -0.4), O + Vector3(-1.0, 1.4, -5.5)),
+		"ten_stairs_up": func():
+			_zone("tenement")
+			var O := TenementZone.O
+			_look(O + Vector3(0.6, 1.6, -0.5), O + Vector3(1.0, 2.5, -4.0)),
+		"ten_corridor": func():
+			_zone("tenement")
+			_look(Vector3(-49.0, 1.6, -24.8), Vector3(-10, 1.6, -24.8)),
+		"ten_collapse": func():
+			_zone("tenement")
+			var z: TenementZone = Game.zone
+			Game.player.teleport(Transform3D(Basis(), Vector3(-30, 0.05, -24.8)))
+			z._begin_collapse()
+			z._front = -36.0
+			z._update_collapse(0.016)
+			z._collapse = false
+			_look(Vector3(-30, 1.6, -24.8), Vector3(-40, 1.0, -24.8)),
 		"comp_sheets": func():
 			_zone("compression")
 			_look(Vector3(-9.2, 1.6, -12.4), Vector3(-9.6, 1.2, -4)),

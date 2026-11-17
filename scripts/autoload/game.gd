@@ -178,6 +178,8 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 			zone = AbyssZone.new()
 		"compression":
 			zone = CompressionZone.new()
+		"tenement":
+			zone = TenementZone.new()
 		"above":
 			zone = AboveZone.new()
 		_:
@@ -207,7 +209,7 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 		"abyss":
 			Sfx.play_music("deep", 4.0)
 			Sfx.music_gain = 0.8
-		"compression": Sfx.stop_music(2.0)   # nothing but the building
+		"compression", "tenement": Sfx.stop_music(2.0)   # nothing but the building
 		"above":
 			Sfx.play_music("deep", 6.0)
 			Sfx.music_gain = 0.6
@@ -519,6 +521,22 @@ func enter_abyss() -> void:
 	set_mode("game")
 
 
+## The freight elevator stops. Somewhere much higher than it should.
+func enter_tenement() -> void:
+	in_sequence = true
+	var t := _seq
+	set_mode("cinematic")
+	hud.fade_to(1.0, 0.6)
+	if not await _wait(0.8, t): return
+	Sfx.play("ding", -4.0, 0.8)
+	enter_zone("tenement")
+	save_checkpoint()
+	if not await _wait(0.6, t): return
+	hud.fade_to(0.0, 2.0)
+	in_sequence = false
+	set_mode("game")
+
+
 func on_deep_exit() -> void:
 	_realm_transition("deep_escaped", "compression", "COMPRESSION", "")
 
@@ -667,6 +685,23 @@ func entity_death(kind: String, who: Node3D = null) -> void:
 			Sfx.play("thud", 6.0, 0.6)
 			hud.set_fade(1.0, Color(0.05, 0.0, 0.0))
 			if not await _wait(0.8, t): return
+		"crush":
+			# the corridor folds shut on you: ceiling, walls, the light going out of the gap
+			Sfx.play("grind", 6.0, 0.4)
+			Sfx.play("metal_screech", 2.0, 0.5)
+			Sfx.stinger("braam", 2.0)
+			for i in 10:
+				player.jolt(Vector3(randf_range(-6, -2), randf_range(-3, 3), randf_range(-4, 4)))
+				hud.set_post(0.4 + i * 0.07, 0.3 + i * 0.05, 1.0, 1.0 + i * 0.2)
+				if i == 4:
+					Sfx.play("creak", 4.0, 0.4)
+				if not await _wait(0.07, t): return
+			player.camera.fov = maxf(player.camera.fov - 18.0, 40.0)
+			Sfx.play("hit", 6.0, 0.4)
+			Sfx.play("thud", 6.0, 0.35)
+			player.jolt(Vector3(-16, 0, 14))
+			hud.set_fade(1.0, Color(0.03, 0.02, 0.0))
+			if not await _wait(1.4, t): return
 		"leviathan":
 			# it comes out of the dark, mouth already open. you see all of it. then the inside of it.
 			var lev := who as Leviathan

@@ -372,7 +372,7 @@ func _ride() -> void:
 		await get_tree().create_timer(0.5, false).timeout
 		if t != Game._seq: return
 	_grind.volume_db = -80.0
-	Game.on_compression_exit()
+	Game.enter_tenement()
 
 
 # ------------------------------------------------------------------ THE PRESS
