@@ -162,13 +162,11 @@ kbd {
 	<main class="panel">
 		<div class="time">3:12 AM</div>
 		<h1>DREAM PROTOCOL</h1>
-		<p class="lede">A first-person lucid dream that slowly stops being yours: a summer city, a yellow maze,
-			a pool with no bottom, a basement that gets smaller, a roof above the clouds.
-			<strong>It runs right here in this tab</strong>, with the Godot engine built in. Nothing to install.</p>
+		<p class="lede">A first-person lucid dream that slowly stops being yours, across five realms: a summer city, the yellow rooms, a sea with no bottom, a building that doesn't fit inside itself, rooftops above the clouds. <strong>It runs right here in this tab</strong>, with the Godot engine built in. Nothing to install.</p>
 		<div class="start">
 			<button id="play" type="button">Enter the dream</button>
 			<div class="meter" aria-hidden="true"><span id="bar"></span></div>
-			<div class="status" id="status" role="status">About 17 MB to load the first time.</div>
+			<div class="status" id="status" role="status">About 46 MB to load the first time.</div>
 		</div>
 		<div class="controls" aria-label="Controls">
 			<div class="ctl"><kbd>W A S D</kbd> move, <kbd>mouse</kbd> look</div>
@@ -197,11 +195,35 @@ kbd {
 (function () {
 	const realFetch = window.fetch.bind(window);
 	const files = { 'index.wasm': ['engine.wasm', 'application/wasm'], 'index.pck': ['data.wasm', 'application/octet-stream'] };
+	// the game data is published in parts (data0.wasm, data1.wasm, ...): each file has a size limit
+	const DATA_PARTS = 3;
 	window.fetch = async function (input, init) {
 		const url = typeof input === 'string' ? input : (input && input.url) || '';
 		const name = url.split('?')[0].split('/').pop();
 		if (!files[name]) {
 			return realFetch(input, init);
+		}
+		if (name === 'index.pck' && DATA_PARTS > 1) {
+			let part = 0;
+			let reader = null;
+			const joined = new ReadableStream({
+				async pull(controller) {
+					while (true) {
+						if (reader === null) {
+							if (part >= DATA_PARTS) { controller.close(); return; }
+							const r = await realFetch('data' + part + '.wasm', init);
+							if (!r.ok) { controller.error(new Error('data part ' + part + ': ' + r.status)); return; }
+							reader = r.body.getReader();
+							part++;
+						}
+						const { done, value } = await reader.read();
+						if (done) { reader = null; continue; }
+						controller.enqueue(value);
+						return;
+					}
+				},
+			});
+			return new Response(joined, { status: 200, headers: { 'Content-Type': files[name][1] } });
 		}
 		const res = await realFetch(files[name][0], init);
 		if (!res.ok) {
@@ -234,7 +256,7 @@ kbd {
 		canvasResizePolicy: 2,
 		executable: 'index',
 		experimentalVK: false,
-		fileSizes: { 'index.pck': 7452360, 'index.wasm': 39513091 },
+		fileSizes: { 'index.pck': 36402364, 'index.wasm': 39513091 },
 		focusCanvas: true,
 		gdextensionLibs: [],
 		ensureCrossOriginIsolationHeaders: false,
