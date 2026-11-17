@@ -30,8 +30,8 @@ var show_objectives := true
 var deaths_seen := 0
 ## On-screen touch controls: 0 = automatic (when there is a touch screen), 1 = always, 2 = never.
 var touch_controls := 0.0
-## 0 = English, 1 = 한국어 (see Loc).
-var language := 0.0
+## 0 = English, 1 = 한국어 (see Loc). Until it's chosen, it follows the system / browser language.
+var language := 1.0 if OS.get_locale_language() == "ko" else 0.0
 
 const KEYS := ["mouse_sensitivity", "invert_y", "fov", "head_bob", "camera_effects", "visual_intensity",
 	"audio_intensity", "master_volume", "music_volume", "text_scale", "show_dread_meter", "menu_corruption", "self_unpause", "quality", "super_shaders", "show_objectives", "deaths_seen", "touch_controls", "language"]

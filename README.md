@@ -97,6 +97,14 @@ It takes effect when you enter the next area.
 - **If DREAD reaches 100** you wake up in your bedroom. Probably.
 - **Checkpoints** at the start of each area; **Continue** on the title screen.
 
+## Languages
+
+English and **한국어 (Korean)**: Settings > Language / 언어. On a Korean system or browser the game starts in Korean.
+Translations live in `data/Lang_ko.json` (English text -> Korean, plus patterns for text built at runtime);
+`scripts/core/loc_translation.gd` applies them to every label. In-world signs stay in English.
+Korean fonts: `fonts/` (renamed subsets of NAVER's Nanum fonts, SIL Open Font License).
+`tests/loc_check.tscn` spot-checks runtime-built text; `flow_test.tscn -- --lang=ko --loc-misses` lists anything untranslated.
+
 ## Accessibility (Settings)
 
 Mouse sensitivity, invert look, field of view, head bob, camera jolts, **visual intensity** (flicker,
