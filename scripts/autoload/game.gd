@@ -568,7 +568,7 @@ func on_compression_exit() -> void:
 
 ## Leave one realm for the next: fade, silence, a title card, the next zone, a checkpoint.
 func _realm_transition(flag: String, next: String, title: String, subtitle: String) -> void:
-	if in_sequence and flag != "comp_escaped":
+	if in_sequence:
 		return
 	in_sequence = true
 	var t := _seq

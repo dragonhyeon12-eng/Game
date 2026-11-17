@@ -212,8 +212,9 @@ func _water(r: Rect2, level: float) -> Node3D:
 	var mi := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(r.size.x, r.size.y)
-	plane.subdivide_width = int(r.size.x * 2.0)
-	plane.subdivide_depth = int(r.size.y * 2.0)
+	# 2 per metre for the ripples, up to a point: the open sea is 900 m across and only ever seen from far below
+	plane.subdivide_width = mini(int(r.size.x * 2.0), 96)
+	plane.subdivide_depth = mini(int(r.size.y * 2.0), 96)
 	mi.mesh = plane
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://scripts/world/water.gdshader")

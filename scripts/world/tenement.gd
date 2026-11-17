@@ -47,6 +47,7 @@ var _hint := 0
 var _creak_t := 6.0
 var _tv: MeshInstance3D
 var _duct_pops := 0
+var _leaving := false
 
 
 func zone_id() -> String: return "tenement"
@@ -609,12 +610,13 @@ func _shaft() -> void:
 		func(): _climb(), func(): return not _climbing and Game.player.global_position.y < 2.0)
 	interactable(Vector3(c.x, SHAFT_H + 1.0, c.z + 0.55), Vector3(0.9, 2.0, 0.3), func(): return "Open the door",
 		func():
+			_leaving = true
 			Sfx.play("door_creak", -2.0, 0.9)
 			Sfx.play("wind", 0.0)
 			Game.hud.fade_to(1.0, 1.2, Color(0.85, 0.9, 1.0))
 			await get_tree().create_timer(1.0, false).timeout
 			Game.on_compression_exit(),
-		func(): return Game.player.global_position.y > SHAFT_H - 1.0)
+		func(): return not _leaving and Game.player.global_position.y > SHAFT_H - 1.0)
 	trigger(Vector3(CORR_X1 + 1.2, 1.2, CORR_Z), Vector3(1.2, 2.4, 1.2), func():
 		Game.hud.show_thought("A ladder. Up. A long way up.", 2.5))
 

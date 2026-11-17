@@ -179,22 +179,49 @@ func facade_building(center: Vector3, w: float, d: float, floors: int, style: St
 	return true
 
 
+const CELL := 48.0     # batched instances are split into cells this size, so the camera can cull them
+
+
+## Instances [[Transform3D, Color], ...] grouped by cell.
+static func _cells(list: Array) -> Dictionary:
+	var out := {}
+	for it in list:
+		var o: Vector3 = (it[0] as Transform3D).origin
+		var k := Vector2i(floori(o.x / CELL), floori(o.z / CELL))
+		if not out.has(k):
+			out[k] = []
+		out[k].append(it)
+	return out
+
+
+func _multimesh(mesh: Mesh, list: Array) -> MultiMeshInstance3D:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = mesh
+	mm.instance_count = list.size()
+	for i in list.size():
+		mm.set_instance_transform(i, list[i][0])
+		mm.set_instance_color(i, list[i][1])
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	add_child(mmi)
+	return mmi
+
+
 func _finish_scatter() -> void:
 	for key in _scatter:
 		var e: Array = _scatter[key]
-		var list: Array = e[1]
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.use_colors = true
-		mm.mesh = e[0]
-		mm.instance_count = list.size()
-		for i in list.size():
-			mm.set_instance_transform(i, list[i][0])
-			mm.set_instance_color(i, list[i][1])
-		var mmi := MultiMeshInstance3D.new()
-		mmi.multimesh = mm
-		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if e[2] else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(mmi)
+		var mesh: Mesh = e[0]
+		# small things (grass, pebbles) fade out with distance; nobody sees a grass clump 80 m away
+		var small := mesh != null and mesh.get_aabb().size.length() < 1.6
+		for cell in _cells(e[1]).values():
+			var mmi := _multimesh(mesh, cell)
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if e[2] and not small else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			if small:
+				mmi.visibility_range_end = 70.0
+				mmi.visibility_range_end_margin = 10.0
+				mmi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	_scatter.clear()
 
 
@@ -202,19 +229,9 @@ func finish_batches() -> void:
 	_finish_scatter()
 	for key in _batches:
 		var parts: PackedStringArray = key.split("|", true, 1)
-		var list: Array = _batches[key]
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.use_colors = true
-		mm.mesh = Shapes.mesh(parts[0])
-		mm.instance_count = list.size()
-		for i in list.size():
-			mm.set_instance_transform(i, list[i][0])
-			mm.set_instance_color(i, list[i][1])
-		var mmi := MultiMeshInstance3D.new()
-		mmi.multimesh = mm
-		mmi.material_override = Shapes.surface(parts[1])
-		add_child(mmi)
+		for cell in _cells(_batches[key]).values():
+			var mmi := _multimesh(Shapes.mesh(parts[0]), cell)
+			mmi.material_override = Shapes.surface(parts[1])
 	_batches.clear()
 
 
