@@ -362,6 +362,7 @@ func _build_all() -> void:
 	streams["creak"] = _to_wav(_creak(), false)
 	# horror cues and events
 	streams["screech"] = _to_wav(_screech(), false)
+	streams["jumpscare"] = _to_wav(_jumpscare(), false)
 	streams["braam"] = _to_wav(_braam(), false)
 	streams["riser"] = _to_wav(_riser(), false)
 	streams["hit"] = _to_wav(_hit(), false)
@@ -793,6 +794,30 @@ func _screech() -> PackedFloat32Array:
 			v += (ph[k] * 2.0 - 1.0) * 0.18           # saw: bowed string
 		v += _noise() * 0.25 * exp(-t * 4.0)           # bow noise
 		s[i] = clampf(v * env * 1.4, -1.0, 1.0) * 0.8
+	return s
+
+
+## The jumpscare: a slam, then a shriek that stutters like the flashing - clustered saws with wild vibrato,
+## sliding up and falling away, noise tearing through it, everything clipped hard.
+func _jumpscare() -> PackedFloat32Array:
+	var s := _buf(2.0)
+	var ph := [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+	var base := [523.0, 554.0, 740.0, 784.0, 1046.0, 1480.0]
+	var boom_ph := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		var slide := 1.0 + 0.5 * minf(t / 0.35, 1.0) - 0.45 * maxf(t - 1.2, 0.0)
+		var v := 0.0
+		for k in 6:
+			var f: float = base[k] * slide * (1.0 + 0.035 * sin(TAU * (9.0 + k) * t + k * 1.7))
+			ph[k] = fmod(ph[k] + f / RATE, 1.0)
+			v += (ph[k] * 2.0 - 1.0) * 0.2
+		v += _noise() * (0.55 * exp(-t * 6.0) + 0.18)
+		var stutter := 0.55 + 0.45 * signf(sin(TAU * 17.0 * t))
+		var env := minf(1.0, t * 80.0) * (1.0 if t < 1.4 else exp(-(t - 1.4) * 6.0))
+		boom_ph = fmod(boom_ph + (55.0 * exp(-t * 3.0) + 30.0) / RATE, 1.0)
+		var boom := sin(TAU * boom_ph) * exp(-t * 5.0) * 1.4
+		s[i] = clampf(tanh((v * stutter * env + boom) * 2.6), -1.0, 1.0) * 0.95
 	return s
 
 

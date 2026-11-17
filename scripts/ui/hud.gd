@@ -297,6 +297,72 @@ func set_gameplay_visible(v: bool) -> void:
 
 # ------------------------------------------------------------------ text
 
+# ------------------------------------------------------------------ jumpscare
+
+const SCARE_IMAGES := ["res://assets/jumpscare/scare_1.png", "res://assets/jumpscare/scare_2.jpg", "res://assets/jumpscare/scare_3.jpg",
+	"res://assets/jumpscare/scare_4.png", "res://assets/jumpscare/scare_5.jpg", "res://assets/jumpscare/scare_6.jpg"]
+var _scare_tex: Array[Texture2D] = []
+
+
+## Faces, flashing at you: a few frames each, jittering, sometimes a white-out. Follows Settings.visual_intensity
+## (photosensitivity): lower = slower and no white frames; at 0, a single face held still.
+func jumpscare(seconds := 1.6) -> void:
+	if _scare_tex.is_empty():
+		for p in SCARE_IMAGES:
+			var t := load(p) as Texture2D
+			if t:
+				_scare_tex.append(t)
+	if _scare_tex.is_empty():
+		return
+	var layer := CanvasLayer.new()
+	layer.layer = 60
+	add_child(layer)
+	var bg := ColorRect.new()
+	bg.color = Color.BLACK
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(bg)
+	var img := TextureRect.new()
+	img.set_anchors_preset(Control.PRESET_FULL_RECT)
+	img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	layer.add_child(img)
+	var intensity := clampf(Settings.visual_intensity, 0.0, 1.0)
+	Sfx.stinger("jumpscare", 4.0)
+	Sfx.play("static_burst", -2.0 + 6.0 * Settings.audio_intensity, 1.3)
+	if intensity <= 0.05:
+		img.texture = _scare_tex.pick_random()
+		await get_tree().create_timer(seconds * 0.6, true).timeout
+		layer.queue_free()
+		return
+	var step := lerpf(0.16, 0.045, intensity)
+	var t := 0.0
+	var last := -1
+	var size := get_viewport().get_visible_rect().size
+	while t < seconds:
+		var i := randi() % _scare_tex.size()
+		if i == last:
+			i = (i + 1) % _scare_tex.size()
+		last = i
+		img.texture = _scare_tex[i]
+		var z := randf_range(1.0, 1.0 + 0.45 * intensity)
+		img.pivot_offset = size * 0.5
+		img.scale = Vector2(z, z)
+		img.position = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * 40.0 * intensity
+		img.rotation = randf_range(-0.06, 0.06) * intensity
+		var r := randf()
+		img.modulate = Color.WHITE if r < 0.5 else (Color(1.0, 0.35, 0.3) if r < 0.75 else Color(1.6, 1.6, 1.6))
+		var white := intensity >= 0.5 and randf() < 0.22
+		bg.color = Color.WHITE if white else Color.BLACK
+		img.visible = not white or randf() < 0.5
+		if white:
+			img.modulate = Color(0, 0, 0)    # a black face burned into the white
+		if randf() < 0.3:
+			Sfx.play("screech", -8.0 + 6.0 * Settings.audio_intensity, randf_range(1.2, 1.8))
+		await get_tree().create_timer(step * randf_range(0.7, 1.3), true).timeout
+		t += step
+	layer.queue_free()
+
+
 ## Keys named in hints and thoughts, as the touch buttons are called (on phones and tablets).
 const TOUCH_WORDS := [
 	["Left mouse: take a bite    Right mouse: let go / toss\nMouse wheel: picture something else",

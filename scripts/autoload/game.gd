@@ -711,7 +711,9 @@ func entity_death(kind: String, who: Node3D = null) -> void:
 			Sfx.play("hit", 4.0, 0.8)
 			player.jolt(Vector3(-12, 6, 8))
 			hud.set_post(1.0, 0.6, 1.0, 1.0)
-			if not await _wait(0.45, t): return
+			if not await _wait(0.2, t): return
+			await hud.jumpscare(1.7)
+			if t != _seq: return
 			Sfx.play("thud", 6.0, 0.6)
 			hud.set_fade(1.0, Color(0.05, 0.0, 0.0))
 			if not await _wait(0.8, t): return
@@ -730,6 +732,8 @@ func entity_death(kind: String, who: Node3D = null) -> void:
 			player.jolt(Vector3(-8, 3, 4))
 			hud.fade_to(0.9, 0.35, Color(0.86, 0.85, 0.8))
 			if not await _wait(0.4, t): return
+			await hud.jumpscare(1.2)
+			if t != _seq: return
 			Sfx.play("breath", 4.0, 1.4)
 			for i in 8:
 				player.jolt(Vector3(randf_range(-4, -1), randf_range(-2, 2), randf_range(-2, 2)))
@@ -769,7 +773,9 @@ func entity_death(kind: String, who: Node3D = null) -> void:
 			Sfx.stinger("braam", 4.0)
 			player.jolt(Vector3(-6, 2, 0))
 			hud.set_post(1.0, 0.8, 1.0, 2.0)
-			if not await _wait(1.1, t): return
+			if not await _wait(0.5, t): return
+			await hud.jumpscare(1.9)
+			if t != _seq: return
 			Sfx.play("glitch", 4.0, 0.6)
 			hud.set_fade(1.0)
 			if not await _wait(0.6, t): return
