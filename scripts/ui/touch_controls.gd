@@ -130,8 +130,14 @@ func _input(event: InputEvent) -> void:
 		if t.role == "stick":
 			_stick_vec = (event.position - _stick_origin).limit_length(STICK_RADIUS) / STICK_RADIUS
 			_apply_stick()
-		elif t.role == "look" and Game.mode == "game":
-			Game.player.look(event.relative * LOOK_SPEED)
+		elif t.role == "look":
+			# our own per-finger delta: with two fingers down, the engine's `relative` can be measured
+			# from the other finger, which flings the view up at the sky
+			var last: Vector2 = t.get("last", event.position)
+			var d: Vector2 = event.position - last
+			t["last"] = event.position
+			if Game.mode == "game" and d.length() < 120.0:
+				Game.player.look(d * LOOK_SPEED)
 		get_viewport().set_input_as_handled()
 
 
@@ -150,7 +156,7 @@ func _touch_down(index: int, pos: Vector2) -> void:
 		_stick_vec = Vector2.ZERO
 		_touch[index] = {"role": "stick"}
 	else:
-		_touch[index] = {"role": "look"}
+		_touch[index] = {"role": "look", "last": pos}
 	get_viewport().set_input_as_handled()
 
 
