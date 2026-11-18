@@ -62,7 +62,15 @@ func run_to(points: Array, sprint := true, timeout := 20.0) -> bool:
 		Input.action_press("sprint")
 	var t := 0.0
 	var i := 0
+	var next_log := 1.0
 	while i < points.size() and t < timeout and not Game.in_sequence:
+		if OS.get_cmdline_user_args().has("--trace") and t > next_log:
+			next_log += 1.0
+			print("    t=%.0f waypoint %d/%d at %s -> %s  vel %.1f" % [t, i, points.size(), Game.player.global_position.snapped(Vector3.ONE * 0.1), (points[i] as Vector3).snapped(Vector3.ONE * 0.1), Game.player.velocity.length()])
+			for k in Game.player.get_slide_collision_count():
+				var col := Game.player.get_slide_collision(k)
+				var o: Object = col.get_collider()
+				print("      hit %s at %s n=%s shape=%s" % [o.get_path() if o is Node else o, col.get_position().snapped(Vector3.ONE*0.1), col.get_normal().snapped(Vector3.ONE*0.1), _shape_desc(o, col.get_collider_shape_index())])
 		var pl := Game.player
 		var to: Vector3 = points[i] - pl.global_position
 		to.y = 0.0
@@ -124,8 +132,30 @@ func _run() -> void:
 	await wait(3.0)
 	var through: bool = mz._in_grid(mz._stalker.global_position) or (wx.affine_inverse() * mz._stalker.global_position).z * sd > 3.0 or Game.in_sequence
 	check(through, "it followed you the way you went (stalker at %s, was %.1f m away)" % [wx.affine_inverse() * mz._stalker.global_position, d0])
+	print("== BACKROOMS: the chase - the maze closes down to one route to the lift")
+	await wait(0.3)
+	check(mz._chase_on and mz._chase_path.size() > 1, "the chase began (%d cells to the lift)" % mz._chase_path.size())
+	var pts := []
+	if OS.get_cmdline_user_args().has("--trace"):
+		print("    path ", mz._chase_path, "\n    props ", mz._prop_cells.keys(), "\n    sealed ", mz._sealed.keys())
+	for c in mz._chase_path:
+		pts.append(mz.cell_center(c.x, c.y))
+	var made_it := await run_to(pts, true, 60.0)
+	print("    reached route cell %d/%d, fear %.0f, stalker %.1f m behind" % [mz._chase_idx, mz._chase_path.size(), Game.player.dread.fear,
+		mz._stalker.global_position.distance_to(Game.player.global_position)])
+	var tw := 0.0
+	while tw < 4.0 and not Game.in_sequence:
+		await wait(0.1)
+		tw += 0.1
+	check(mz._sealed.size() >= 3, "openings slammed shut along the way (%d)" % mz._sealed.size())
+	check(made_it and (Game.in_sequence or Game.has_flag("maze_escaped")) and not mz._hunting,
+		"sprinting the red route, you reach the lift (the lift sequence started: %s)" % Game.in_sequence)
+	tw = 0.0
+	while tw < 12.0 and Game.zone_type != "deep":
+		await wait(0.2)
+		tw += 0.2
+	check(Game.zone_type == "deep", "and the lift takes you on (zone %s)" % Game.zone_type)
 	Game._cancel_sequences()
-	mz._hunting = false
 
 	print("== THE DEEP: the door you can't look at")
 	await zone("abyss")
@@ -230,3 +260,12 @@ func _run() -> void:
 
 func STOREY_HALF() -> float:
 	return TenementZone.STOREY * 0.5 - 0.05
+
+
+func _shape_desc(o: Object, idx: int) -> String:
+	if not o is CollisionObject3D:
+		return ""
+	var cs = o.shape_owner_get_owner(o.shape_find_owner(idx))
+	if cs is CollisionShape3D:
+		return "%s at %s size %s" % [cs.shape.get_class(), cs.global_position.snapped(Vector3.ONE*0.01), (cs.shape.size if cs.shape is BoxShape3D else "")]
+	return str(cs)

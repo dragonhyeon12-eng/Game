@@ -217,6 +217,38 @@ func _run() -> void:
 			z._open_maint()
 			var p: Vector3 = z._wing_xf * Vector3(6.0, 1.62, 0.6)
 			_look(p, z._wing_xf * Vector3(9.3, 1.4, -3.5)),
+		"maze_chase": func():
+			_zone("maze")
+			var z: MazeZone = Game.zone
+			z._open_maint()
+			var at: Vector3 = z._wing_xf * Vector3(-2.0, 0, 0)
+			_look(at + Vector3(0, 1.6, 0), z._wing_xf * Vector3(-8.0, 1.4, 0))
+			z._hunting = true
+			z._stalker.global_position = z._wing_xf * Vector3(6.0, 0, 0)
+			await get_tree().process_frame
+			if not z._chase_on:
+				z._begin_chase()
+			var c0: Vector2i = z._chase_path[0]
+			var nx: Vector2i = z._chase_path[1]
+			var n2: Vector2i = z._chase_path[mini(3, z._chase_path.size() - 1)]
+			_look(z.cell_center(c0.x, c0.y) + Vector3(0, 1.6, 0), z.cell_center(nx.x, nx.y).lerp(z.cell_center(n2.x, n2.y), 0.6) + Vector3(0, 1.2, 0))
+			await get_tree().create_timer(0.5).timeout,
+		"maze_chase_back": func():
+			_zone("maze")
+			var z: MazeZone = Game.zone
+			z._open_maint()
+			var at: Vector3 = z._wing_xf * Vector3(-2.0, 0, 0)
+			_look(at + Vector3(0, 1.6, 0), z._wing_xf * Vector3(-8.0, 1.4, 0))
+			z._hunting = true
+			var st: Vector3 = z._wing_xf * Vector3(2.2, 0, 0)
+			z._stalker.global_position = st
+			await get_tree().process_frame
+			if not z._chase_on:
+				z._begin_chase()
+			z._hunting = false
+			z._stalker.speed = 0.0
+			z._stalker.look_at(Vector3(at.x, 0, at.z), Vector3.UP, true)
+			_look(at + Vector3(0, 1.6, 0), st + Vector3(0, 1.6, 0)),
 		"maze_power": func():
 			_zone("maze")
 			var z: MazeZone = Game.zone

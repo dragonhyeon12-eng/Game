@@ -63,6 +63,18 @@ var _shutter: StaticBody3D
 var _escape_door: Node3D
 var _escape_block: StaticBody3D
 var _trail: Array[Vector3] = []   # the player's footsteps since the power came on (the stalker follows them)
+# the chase: once you're back in the maze with it behind you, the maze closes down to one route to the lift
+var _chase_on := false
+var _chase_path: Array[Vector2i] = []
+var _chase_idx := 0
+var _sealed := {}                 # "x,z|x,z" -> true: openings slammed shut
+var _env: Environment
+var _prop_cells := {}             # cells with something big in the middle (the cart, the bench): the chase route goes round them
+var _seal_queue: Array = []       # [time, path index]
+var _chase_lights: Array[OmniLight3D] = []
+var _chase_t := 0.0
+var _shriek_t := 2.0
+var _beat_t := 0.0
 var _path: Array = []
 var _path_t := 0.0
 var _glass: StaticBody3D
@@ -117,6 +129,8 @@ func _set_edge(x: int, z: int, d: int, v: int) -> void:
 
 
 func passable(x: int, z: int, d: int) -> bool:
+	if not _sealed.is_empty() and _sealed.has(_edge_key(Vector2i(x, z), Vector2i(x + DX[d], z + DZ[d]))):
+		return false
 	var t := _get_edge(x, z, d)
 	if t == Edge.OPEN or t == Edge.EXTRA:
 		return true
@@ -294,6 +308,7 @@ func _geometry() -> void:
 			_wall(Vector3((W - 0.5) * CELL, 0, z * CELL), true, length, WALL_A)
 
 	var env := make_env(Color(0.9, 0.82, 0.55), 0.25)
+	_env = env
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color(0.05, 0.045, 0.02)
 	env.glow_intensity = 0.8
@@ -341,7 +356,9 @@ func _props() -> void:
 		var c := Vector2i(rng.randi_range(1, W - 1), rng.randi_range(1, H - 1))
 		if c == _exit_cell:
 			continue
-		var p := cell_center(c.x, c.y) + Vector3(rng.randf_range(-1.5, 1.5), 0, rng.randf_range(-1.5, 1.5))
+		# in a corner of the room, never across the middle where you'd run through it
+		var reach := 1.3 if i % 2 == 0 else 1.5
+		var p := cell_center(c.x, c.y) + Vector3(reach * (1.0 if rng.randf() < 0.5 else -1.0), 0, (1.4 if i % 2 == 0 else 1.25) * (1.0 if rng.randf() < 0.5 else -1.0))
 		if i % 2 == 0:  # water cooler
 			box(p + Vector3(0, 0.5, 0), Vector3(0.32, 1.0, 0.32), Color(0.85, 0.85, 0.82))
 			shape_at("cylinder", p + Vector3(0, 1.25, 0), Vector3(0.28, 0.48, 0.28), Color(0.5, 0.7, 0.85), false, Vector3.ZERO, 0.15)
@@ -410,6 +427,7 @@ func _register_anomalies() -> void:
 	for w in _dynamic:
 		Anomalies.register({"id": "wall", "owner": self, "position": w.center + Vector3(0, WALL_H * 0.5, 0), "radius": 2.6,
 			"min_unobserved": 2.5, "discovery_fear": 3.0,
+			"can_apply": func(): return not _chase_on,
 			"apply": func(): _set_dynamic(w, not w.open)})
 	# lights that die (and sometimes come back)
 	for i in _lights.size():
@@ -451,6 +469,10 @@ func on_player_entered(from_save: bool) -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	if _hunting and not _chase_on and Game.player and _in_grid(Game.player.global_position) and not Game.in_sequence:
+		_begin_chase()
+	if _chase_on:
+		_update_chase(delta)
 	if Game.has_flag("maze_power") and Game.player:
 		var pp: Vector3 = Game.player.global_position
 		if _trail.is_empty() or _trail[-1].distance_to(pp) > 0.7:
@@ -902,6 +924,9 @@ func _hunt(delta: float) -> void:
 			_trail.pop_front()
 	var dist := me.distance_to(p)
 	var spd := 3.35 if dist > 4.0 else 3.7
+	if _chase_on:
+		# it never falls far behind, and right behind you it's just short of your sprint: any hesitation and it has you
+		spd = 5.0 if dist > 12.0 else (4.0 if dist > 5.0 else 3.3)
 	if in_wing and (_wing_xf.affine_inverse() * me).z < -1.2:
 		target = _wing_xf * Vector3(9.25, 0, 0)
 	_stalker.move_to(target if dist > 1.6 else p, spd, delta)
@@ -910,6 +935,173 @@ func _hunt(delta: float) -> void:
 	if dist < 1.1:
 		_hunting = false
 		Game.entity_death("stalker", _stalker)
+
+
+# ------------------------------------------------------------------ the chase
+
+static func _edge_key(a: Vector2i, b: Vector2i) -> String:
+	var lo := a if (a.x < b.x or (a.x == b.x and a.y < b.y)) else b
+	var hi := b if lo == a else a
+	return "%d,%d|%d,%d" % [lo.x, lo.y, hi.x, hi.y]
+
+
+## The cells of the shortest walk from one cell to another (both included); dynamic walls count as open.
+## Cells in `avoid` are only walked through if there's no other way.
+func _route_cells(from: Vector2i, to: Vector2i, avoid := {}) -> Array[Vector2i]:
+	var cost := {from: 0}
+	var prev := {from: from}
+	var open: Array[Vector2i] = [from]
+	while not open.is_empty():
+		var bi := 0
+		for k in open.size():
+			if cost[open[k]] < cost[open[bi]]:
+				bi = k
+		var c: Vector2i = open[bi]
+		open.remove_at(bi)
+		if c == to:
+			break
+		for d in 4:
+			var t := _get_edge(c.x, c.y, d)
+			if not (t == Edge.OPEN or t == Edge.EXTRA or t == Edge.DYNAMIC):
+				continue
+			var n := Vector2i(c.x + DX[d], c.y + DZ[d])
+			if not _in(n.x, n.y):
+				continue
+			var nc: int = cost[c] + (1000 if avoid.has(n) and n != to else 1)
+			if not cost.has(n) or nc < cost[n]:
+				if not cost.has(n):
+					open.append(n)
+				cost[n] = nc
+				prev[n] = c
+	var out: Array[Vector2i] = []
+	if not prev.has(to):
+		return out
+	var c: Vector2i = to
+	while c != from:
+		out.push_front(c)
+		c = prev[c]
+	out.push_front(from)
+	return out
+
+
+func _begin_chase() -> void:
+	_chase_on = true
+	_chase_t = 0.0
+	_chase_path = _route_cells(cell_at(Game.player.global_position), Vector2i(0, 0), _prop_cells)
+	if _chase_path.is_empty():
+		_chase_path = _route_cells(cell_at(Game.player.global_position), Vector2i(0, 0))
+	if _chase_path.is_empty():
+		_chase_on = false
+		return
+	# the route is open: any shifting wall on it stays open
+	for i in _chase_path.size() - 1:
+		var mid := (cell_center(_chase_path[i].x, _chase_path[i].y) + cell_center(_chase_path[i + 1].x, _chase_path[i + 1].y)) * 0.5
+		for w in _dynamic:
+			if Vector2(w.center.x - mid.x, w.center.z - mid.z).length() < 0.01 and not w.open:
+				_set_dynamic(w, true)
+	# every other light dies - the panels go dark - and red strobes mark the way
+	for l in _lights:
+		l.dead = true
+		l.panel.material_override = Shapes.material(Color(0.2, 0.19, 0.17))
+	for i in _chase_path.size():
+		var c := _chase_path[i]
+		var l := omni(cell_center(c.x, c.y) + Vector3(0, WALL_H - 0.25, 0), Color(1.0, 0.1, 0.06), 0.0, 4.6, false)
+		_chase_lights.append(l)
+		part("box", cell_center(c.x, c.y) + Vector3(0, WALL_H - 0.03, 0), Vector3(0.5, 0.05, 0.5), Color(1.0, 0.15, 0.1), null, Vector3.ZERO, 6.0)
+	if _env:
+		var tw := create_tween().set_parallel()
+		tw.tween_property(_env, "ambient_light_color", Color(0.5, 0.06, 0.04), 0.6)
+		tw.tween_property(_env, "ambient_light_energy", 0.025, 0.6)
+		tw.tween_property(_env, "fog_light_color", Color(0.3, 0.02, 0.01), 0.6)
+		tw.tween_property(_env, "fog_density", 0.022, 0.6)
+		if _env.volumetric_fog_enabled:
+			tw.tween_property(_env, "volumetric_fog_albedo", Color(1.0, 0.3, 0.25), 0.6)
+	Sfx.stinger("braam", 2.0)
+	Sfx.play("metal_screech", -2.0, 0.6)
+	Game.player.jolt(Vector3(-3, 2, 0))
+	Game.hud.show_thought("The walls - they're closing! Follow the red. RUN!", 3.0)
+	for i in mini(3, _chase_path.size()):
+		_seal_queue.append([0.15 + i * 0.18, i])
+
+
+## Slam shut every opening off the route around path cell i.
+func _seal_around(i: int) -> void:
+	var c := _chase_path[i]
+	var prev: Vector2i = _chase_path[i - 1] if i > 0 else Vector2i(-99, -99)
+	var nxt: Vector2i = _chase_path[i + 1] if i + 1 < _chase_path.size() else Vector2i(-99, -99)
+	var k := 0
+	for d in 4:
+		var n := Vector2i(c.x + DX[d], c.y + DZ[d])
+		if n == prev or n == nxt or not _in(n.x, n.y) or not passable(c.x, c.y, d):
+			continue
+		_slam(c, n, d, k * 0.07)
+		k += 1
+
+
+func _slam(a: Vector2i, b: Vector2i, d: int, delay: float) -> void:
+	_sealed[_edge_key(a, b)] = true
+	var center := (cell_center(a.x, a.y) + cell_center(b.x, b.y)) * 0.5
+	var length := CELL - PILLAR + 0.04
+	var size := Vector3(THICK, WALL_H, length) if d <= 1 else Vector3(length, WALL_H, THICK)
+	var body := solid_box(center + Vector3(0, WALL_H * 1.5 + 0.1, 0), size, WALL_B, null, "wallpaper")
+	var tw := create_tween()
+	tw.tween_interval(delay)
+	tw.tween_property(body, "position:y", WALL_H * 0.5, 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_callback(func():
+		Sfx.play_at("thud", self, center + Vector3(0, 1.0, 0), 3.0, 26.0)
+		var pl: Player = Game.player
+		if pl and pl.global_position.distance_to(center) < 7.0:
+			pl.jolt(Vector3(randf_range(-2.5, -1.0), randf_range(-1.5, 1.5), randf_range(-1.5, 1.5))))
+
+
+func _update_chase(delta: float) -> void:
+	_chase_t += delta
+	var pl: Player = Game.player
+	var pc := cell_at(pl.global_position)
+	# how far along the route you are (the nearest route cell a little ahead of where you were)
+	for j in range(_chase_idx, mini(_chase_idx + 4, _chase_path.size())):
+		if _chase_path[j] == pc:
+			if j > _chase_idx:
+				for k in range(_chase_idx + 3, mini(j + 3, _chase_path.size())):
+					_seal_queue.append([_chase_t + 0.05 + (k - _chase_idx - 3) * 0.2, k])
+			_chase_idx = maxi(_chase_idx, j)
+			break
+	for q in _seal_queue.duplicate():
+		if _chase_t >= q[0]:
+			_seal_queue.erase(q)
+			_seal_around(q[1])
+	# red strobes along the way (gentler with lower visual intensity)
+	var v := clampf(Settings.visual_intensity, 0.0, 1.0)
+	for i in _chase_lights.size():
+		var on := 1.0 if sin(_chase_t * 11.0 - i * 0.9) > -0.2 else 1.0 - 0.85 * v
+		_chase_lights[i].light_energy = (2.4 if i >= _chase_idx else 0.35) * on
+	for l in _lights:
+		l.light.light_energy = 0.0
+	# it, behind you
+	var dist := _stalker.global_position.distance_to(pl.global_position)
+	_beat_t -= delta
+	if _beat_t <= 0.0:
+		_beat_t = clampf(dist / 14.0, 0.28, 0.8)
+		Sfx.play("heartbeat", clampf(4.0 - dist * 0.5, -14.0, 2.0), 1.15)
+	_shriek_t -= delta
+	if dist < 6.0 and _shriek_t <= 0.0:
+		_shriek_t = randf_range(1.8, 3.5)
+		Sfx.play_at("screech", self, _stalker.global_position + Vector3(0, 2, 0), -2.0, 30.0)
+		Game.hud.set_post(0.8, 0.5, 1.0, 1.4)
+	# terror, but never the kind that ends it for you: the chase is what decides
+	if pl.dread.fear < 88.0:
+		pl.dread.add_fear(2.5 * delta, "chased")
+	# the lift: a wall slams down behind you, between you and it
+	if pc == Vector2i(0, 0) and _chase_path.size() > 1:
+		_chase_on = false
+		_hunting = false
+		var before := _chase_path[_chase_path.size() - 2]
+		for d in 4:
+			if Vector2i(DX[d], DZ[d]) == before:
+				_slam(Vector2i(0, 0), before, d, 0.0)
+		Sfx.stinger("hit", 2.0)
+		_stalker.speed = 0.0
+		_lift_arrives()
 
 
 ## Inside the maze proper (not the wing or the service passage)?
@@ -957,6 +1149,8 @@ func _expedition() -> void:
 		if not used.has(c):
 			used[c] = true
 			spots.append(c)
+	_prop_cells[spots[0]] = true    # the bench and the cart stand in the middle of their rooms
+	_prop_cells[spots[2]] = true
 	var bench_c: Vector3 = cell_center(spots[0].x, spots[0].y)
 	if not prop("bench", bench_c, 30.0):
 		box(bench_c + Vector3(0, 0.45, 0), Vector3(1.8, 0.08, 0.5), Color(0.5, 0.32, 0.18))
@@ -978,7 +1172,7 @@ func _expedition() -> void:
 		"\"%s then %s. Never the other way round.\"" % [_order[1], _order[2]],
 		"\"%s last. Or it hears you.\"" % _order[3]]
 	for k in 3:
-		var nc: Vector3 = cell_center(spots[3 + k].x, spots[3 + k].y) + Vector3(0.8, 0, -0.6)
+		var nc: Vector3 = cell_center(spots[3 + k].x, spots[3 + k].y) + Vector3(1.0, 0, -1.2)
 		box(nc + Vector3(0, 0.73, 0), Vector3(1.2, 0.04, 0.6), Color(0.55, 0.5, 0.42), true, 0.0, "wood")
 		box(nc + Vector3(0, 0.36, 0), Vector3(1.1, 0.72, 0.5), Color(0.45, 0.4, 0.33), false, 0.0, "wood")
 		var paper := part("box", nc + Vector3(0.1, 0.755, 0.05), Vector3(0.21, 0.004, 0.29), Color(0.92, 0.9, 0.82), null, Vector3(0, 15, 0))
