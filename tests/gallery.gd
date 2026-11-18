@@ -271,6 +271,33 @@ func _run() -> void:
 			var c: Vector3 = z.cell_center(z._chase_path[i - 1].x, z._chase_path[i - 1].y)
 			var j: Vector3 = z.cell_center(z._chase_path[i].x, z._chase_path[i].y)
 			_look(c + Vector3(0, 1.6, 0) - (j - c).normalized() * 1.5, j + Vector3(0, 1.4, 0)),
+		"chase_live": func():
+			var z: MazeZone = await _chase_setup()
+			# a straight stretch of the route: the stalker at one end, you at the other
+			var ia := 3
+			for i in range(3, z._chase_path.size()):
+				var d1: Vector2i = z._chase_path[i] - z._chase_path[i - 1]
+				var d2: Vector2i = z._chase_path[i - 1] - z._chase_path[i - 2]
+				var d3: Vector2i = z._chase_path[i - 2] - z._chase_path[i - 3]
+				if d1 == d2 and d2 == d3:
+					ia = i
+					break
+			var a: Vector2i = z._chase_path[ia]
+			var b: Vector2i = z._chase_path[ia - 3]
+			z._chase_idx = ia
+			Game.player.global_position = z.cell_center(a.x, a.y)
+			z._stalker.global_position = z.cell_center(b.x, b.y)
+			Game.in_sequence = false
+			z._hunting = true
+			_look(z.cell_center(a.x, a.y) + Vector3(0, 1.6, 0), z.cell_center(b.x, b.y) + Vector3(0, 0.9, 0))
+			for k in 6:
+				await get_tree().create_timer(0.1).timeout
+				Game.player.global_position = z.cell_center(a.x, a.y)
+				_look(z.cell_center(a.x, a.y) + Vector3(0, 1.6, 0), z._stalker.global_position + Vector3(0, 0.9, 0))
+				await RenderingServer.frame_post_draw
+				get_viewport().get_texture().get_image().save_png("%s/live_%d.png" % [dir, k])
+				print("live ", k, " scramble ", z._stalker.scramble, " speed ", z._stalker.speed, " grip ", z._stalker.grip_side, " seq ", Game.in_sequence, " hunting ", z._hunting, " pos ", z._stalker.global_position)
+			z._hunting = false,
 		"chase_junction": func():
 			var z: MazeZone = await _chase_setup()
 			var dc: Dictionary = z._decoys[0]

@@ -515,6 +515,7 @@ func _restore_chase() -> void:
 	for t in cp.get("trail", []):
 		_trail.append(Vector3(float(t[0]), 0.0, float(t[1])))
 	_hunting = true
+	_stalker.scramble = true
 	Game.hud.show_thought("Again. It's right behind me. RUN.", 2.5)
 
 
@@ -906,6 +907,7 @@ func _power_on() -> void:
 	Sfx.stinger("screech", -2.0)
 	Game.player.dread.add_fear(15.0, "it's out")
 	Game.hud.show_thought("RUN.", 2.0)
+	_stalker.scramble = true          # out of the glass on all fours, and it doesn't get up again
 	_hunting = true
 	Game.set_flag("maze_hunted")
 
@@ -1128,10 +1130,10 @@ func _begin_chase() -> void:
 	Game.player.sprint_speed = 5.6
 	Game.player.jump_speed = 5.6
 	Game.player.jump_boost = 2.5
-	var glow := OmniLight3D.new()       # a sick red sheen on it, so you can see it coming
-	glow.light_color = Color(1.0, 0.25, 0.2)
-	glow.light_energy = 0.7
-	glow.omni_range = 3.2
+	var glow := OmniLight3D.new()       # a cold, pale sheen on it: white against all that red, so you see it coming
+	glow.light_color = Color(0.8, 0.9, 1.0)
+	glow.light_energy = 1.3
+	glow.omni_range = 2.6
 	glow.position = Vector3(0, 1.3, -0.6)
 	_stalker.add_child(glow)
 	if _rasp == null:
