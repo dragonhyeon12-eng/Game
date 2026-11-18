@@ -77,6 +77,7 @@ var _decoys: Array = []           # false trails: {at: route index, cells: [...]
 var _decoy_lights: Array = []     # [light, route index of the trail's mouth]
 var _hazards: Array = []          # {kind: debris/pit/beam, idx, c, along, across, side, built}
 var _hinted := {}
+var _sparks: Array = []           # [light, time to next spark] on the dead exit signs
 var _rasp: Node
 var _gate: Node3D
 var _bars_spot := Vector3.ZERO
@@ -428,6 +429,9 @@ func exit_inward() -> Vector3:
 
 
 func player_start() -> Transform3D:
+	var cp: Dictionary = Game.counters.get("chase", {})
+	if Game.has_flag("maze_chase") and not cp.is_empty():
+		return Transform3D(Basis(Vector3.UP, float(cp.yaw)), Vector3(float(cp.x), 0.05, float(cp.z)))
 	return Transform3D(Basis(Vector3.UP, _start_yaw), cell_center(0, 0) + Vector3(0, 0.05, 0))
 
 
@@ -476,6 +480,42 @@ func _register_anomalies() -> void:
 func on_player_entered(from_save: bool) -> void:
 	_t = 0.0
 	_hint = 2 if from_save else 0
+	if from_save and Game.has_flag("maze_chase") and not Game.has_flag("maze_escaped"):
+		_restore_chase()
+
+
+## Back from the chase checkpoint: the maze as it was when the chase began - power on, the wing open,
+## the stalker loose and on your trail - and you, where you came back into the yellow rooms.
+func _restore_chase() -> void:
+	var cp: Dictionary = Game.counters.get("chase", {})
+	if cp.is_empty():
+		return
+	_hint = 3
+	_maint_block.visible = false
+	_maint_block.get_child(0).disabled = true
+	open_door(_maint_door, 100.0, 0.01)
+	_main_switch.rotation_degrees.z = 160.0
+	for b in _breakers:
+		(b.group as Node3D).rotation_degrees.z = 160.0
+	for l in _lights:
+		l.light.light_color = Color(1.0, 0.35, 0.25)
+		l.base = 1.2
+	for wl in _wing_lights:
+		wl[0].light_color = Color(1.0, 0.3, 0.2)
+	for w in _dynamic:
+		_set_dynamic(w, not w.open)
+	_lift_light.light_energy = 1.5
+	_lift_sign.material_override = Shapes.material(Color(1.0, 0.25, 0.15), 0.4, 3.0)
+	_open_escape()
+	_portals()
+	if is_instance_valid(_glass):
+		_glass.queue_free()
+	_stalker.global_position = Vector3(float(cp.sx), 0, float(cp.sz))
+	_trail.clear()
+	for t in cp.get("trail", []):
+		_trail.append(Vector3(float(t[0]), 0.0, float(t[1])))
+	_hunting = true
+	Game.hud.show_thought("Again. It's right behind me. RUN.", 2.5)
 
 
 func _process(delta: float) -> void:
@@ -1034,6 +1074,7 @@ func _route_cells(from: Vector2i, to: Vector2i, avoid := {}) -> Array[Vector2i]:
 func _begin_chase() -> void:
 	_chase_on = true
 	_chase_t = 0.0
+	_save_chase_checkpoint()
 	var start := cell_at(Game.player.global_position)
 	_chase_path = _long_route(start, Vector2i(0, 0))
 	if _chase_path.size() < 2:
@@ -1063,6 +1104,11 @@ func _begin_chase() -> void:
 		var dout := _chase_path[i + 1] - _chase_path[i]
 		if din != dout or _decoy_at(i) or i % 4 == 0:
 			_exit_sign(_chase_path[i], din, signi(din.x * dout.y - din.y * dout.x))
+	# ...and over the mouth of every false trail, an EXIT sign that's dead: grey, cracked, hanging by one chain
+	for dc in _decoys:
+		var j: Vector2i = _chase_path[dc.at]
+		var mouth: Vector2i = dc.cells[0]
+		_broken_sign(mouth, mouth - j)
 	if _env:
 		var tw := create_tween().set_parallel()
 		tw.tween_property(_env, "ambient_light_color", Color(0.75, 0.22, 0.16), 0.6)
@@ -1095,6 +1141,19 @@ func _begin_chase() -> void:
 	for i in mini(4, _chase_path.size()):
 		_seal_queue.append(i)
 	_queued_to = mini(3, _chase_path.size() - 1)
+
+
+## A checkpoint, the moment the chase begins: die in it, and you're back here, not at the start of the maze.
+func _save_chase_checkpoint() -> void:
+	var pl: Player = Game.player
+	var trail := []
+	for t in _trail.slice(-80):
+		trail.append([snappedf(t.x, 0.01), snappedf(t.z, 0.01)])
+	Game.counters["chase"] = {"x": pl.global_position.x, "z": pl.global_position.z, "yaw": pl.rotation.y,
+		"sx": _stalker.global_position.x, "sz": _stalker.global_position.z, "trail": trail}
+	Game.set_flag("maze_chase")
+	Game.save_checkpoint()
+	Game.hud.show_hint("Checkpoint.", 2.0)
 
 
 ## A long way round: out through a far part of the maze and back to the lift, never crossing itself.
@@ -1271,6 +1330,38 @@ func _exit_sign(c: Vector2i, din: Vector2i, turn: int) -> void:
 		part("box", Vector3(ax + s * 0.065, -0.04, 0.03), Vector3(0.11, 0.045, 0.01), white, g, Vector3(0, 0, 45 * s), 3.0)
 
 
+## A dead EXIT sign just inside the mouth of a false trail, facing back at the junction: grey, cracked, crooked,
+## spitting the odd spark. (The way on always has a lit green one.)
+func _broken_sign(c: Vector2i, into: Vector2i) -> void:
+	var fwd := Vector3(into.x, 0, into.y)
+	var pos := cell_center(c.x, c.y) - fwd * 1.6 + Vector3(0, WALL_H - 0.5, 0)
+	var g := group(pos, rad_to_deg(atan2(-fwd.x, -fwd.z)))
+	g.scale = Vector3.ONE * 1.4
+	var tilt := Node3D.new()
+	tilt.rotation_degrees.z = 24.0
+	tilt.position = Vector3(-0.45, 0.25, 0)
+	g.add_child(tilt)
+	part("box", Vector3(0.0, 0.0, 0), Vector3(0.02, 0.3, 0.02), Color(0.2, 0.2, 0.2), g).position = Vector3(-0.45, 0.32, 0)
+	var panel := part("box", Vector3(0.45, -0.17, 0), Vector3(1.05, 0.34, 0.05), Color(0.32, 0.33, 0.32), tilt, Vector3.ZERO, 0.0, 0.6)
+	part("box", Vector3(0.3, -0.12, 0.03), Vector3(0.5, 0.012, 0.005), Color(0.05, 0.05, 0.05), tilt, Vector3(0, 0, 32))    # the crack
+	part("box", Vector3(0.55, -0.2, 0.03), Vector3(0.3, 0.012, 0.005), Color(0.05, 0.05, 0.05), tilt, Vector3(0, 0, -20))
+	var lb := Label3D.new()
+	lb.text = "EXIT"
+	lb.font_size = 48
+	lb.pixel_size = 0.0045
+	lb.modulate = Color(0.45, 0.47, 0.45)
+	lb.position = Vector3(0.3, -0.17, 0.03)
+	tilt.add_child(lb)
+	var spark := OmniLight3D.new()
+	spark.light_color = Color(0.7, 0.85, 1.0)
+	spark.light_energy = 0.0
+	spark.omni_range = 3.0
+	spark.position = Vector3(0.9, -0.1, 0.1)
+	tilt.add_child(spark)
+	_sparks.append([spark, randf_range(0.5, 3.0)])
+	panel.set_meta("broken", true)
+
+
 ## Slam shut every opening off the route around path cell i (a false trail's mouth stays open - and its far
 ## end is walled up), and drop whatever's waiting in that room.
 func _seal_around(i: int) -> void:
@@ -1441,6 +1532,15 @@ func _update_chase(delta: float) -> void:
 			dl[0].light_energy = 3.6 if sin(_chase_t * 11.0 - dl[1] * 0.9) > -0.2 else 3.6 * (1.0 - 0.45 * v)
 	for l in _lights:
 		l.light.light_energy = 0.0
+	for sp in _sparks:
+		var light: OmniLight3D = sp[0]
+		light.light_energy = maxf(0.0, light.light_energy - delta * 25.0)
+		sp[1] -= delta
+		if sp[1] <= 0.0:
+			sp[1] = randf_range(0.6, 3.5)
+			light.light_energy = randf_range(2.0, 4.0)
+			if light.global_position.distance_to(pl.global_position) < 14.0:
+				Sfx.play_at("static_burst", self, light.global_position, -14.0, 14.0)
 	# the hazards: a word of warning the first time, and the holes swallow you if you don't jump
 	var feet := pl.global_position
 	for h in _hazards:

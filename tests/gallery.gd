@@ -271,6 +271,16 @@ func _run() -> void:
 			var c: Vector3 = z.cell_center(z._chase_path[i - 1].x, z._chase_path[i - 1].y)
 			var j: Vector3 = z.cell_center(z._chase_path[i].x, z._chase_path[i].y)
 			_look(c + Vector3(0, 1.6, 0) - (j - c).normalized() * 1.5, j + Vector3(0, 1.4, 0)),
+		"chase_junction": func():
+			var z: MazeZone = await _chase_setup()
+			var dc: Dictionary = z._decoys[0]
+			var i: int = dc.at
+			z._chase_idx = i - 1
+			var prev: Vector2i = z._chase_path[i - 1]
+			var j: Vector2i = z._chase_path[i]
+			var c: Vector3 = z.cell_center(prev.x, prev.y)
+			var jc: Vector3 = z.cell_center(j.x, j.y)
+			_look(c + Vector3(0, 1.6, 0) - (jc - c).normalized() * 1.0, jc + Vector3(0, 1.9, 0)),
 		"chase_stalker": func():
 			var z: MazeZone = await _chase_setup()
 			z._chase_idx = 6

@@ -140,11 +140,10 @@ func _run() -> void:
 	check(ok and not Game.in_sequence and mz._in_grid(Game.player.global_position), "ran through the shutter and the service passage, back into the maze")
 	check(mz._hunting, "and it's coming")
 	var d0: float = mz._stalker.global_position.distance_to(Game.player.global_position)
-	await wait(3.0)
+	await wait(1.0)        # (not long: the chase has started, and it's fast)
 	var through: bool = mz._in_grid(mz._stalker.global_position) or (wx.affine_inverse() * mz._stalker.global_position).z * sd > 3.0 or Game.in_sequence
 	check(through, "it followed you the way you went (stalker at %s, was %.1f m away)" % [wx.affine_inverse() * mz._stalker.global_position, d0])
 	print("== BACKROOMS: the chase - the maze closes down to one route to the lift")
-	await wait(0.3)
 	check(mz._chase_on and mz._chase_path.size() > 1, "the chase began (%d cells to the lift)" % mz._chase_path.size())
 	var pts := mz.chase_waypoints()
 	print("    %d rooms, %d false trails, hazards %s" % [mz._chase_path.size(), mz._decoys.size(), mz._hazards.map(func(h): return h.kind)])
@@ -167,6 +166,35 @@ func _run() -> void:
 	check(Game.zone_type == "deep", "and the lift takes you on (zone %s)" % Game.zone_type)
 	Game._cancel_sequences()
 
+	print("== BACKROOMS: die in the chase, and you're back at the start of the chase")
+	for f in ["maze_escaped", "maze_chase", "maze_hunted"]:
+		Game.clear_flag(f)       # (the run above got out of the maze)
+	await zone("maze")
+	mz = Game.zone
+	mz._open_maint()
+	mz._hunting = true
+	Game.set_flag("maze_power")
+	var chase_at: Vector3 = mz._wing_xf * Vector3(-2.0, 0.05, 0)
+	place(chase_at, 0.0)
+	await wait(0.4)
+	check(mz._chase_on and Game.has_flag("maze_chase") and Game.has_checkpoint(), "the chase saves a checkpoint")
+	check(mz._sparks.size() == mz._decoys.size() and mz._decoys.size() > 0, "a dead, grey EXIT sign over every false trail (%d)" % mz._sparks.size())
+	var old_zone: Node = Game.zone
+	Game.entity_death("stalker", mz._stalker)
+	var t_wake := 0.0
+	while t_wake < 40.0 and not (Game.zone != old_zone and Game.zone_type == "maze" and Game.mode == "game" and not Game.in_sequence):
+		await wait(0.1)
+		t_wake += 0.1
+	mz = Game.zone
+	check(Game.zone_type == "maze" and Game.player.global_position.distance_to(chase_at) < 1.5, "woke up... back where the chase began (%s)" % Game.player.global_position.snapped(Vector3.ONE * 0.1))
+	var again := false
+	var seen := []
+	for k in 20:
+		await wait(0.1)
+		seen.append("%s%s%s" % [int(mz._hunting), int(mz._chase_on), int(Game.in_sequence)])
+		again = again or (mz._hunting and mz._chase_on)
+	check(again and Game.has_flag("maze_power"), "the power on, and it's after you again (%s; stalker %.1f m; chase %s escaped %s saved %s)" % [" ".join(seen), mz._stalker.global_position.distance_to(Game.player.global_position), Game.has_flag("maze_chase"), Game.has_flag("maze_escaped"), FileAccess.get_file_as_string(Game.SAVE_PATH).contains("maze_escaped")])
+	Game._cancel_sequences()
 	print("== BACKROOMS: run into a hole instead of jumping it, and you fall")
 	await zone("maze")
 	mz = Game.zone
