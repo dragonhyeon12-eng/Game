@@ -54,11 +54,12 @@ func setup(def: Dictionary) -> void:
 		l.light_energy = float(ld.get("energy", 5.0))
 		l.light_color = Color(1.0, 0.95, 0.85)
 		l.shadow_enabled = true
-		l.spot_attenuation = 0.8
+		l.spot_attenuation = 0.65
+		l.spot_angle_attenuation = 0.6      # a bright core fading to a soft edge, not a hard ring
 		l.position = Vector3(0, 0, -0.12)
 		add_child(l)
 		var glow := OmniLight3D.new()   # a little spill so your hands are visible
-		glow.light_energy = 0.15
+		glow.light_energy = 0.25
 		glow.omni_range = 2.5
 		glow.light_color = Color(1.0, 0.95, 0.85)
 		glow.position = Vector3(0, 0, -0.2)

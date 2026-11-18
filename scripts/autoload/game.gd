@@ -106,6 +106,8 @@ func clear_flag(f: String) -> void:
 # ------------------------------------------------------------------ input modes
 
 func set_mode(m: String) -> void:
+	if m == "game" and title_preview:
+		_stop_title()       # however play begins, the title tour ends
 	mode = m
 	player.set_locked(m != "game")
 	match m:

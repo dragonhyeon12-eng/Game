@@ -221,6 +221,11 @@ func _run() -> void:
 			_zone("maze")
 			var z: MazeZone = Game.zone
 			_look(z._wing_xf * Vector3(18.5, 1.62, 0.8), z._wing_xf * Vector3(22, 1.4, 0)),
+		"flash_abyss": func():
+			_zone("abyss")
+			Game.set_mode("game")
+			_look(Vector3(0, 1.6, -2.0), Vector3(0, 1.0, -12))
+			Game.player.manifestation.try_manifest(),
 		"abyss_maze": func():
 			_zone("abyss")
 			_look(Vector3(-1, 1.5, -9), Vector3(-3, 1.2, -14)),
