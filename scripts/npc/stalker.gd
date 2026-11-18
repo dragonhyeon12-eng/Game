@@ -95,6 +95,13 @@ const KNEE_WALK := [[0.0, 6.0], [0.12, 22.0], [0.45, 8.0], [0.68, 64.0], [0.85, 
 const THIGH_RUN := [[0.0, 38.0], [0.42, -34.0], [0.6, -10.0], [0.8, 62.0]]
 const KNEE_RUN := [[0.0, 18.0], [0.15, 40.0], [0.4, 22.0], [0.62, 118.0], [0.82, 70.0]]
 
+## Something hit the ground or a wall: kind "foot" or "hand", side -1 (left) / 1 (right), where.
+signal planted(kind: String, side: int, where: Vector3)
+
+var scramble := false     # the chase: hunched almost flat, galloping, dragging itself along by its hands
+var grip_side := 0        # scrambling along a wall: -1 left, 1 right, 0 none (that hand claws the wall)
+var grab_bars := false    # at the bars: arms through, shaking them
+var _prev_p := {}
 var _held := 0.0          # a stutter: the pose freezes for a moment while it keeps moving
 var _hold_t := 3.0
 var _look_target := Vector3.ZERO
@@ -120,6 +127,13 @@ func _process(delta: float) -> void:
 		_hold_t = randf_range(1.8, 4.5)
 		_held = randf_range(0.08, 0.22)
 	_R.clear()
+	if grab_bars:
+		_pose_bars()
+		_apply(0.0)
+		return
+	if scramble and speed > 0.1:
+		_pose_scramble(delta)
+		return
 	var moving := speed > 0.1
 	var run := clampf((speed - 2.0) / 1.7, 0.0, 1.0)
 	var walk := clampf(speed / 1.2, 0.0, 1.0)
@@ -193,10 +207,111 @@ func _process(delta: float) -> void:
 		_rot("upperarm.L", X, br * 3.0)
 		_rot("upperarm.R", X, -br * 3.0)
 
+	if moving:
+		for side in [-1, 1]:
+			_plant_check("foot", side, fposmod(_phase + (0.0 if side < 0 else 0.5), 1.0), 0.0)
+	# the hips bob: lowest as each foot lands; lower overall when running
+	var bob := (0.07 * absf(cos(_phase * TAU)) - 0.035) * walk - 0.12 * run - hip_drop
+	_apply(bob, 0.05 * run)
+
+
+func _apply(bob: float, fwd := 0.0) -> void:
 	for bone in _ids:
 		var q: Quaternion = _R.get(bone, Quaternion.IDENTITY)
 		var b: Quaternion = _B[bone]
 		_sk.set_bone_pose_rotation(_ids[bone], _L[bone] * (b.inverse() * q * b))
-	# the hips bob: lowest as each foot lands; lower overall when running
-	var bob := (0.07 * absf(cos(_phase * TAU)) - 0.035) * walk - 0.12 * run - hip_drop
-	_sk.set_bone_pose_position(_ids["hips"], _hip_rest + Vector3(0, bob, 0.05 * run))
+	_sk.set_bone_pose_position(_ids["hips"], _hip_rest + Vector3(0, bob, fwd))
+
+
+## Fires `planted` when a limb's phase passes the moment it lands.
+func _plant_check(kind: String, side: int, p: float, at: float) -> void:
+	var key := kind + str(side)
+	var was: float = _prev_p.get(key, p)
+	_prev_p[key] = p
+	var crossed := (was < at and p >= at) if at > 0.0 else (p < was - 0.5)
+	if crossed:
+		var right := global_transform.basis.x * -1.0          # the model faces -Z, so its right is -X
+		var where := global_position + right * side * (0.3 if kind == "foot" else 0.9) + Vector3(0, 0.05 if kind == "foot" else 1.3, 0)
+		planted.emit(kind, side, where)
+
+
+# A bound: both legs nearly together; the hands reach far ahead, plant, and haul the body through.
+const ARM_REACH := [[0.0, -35.0], [0.32, 105.0], [0.42, 95.0], [1.0, -35.0]]
+const ELBOW_REACH := [[0.0, 75.0], [0.28, 12.0], [0.42, 22.0], [0.8, 65.0]]
+const THIGH_BOUND := [[0.0, 55.0], [0.4, -40.0], [0.6, -15.0], [0.85, 75.0]]
+const KNEE_BOUND := [[0.0, 30.0], [0.2, 55.0], [0.45, 25.0], [0.65, 125.0], [0.85, 85.0]]
+
+
+func _pose_scramble(delta: float) -> void:
+	_phase += delta * speed / 2.7
+	var X := Vector3.RIGHT
+	var Z := Vector3.BACK
+	var Y := Vector3.UP
+	var s := sin(_phase * TAU)
+	# hunched almost flat, the spine heaving with each bound
+	var heave := sin(_phase * TAU * 2.0) * 6.0
+	_rot("hips", X, -40.0)
+	_rot("spine", X, -34.0 - heave)
+	_rot("chest", X, -26.0 + heave * 0.5)
+	_rot("spine", Y, s * 6.0)
+	_rot("chest", Y, -s * 10.0)
+	_rot("chest", Z, -s * 8.0)
+	var pitch := 100.0
+	# legs: a gallop, the right a beat behind the left
+	for side in [-1, 1]:
+		var nm := "L" if side < 0 else "R"
+		var p := _phase + (0.0 if side < 0 else 0.12)
+		_rot("thigh." + nm, X, _curve(THIGH_BOUND, p) * 0.8 + 38.0)
+		_rot("shin." + nm, X, -_curve(KNEE_BOUND, p) * 0.75 - 4.0)
+		_rot("foot." + nm, X, _curve(KNEE_BOUND, p) * 0.3)
+		_rot("thigh." + nm, Z, side * -9.0)
+		_plant_check("foot", side, fposmod(p, 1.0), 0.0)
+	# arms: alternating, reaching far ahead and hauling back; the wall-side arm reaches out to the wall
+	for side in [-1, 1]:
+		var nm := "L" if side < 0 else "R"
+		var sg := 1.0 if side < 0 else -1.0
+		var p := _phase + (0.0 if side < 0 else 0.5)
+		var on_wall: bool = grip_side == side
+		var reach := _curve(ARM_REACH, p) * (0.7 if on_wall else 1.0)
+		_rot("upperarm." + nm, Z, sg * (ARM_REST_DEG - 1.0 - (62.0 if on_wall else 12.0)))
+		_rot("upperarm." + nm, X, pitch * 0.92 + reach)
+		_rot("forearm." + nm, X, _curve(ELBOW_REACH, p))
+		_rot("forearm." + nm, Y, sg * 14.0)
+		# fingers splayed and hooked while it holds on
+		_rot("hand." + nm, X, 35.0 if fposmod(p, 1.0) > 0.42 else -10.0)
+		_plant_check("hand" if not on_wall else "wall", side, fposmod(p, 1.0), 0.42)
+	# the head, cranked up: eyes forward, on you, twitching
+	_twitch_t -= delta
+	if _twitch_t <= 0.0:
+		_twitch_t = randf_range(0.15, 0.9)
+		_twitch = randf_range(-35.0, 35.0)
+	_rot("neck", X, 55.0)
+	_rot("head", X, 30.0)
+	_rot("head", Z, _twitch * 0.5)
+	_rot("head", Y, _twitch * 0.2)
+	var bob := -0.42 + 0.12 * absf(sin(_phase * TAU))
+	_apply(bob, 0.25)
+
+
+func _pose_bars() -> void:
+	var X := Vector3.RIGHT
+	var Z := Vector3.BACK
+	var shake := sin(_t * 31.0) * 7.0 + sin(_t * 13.0) * 4.0
+	_rot("spine", X, -8.0)
+	_rot("chest", X, -10.0 + shake * 0.3)
+	for side in [-1, 1]:
+		var nm := "L" if side < 0 else "R"
+		var sg := 1.0 if side < 0 else -1.0
+		_rot("upperarm." + nm, Z, sg * (ARM_REST_DEG - 30.0))
+		_rot("upperarm." + nm, X, 78.0 + shake * sg)
+		_rot("forearm." + nm, X, 55.0 - shake)
+		_rot("hand." + nm, X, 40.0)
+		_rot("thigh." + nm, X, 10.0 if side < 0 else -6.0)
+		_rot("shin." + nm, X, -14.0)
+	_twitch_t -= get_process_delta_time()
+	if _twitch_t <= 0.0:
+		_twitch_t = randf_range(0.1, 0.6)
+		_twitch = randf_range(-50.0, 50.0)
+	_rot("neck", X, 12.0)
+	_rot("head", Z, _twitch * 0.8)
+	_rot("head", Vector3.UP, _twitch * 0.3)

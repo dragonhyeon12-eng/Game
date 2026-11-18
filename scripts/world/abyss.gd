@@ -192,14 +192,14 @@ func _open_bulkhead() -> void:
 
 # ---- 5: the rooms ---------------------------------------------------------------
 
-func _room_box(z0: float, z1: float, col: Color, doors_far: Array, door_near := true) -> void:
+func _room_box(z0: float, z1: float, col: Color, doors_far: Array, door_near := true, near_x := 0.0) -> void:
 	var w := 8.0
 	box(Vector3(0, -0.1, (z0 + z1) * 0.5), Vector3(w, 0.2, z0 - z1), col.darkened(0.2), true, 0.0, "tiles_floor")
 	box(Vector3(0, 3.1, (z0 + z1) * 0.5), Vector3(w, 0.2, z0 - z1), col.darkened(0.4), true, 0.0, "tiles_ceiling")
 	for x in [-w * 0.5 - 0.1, w * 0.5 + 0.1]:
 		box(Vector3(x, 1.5, (z0 + z1) * 0.5), Vector3(0.2, 3.2, z0 - z1), col, true, 0.0, "tiles_pool")
 	for z_wall in [z0, z1]:
-		var gaps: Array = (doors_far if z_wall == z1 else ([0.0] if door_near else []))
+		var gaps: Array = (doors_far if z_wall == z1 else ([near_x] if door_near else []))
 		var xs: Array = [-w * 0.5]
 		for g in gaps:
 			xs.append(g - 0.6)
@@ -245,11 +245,12 @@ func _rooms(tile: Color) -> void:
 	part("box", Vector3(-2.0, 0.45, -40), Vector3(1.8, 0.9, 0.8), Color(0.35, 0.25, 0.22), null, Vector3(0, 12, 0), 0.0, "fabric")  # a drowned sofa
 	omni(Vector3(0, 2.7, -40), Color(0.6, 0.85, 0.9), 0.6, 8.0, false)
 	# room 2: no doors at all. bubbles leak through one stretch of wall - and you can walk through it.
-	box(Vector3(0, -0.1, -45), Vector3(2, 0.2, 2), tile.darkened(0.3), true, 0.0, "tiles_floor")
-	box(Vector3(0, 2.7, -45), Vector3(2, 0.2, 2), tile.darkened(0.5), true, 0.0, "tiles_ceiling")
-	for x in [-1.1, 1.1]:
+	# (the passage lines up with the one door that works, the right-hand one)
+	box(Vector3(2.5, -0.1, -45), Vector3(2, 0.2, 2), tile.darkened(0.3), true, 0.0, "tiles_floor")
+	box(Vector3(2.5, 2.7, -45), Vector3(2, 0.2, 2), tile.darkened(0.5), true, 0.0, "tiles_ceiling")
+	for x in [1.4, 3.6]:
 		box(Vector3(x, 1.3, -45), Vector3(0.2, 2.8, 2), tile, true, 0.0, "tiles_pool")
-	_room_box(-46.0, -54.0, tile.darkened(0.15), [])
+	_room_box(-46.0, -54.0, tile.darkened(0.15), [], true, 2.5)
 	box(Vector3(0, 1.5, -54.0), Vector3(1.6, 3.2, 0.2), tile.darkened(0.15), false, 0.0, "tiles_pool")   # looks solid. isn't.
 	var bub := marine_snow(80, Color(0.85, 0.95, 1.0, 0.7))
 	bub.emission_box_extents = Vector3(0.6, 1.2, 0.1)

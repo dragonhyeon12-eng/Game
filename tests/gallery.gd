@@ -249,6 +249,64 @@ func _run() -> void:
 			z._stalker.speed = 0.0
 			z._stalker.look_at(Vector3(at.x, 0, at.z), Vector3.UP, true)
 			_look(at + Vector3(0, 1.6, 0), st + Vector3(0, 1.6, 0)),
+		"chase_pit": func(): await _chase_hazard("pit"),
+		"chase_beam": func(): await _chase_hazard("beam"),
+		"chase_debris": func(): await _chase_hazard("debris"),
+		"chase_sign": func():
+			var z: MazeZone = await _chase_setup()
+			for i in range(1, z._chase_path.size() - 1):
+				var din: Vector2i = z._chase_path[i] - z._chase_path[i - 1]
+				var dout: Vector2i = z._chase_path[i + 1] - z._chase_path[i]
+				if din != dout:
+					var c: Vector3 = z.cell_center(z._chase_path[i - 1].x, z._chase_path[i - 1].y)
+					var f := Vector3(din.x, 0, din.y)
+					_look(c - f * 1.0 + Vector3(0, 1.6, 0), c + f * 6.7 + Vector3(0, 2.3, 0))
+					break,
+		"chase_decoy": func():
+			var z: MazeZone = await _chase_setup()
+			var dc: Dictionary = z._decoys[0]
+			var i: int = dc.at
+			z._seal_around(i)
+			await get_tree().create_timer(1.0).timeout
+			var c: Vector3 = z.cell_center(z._chase_path[i - 1].x, z._chase_path[i - 1].y)
+			var j: Vector3 = z.cell_center(z._chase_path[i].x, z._chase_path[i].y)
+			_look(c + Vector3(0, 1.6, 0) - (j - c).normalized() * 1.5, j + Vector3(0, 1.4, 0)),
+		"chase_stalker": func():
+			var z: MazeZone = await _chase_setup()
+			z._chase_idx = 6
+			var a: Vector2i = z._chase_path[6]
+			var b: Vector2i = z._chase_path[9]
+			var eye: Vector3 = z.cell_center(a.x, a.y) + Vector3(0, 1.6, 0)
+			_look(eye, z.cell_center(b.x, b.y) + Vector3(0, 0.9, 0))
+			z._hunting = false
+			z._stalker.scramble = true
+			z._stalker.global_position = z.cell_center(b.x, b.y)
+			var tgt: Vector3 = z.cell_center(a.x, a.y)
+			var run := func():
+				for k in 70:
+					await get_tree().process_frame
+					if not is_instance_valid(z):
+						return
+					z._stalker.move_to(tgt + (z._stalker.global_position - tgt).normalized() * 3.0, 4.2, get_process_delta_time())
+					z._stalker.grip_side = 1
+			run.call(),
+		"chase_bars": func():
+			var z: MazeZone = await _chase_setup()
+			var before: Vector2i = z._chase_path[z._chase_path.size() - 2]
+			z._hunting = false
+			z._chase_on = false
+			z._chase_idx = z._chase_path.size() - 1
+			await get_tree().process_frame
+			z._update_chase(0.016)
+			z._hunting = false
+			z._chase_on = false
+			z._bar_gate(before)
+			z._stalker.global_position = z._bars_spot
+			z._stalker.scramble = false
+			z._stalker.grab_bars = true
+			var lift: Vector3 = z.cell_center(0, 0) + Vector3(-1.2, 0, 0)
+			z._stalker.look_at(Vector3(lift.x, 0, lift.z), Vector3.UP, true)
+			_look(lift + Vector3(0, 1.6, 0), z._bars_spot + Vector3(0, 1.7, 0)),
 		"maze_power": func():
 			_zone("maze")
 			var z: MazeZone = Game.zone
@@ -466,3 +524,30 @@ func _run() -> void:
 			await _shot(name)
 			Input.action_release("move_forward")
 	get_tree().quit()
+
+
+func _chase_setup() -> MazeZone:
+	_zone("maze")
+	var z: MazeZone = Game.zone
+	z._open_maint()
+	var at: Vector3 = z._wing_xf * Vector3(-2.0, 0, 0)
+	_look(at + Vector3(0, 1.6, 0), z._wing_xf * Vector3(-8.0, 1.4, 0))
+	z._hunting = true
+	z._stalker.global_position = z._wing_xf * Vector3(14.0, 0, 0)
+	await get_tree().process_frame
+	if not z._chase_on:
+		z._begin_chase()
+	z._hunting = false
+	for h in z._hazards:
+		z._build_hazard(h, 0.0)
+	return z
+
+
+func _chase_hazard(kind: String) -> void:
+	var z: MazeZone = await _chase_setup()
+	for h in z._hazards:
+		if h.kind == kind:
+			z._chase_idx = h.idx
+			var al: Vector3 = h.along
+			_look(h.c - al * 4.2 + Vector3(0, 1.6, 0), h.c + al * 2.0 + Vector3(0, 0.6 if kind == "pit" else 1.2, 0))
+			return

@@ -45,6 +45,7 @@ var _bob_blend := 0.0
 var _step_acc := 0.0
 var _jolt := Vector3.ZERO
 var _crouched := false
+var crouch_speed := 1.8       # (a chase lets you scramble under things faster)
 var _shape: CollisionShape3D
 var _hands: Array[Node3D] = []
 var _hands_t := -1.0
@@ -159,6 +160,7 @@ func reset_presentation() -> void:
 	for h in _hands:
 		h.visible = false
 	_jolt = Vector3.ZERO
+	crouch_speed = 1.8
 	set_phasing(false)
 	manifestation.clear_all()
 	set_drone(0.0)
@@ -297,7 +299,7 @@ func _physics_process(delta: float) -> void:
 		_update_focus()
 		return
 	var sprinting := Input.is_action_pressed("sprint") and not controls_locked and not _crouched
-	var speed := (1.8 if _crouched else (sprint_speed if sprinting else walk_speed))
+	var speed := (crouch_speed if _crouched else (sprint_speed if sprinting else walk_speed))
 	var dir := (transform.basis * Vector3(input.x, 0, input.y))
 	dir.y = 0
 	dir = dir.normalized() * minf(input.length(), 1.0)

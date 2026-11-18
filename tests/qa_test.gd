@@ -66,15 +66,26 @@ func run_to(points: Array, sprint := true, timeout := 20.0) -> bool:
 	while i < points.size() and t < timeout and not Game.in_sequence:
 		if OS.get_cmdline_user_args().has("--trace") and t > next_log:
 			next_log += 1.0
-			print("    t=%.0f waypoint %d/%d at %s -> %s  vel %.1f" % [t, i, points.size(), Game.player.global_position.snapped(Vector3.ONE * 0.1), (points[i] as Vector3).snapped(Vector3.ONE * 0.1), Game.player.velocity.length()])
+			print("    t=%.0f waypoint %d/%d at %s -> %s  vel %.1f" % [t, i, points.size(), Game.player.global_position.snapped(Vector3.ONE * 0.1), points[i], Game.player.velocity.length()])
 			for k in Game.player.get_slide_collision_count():
 				var col := Game.player.get_slide_collision(k)
 				var o: Object = col.get_collider()
 				print("      hit %s at %s n=%s shape=%s" % [o.get_path() if o is Node else o, col.get_position().snapped(Vector3.ONE*0.1), col.get_normal().snapped(Vector3.ONE*0.1), _shape_desc(o, col.get_collider_shape_index())])
 		var pl := Game.player
-		var to: Vector3 = points[i] - pl.global_position
+		var pt: Vector3 = points[i][0] if points[i] is Array else points[i]
+		var to: Vector3 = pt - pl.global_position
 		to.y = 0.0
 		if to.length() < 0.45:
+			if points[i] is Array and points[i][1] != "":
+				var act: String = points[i][1]
+				if act == "jump":
+					Input.action_press("jump")
+					await get_tree().physics_frame
+					Input.action_release("jump")
+				elif act == "crouch" or act == "stand":
+					pl._set_crouch(act == "crouch")      # (crouch toggles on an input event, which action_press doesn't send)
+				if OS.get_cmdline_user_args().has("--trace"):
+					print("    %s at %s (t=%.1f, stalker %.1f m)" % [act, pl.global_position.snapped(Vector3.ONE * 0.1), t, Game.zone._stalker.global_position.distance_to(pl.global_position) if Game.zone is MazeZone else -1.0])
 			i += 1
 			continue
 		pl.rotation.y = atan2(-to.x, -to.z)
@@ -135,12 +146,11 @@ func _run() -> void:
 	print("== BACKROOMS: the chase - the maze closes down to one route to the lift")
 	await wait(0.3)
 	check(mz._chase_on and mz._chase_path.size() > 1, "the chase began (%d cells to the lift)" % mz._chase_path.size())
-	var pts := []
+	var pts := mz.chase_waypoints()
+	print("    %d rooms, %d false trails, hazards %s" % [mz._chase_path.size(), mz._decoys.size(), mz._hazards.map(func(h): return h.kind)])
 	if OS.get_cmdline_user_args().has("--trace"):
-		print("    path ", mz._chase_path, "\n    props ", mz._prop_cells.keys(), "\n    sealed ", mz._sealed.keys())
-	for c in mz._chase_path:
-		pts.append(mz.cell_center(c.x, c.y))
-	var made_it := await run_to(pts, true, 60.0)
+		print("    path ", mz._chase_path)
+	var made_it := await run_to(pts, true, 120.0)
 	print("    reached route cell %d/%d, fear %.0f, stalker %.1f m behind" % [mz._chase_idx, mz._chase_path.size(), Game.player.dread.fear,
 		mz._stalker.global_position.distance_to(Game.player.global_position)])
 	var tw := 0.0
@@ -157,6 +167,40 @@ func _run() -> void:
 	check(Game.zone_type == "deep", "and the lift takes you on (zone %s)" % Game.zone_type)
 	Game._cancel_sequences()
 
+	print("== BACKROOMS: run into a hole instead of jumping it, and you fall")
+	await zone("maze")
+	mz = Game.zone
+	mz._open_maint()
+	place(mz._wing_xf * Vector3(-2.0, 0.05, 0), 0.0)
+	mz._hunting = true
+	await wait(0.3)
+	var pits: Array = mz._hazards.filter(func(h): return h.kind == "pit")
+	check(mz._chase_on and not pits.is_empty(), "a chase with a pit in it (%d)" % pits.size())
+	if not pits.is_empty():
+		var hz: Dictionary = pits[0]
+		mz._hunting = false
+		mz._stalker.global_position = mz.cell_center(0, 0)
+		mz._build_hazard(hz, 0.0)
+		await wait(0.5)
+		var al: Vector3 = hz.along
+		place(hz.c - al * 3.0 + Vector3(0, 0.05, 0), rad_to_deg(atan2(-al.x, -al.z)))
+		calm()
+		await walk(3.0, ["move_forward", "sprint"])
+		check(Game.in_sequence, "into the hole (y=%.1f)" % Game.player.global_position.y)
+		await wait(1.0)
+		Game._cancel_sequences()
+	print("== THE DEEP: through the one door that works, into the next room")
+	await zone("abyss")
+	var best: Interactable = null
+	for c in Game.zone.get_children():
+		if c is Interactable and c.get_prompt() == "Open the door" and (best == null or c.global_position.distance_to(Vector3(2.5, 1, -43.8)) < best.global_position.distance_to(Vector3(2.5, 1, -43.8))):
+			best = c
+	best.interact()
+	await wait(1.5)
+	place(Vector3(2.5, 0.05, -42.5), 0.0)
+	calm()
+	var pr := await walk(4.5)
+	check(pr.z < -48.0 and pr.y > -0.5, "into the room beyond, on a floor (z=%.1f y=%.2f)" % [pr.z, pr.y])
 	print("== THE DEEP: the door you can't look at")
 	await zone("abyss")
 	place(Vector3(0, 0.05, -62.4), 0.0)            # facing the wall

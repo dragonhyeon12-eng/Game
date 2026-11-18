@@ -36,6 +36,8 @@ func _ready() -> void:
 	add_child(floor)
 	if what == "leviathan":
 		await _leviathan()
+	elif what == "scramble":
+		await _scramble()
 	else:
 		await _stalker()
 	get_tree().quit()
@@ -124,3 +126,36 @@ func _leviathan() -> void:
 			total += ang
 			n += 1
 	print("LEVIATHAN HEAD: average turn %.2f deg/frame, worst %.2f deg/frame" % [total / n, worst])
+
+
+func _scramble() -> void:
+	var s := Stalker.new()
+	add_child(s)
+	s.scramble = true
+	s.grip_side = 1
+	var cam := Camera3D.new()
+	cam.fov = 45
+	add_child(cam)
+	cam.current = true
+	await get_tree().create_timer(0.5).timeout
+	var plants := []
+	s.planted.connect(func(k, sd, w): plants.append(k))
+	var spd := 5.0
+	s.global_position = Vector3(-6, 0, 0)
+	var mover := func():
+		while is_instance_valid(s) and spd > 0.0:
+			await get_tree().process_frame
+			s.move_to(Vector3(80, 0, 0), spd, get_process_delta_time())
+	mover.call()
+	await get_tree().create_timer(1.0).timeout
+	await _strip(cam, 8, 0.07, "scramble_side", s, Vector3(0, 1.2, 3.8), Vector3(0, 0.9, 0))
+	await _strip(cam, 6, 0.09, "scramble_front", s, Vector3(3.2, 1.3, 0.8), Vector3(0, 0.9, 0))
+	print("plants: ", plants.size(), " ", plants.slice(0, 12))
+	spd = 0.0
+	await get_tree().process_frame
+	s.scramble = false
+	s.grab_bars = true
+	s.global_position = Vector3(0, 0, 0)
+	s.rotation.y = 0.0
+	await get_tree().create_timer(0.3).timeout
+	await _strip(cam, 4, 0.12, "bars", s, Vector3(0, 1.6, -3.6), Vector3(0, 1.4, 0))

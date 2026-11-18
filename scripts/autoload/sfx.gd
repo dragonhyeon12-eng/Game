@@ -107,18 +107,20 @@ func _build_music() -> void:
 	call_deferred("_music_ready", "city", _to_wav(_track_city(), true))
 	call_deferred("_music_ready", "maze", _to_wav(_track_maze(), true))
 	call_deferred("_music_ready", "deep", _to_wav(_track_deep(), true))
+	call_deferred("_music_ready", "chase", _to_wav(_track_chase(), true))
 	print("Sfx: music generated in %d ms (background thread)" % (Time.get_ticks_msec() - t0))
 
 
 ## No threads (web): build the tracks on the main thread, one per pause, the title theme first.
 func _build_music_stepwise() -> void:
-	for track in ["title", "city", "maze", "deep"]:
+	for track in ["title", "city", "maze", "deep", "chase"]:
 		await get_tree().create_timer(0.5 if track == "title" else 2.0, true).timeout
 		var data: PackedFloat32Array
 		match track:
 			"title": data = _track_title()
 			"city": data = _track_city()
 			"maze": data = _track_maze()
+			"chase": data = _track_chase()
 			_: data = _track_deep()
 		_music_ready(track, _to_wav(data, true))
 
@@ -381,6 +383,12 @@ func _build_all() -> void:
 	streams["underwater"] = _to_wav(_underwater(6.0), true)
 	streams["buzz"] = _to_wav(_buzz(2.0), true)
 	streams["motor"] = _to_wav(_motor(3.0), true)
+	streams["piston_slam"] = _to_wav(_piston_slam(), false)
+	streams["stalker_step"] = _to_wav(_stalker_step(), false)
+	streams["wall_grip"] = _to_wav(_wall_grip(), false)
+	streams["stalker_rasp"] = _to_wav(_stalker_rasp(3.6), true)
+	streams["gate_slam"] = _to_wav(_gate_slam(), false)
+	streams["bars_rattle"] = _to_wav(_bars_rattle(), false)
 	print("Sfx: synthesized %d sounds in %d ms" % [streams.size(), Time.get_ticks_msec() - t0])
 
 
@@ -1056,3 +1064,276 @@ func _motor(sec: float) -> PackedFloat32Array:
 ## A horror cue, slightly varied each time so repeats don't sound identical.
 func stinger(name: String, volume_db := 0.0) -> void:
 	play(name, volume_db + linear_to_db(maxf(Settings.audio_intensity, 0.05)), randf_range(0.94, 1.06))
+
+
+# ------------------------------------------------------------------ the Backrooms chase
+
+const CHASE_BPM := 150.0
+const CHASE_BEAT := 60.0 / CHASE_BPM          # 0.4 s
+const SLAM_IMPACT := 0.2                       # piston_slam: the wall lands this long after the sound starts
+
+
+## Where the chase track is, in seconds (or -1 if it isn't what's playing).
+func music_pos(track: String) -> float:
+	if _music_target_name != track:
+		return -1.0
+	var p := _music_players[_music_current]
+	if not p.playing:
+		return -1.0
+	return p.get_playback_position() + AudioServer.get_time_since_last_mix()
+
+
+## Two-pole resonator (a formant): returns the new [y1, y2]; out in y1.
+static func _reso(x: float, st: Array, f: float, bw: float) -> float:
+	var r := exp(-PI * bw / RATE)
+	var b := 2.0 * r * cos(TAU * f / RATE)
+	var c := -r * r
+	var y := (1.0 - b - c) * x + b * float(st[0]) + c * float(st[1])
+	st[1] = st[0]
+	st[0] = y
+	return y
+
+
+## The cockpit voice: "STALL". Flat, male, through a small speaker. Formant synthesis.
+static func _stall_voice(rng: RandomNumberGenerator) -> PackedFloat32Array:
+	var n := int(0.56 * RATE)
+	var s := PackedFloat32Array()
+	s.resize(n)
+	var ph := 0.0
+	var f1 := [0.0, 0.0]
+	var f2 := [0.0, 0.0]
+	var f3 := [0.0, 0.0]
+	var hs := [0.0, 0.0]
+	var prev := 0.0
+	var hp := 0.0
+	for i in n:
+		var t := float(i) / RATE
+		var v := 0.0
+		if t < 0.13:
+			# "s": hiss, high-passed
+			var x := rng.randf() * 2.0 - 1.0
+			var hi := x - prev
+			prev = x
+			v = _reso(hi, hs, 5200.0, 2200.0) * 1.6 * minf(1.0, t * 60.0) * minf(1.0, (0.13 - t) * 50.0)
+		elif t >= 0.155 and t < 0.175:
+			# "t": the release
+			v = (rng.randf() * 2.0 - 1.0) * 0.5 * exp(-(t - 0.155) * 200.0)
+		elif t >= 0.17:
+			# "aw" gliding into "l": a buzz through the vocal tract
+			var u := t - 0.17
+			var f0 := 118.0 - 14.0 * u
+			ph = fmod(ph + f0 / RATE, 1.0)
+			var src := (1.0 - ph * 2.0) * 0.6 + (0.25 if ph < 0.08 else 0.0)
+			var into_l := smoothstep(0.24, 0.32, u)
+			var F1 := lerpf(640.0, 360.0, into_l)
+			var F2 := lerpf(950.0, 1050.0, into_l)
+			var F3 := lerpf(2500.0, 2800.0, into_l)
+			v = _reso(src, f1, F1, 90.0) * 1.0 + _reso(src, f2, F2, 110.0) * 0.6 + _reso(src, f3, F3, 160.0) * 0.25
+			v *= minf(1.0, u * 40.0) * (1.0 - smoothstep(0.30, 0.39, u)) * lerpf(1.0, 0.55, into_l)
+		# the speaker: no lows, a bit of crunch
+		hp += (v - hp) * 0.06
+		s[i] = tanh((v - hp) * 2.2) * 0.8
+	return s
+
+
+## The chase: 150 bpm, 16 bars. Drums, a driving bass, an air-raid siren, an alarm whoop, and the stall
+## warning (the cricket, then "STALL, STALL") every few bars.
+func _track_chase() -> PackedFloat32Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	var beat := CHASE_BEAT
+	var bars := 16
+	var n := int(beat * 4.0 * bars * RATE)
+	var buf := PackedFloat32Array()
+	buf.resize(n)
+	var bass_notes := [33, 33, 34, 32, 33, 33, 36, 35]      # A1, A1, Bb1, Ab1, ... one per bar, cycling
+	var bph := [0.0, 0.0, 0.0]
+	var blp := 0.0
+	var sir_ph := 0.0
+	var wh_ph := 0.0
+	var hat_hp := 0.0
+	var hat_prev := 0.0
+	var sn_lp := 0.0
+	for i in n:
+		var t := float(i) / RATE
+		var bt := t / beat                     # in beats
+		var b := int(bt)
+		var fb := bt - b                       # within the beat
+		var bar := b / 4
+		var v := 0.0
+		# kick, every beat
+		var kt := fb * beat
+		v += sin(TAU * (48.0 * kt + 90.0 * (1.0 - exp(-kt * 28.0)) / 28.0)) * exp(-kt * 9.0) * 0.9
+		# snare on 2 and 4 (and a fill at the end of every 4th bar)
+		var x := rng.randf() * 2.0 - 1.0
+		var snare_on := (b % 4 == 1 or b % 4 == 3)
+		var st := kt
+		if bar % 4 == 3 and b % 4 >= 2:
+			snare_on = true
+			st = fmod(t, beat * 0.25)
+		if snare_on:
+			sn_lp += (x - sn_lp) * 0.5
+			v += (sn_lp * 0.7 + sin(TAU * 190.0 * st) * 0.3) * exp(-st * 22.0) * 0.55
+		# hats: 16ths, open on the off-beat
+		var ht := fmod(t, beat * 0.25)
+		var hi := x - hat_prev
+		hat_prev = x
+		hat_hp += (hi - hat_hp) * 0.7
+		var open := int(bt * 4.0) % 4 == 2
+		v += hat_hp * exp(-ht * (18.0 if open else 70.0)) * 0.16
+		# bass: 8ths, a dirty saw, octave jump on the last 8th
+		var note: int = bass_notes[bar % bass_notes.size()]
+		var e8 := int(bt * 2.0) % 8
+		if e8 == 7:
+			note += 12
+		var f := _hz(note)
+		var bv := 0.0
+		for k in 3:
+			bph[k] = fmod(bph[k] + f * (1.0 + k * 0.007) / RATE, 1.0)
+			bv += bph[k] * 2.0 - 1.0
+		var et := fmod(t, beat * 0.5)
+		blp += (bv * 0.33 - blp) * (0.04 + 0.2 * exp(-et * 14.0))
+		v += tanh(blp * 2.5) * 0.42 * (1.0 - exp(-et * 200.0)) * exp(-et * 2.0)
+		# air-raid siren: wails up and down over four bars, always there
+		var sw := 0.5 - 0.5 * cos(TAU * t / (beat * 16.0))
+		var sf := 420.0 + 560.0 * sw
+		sir_ph = fmod(sir_ph + sf / RATE, 1.0)
+		var siren := sin(TAU * sir_ph) + 0.35 * sin(TAU * sir_ph * 2.0) + 0.2 * sin(TAU * sir_ph * 3.0)
+		v += siren * 0.075 * (0.6 + 0.4 * sw)
+		# alarm whoop (bars 9-16): a rising tone, twice a bar
+		if bar >= 8:
+			var wt := fmod(t, beat * 2.0)
+			var wf := 500.0 + 900.0 * minf(wt / (beat * 1.6), 1.0)
+			wh_ph = fmod(wh_ph + wf / RATE, 1.0)
+			var sq := 1.0 if wh_ph < 0.5 else -1.0
+			v += sq * 0.05 * (1.0 if wt < beat * 1.6 else 0.0)
+		# stab on the one of every bar
+		if b % 4 == 0:
+			v += sin(TAU * _hz(note + 24) * kt) * exp(-kt * 6.0) * 0.18
+		buf[i] = v * 0.62
+	# the stall warning: the cricket (bars 4, 8, 12, 16 beat 1-2), then the voice on beats 3 and 4
+	var voice := _stall_voice(rng)
+	for bar in [3, 7, 11, 15]:
+		var t0: float = bar * 4.0 * beat
+		var cn := int(beat * 2.0 * RATE)
+		for i in cn:
+			var t := float(i) / RATE
+			var chirp := fmod(t, 0.1) < 0.035
+			var env := 1.0 if chirp else 0.0
+			var k := int(t0 * RATE) + i
+			if k < n:
+				buf[k] += sin(TAU * 2800.0 * t) * sin(TAU * 3100.0 * t) * env * 0.16
+		for rep in 2:
+			var k0 := int((t0 + beat * (2.0 + rep)) * RATE)
+			for i in voice.size():
+				if k0 + i < n:
+					buf[k0 + i] += voice[i] * 0.55
+	for i in n:
+		buf[i] = clampf(tanh(buf[i] * 1.3), -1.0, 1.0)
+	return buf
+
+
+## A wall dropping on a machine: a ratchet, a hiss of air, then (at SLAM_IMPACT) a steel-on-steel impact.
+func _piston_slam() -> PackedFloat32Array:
+	var s := _buf(1.4)
+	var hp := 0.0
+	var prev := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		var v := 0.0
+		var x := _noise()
+		# ratchet: clicks, faster and faster
+		if t < SLAM_IMPACT:
+			var rate := 30.0 + 120.0 * t / SLAM_IMPACT
+			var c := fmod(t * rate, 1.0)
+			v += x * exp(-c * 40.0) * 0.45
+			# pneumatic hiss
+			var hi := x - prev
+			hp += (hi - hp) * 0.4
+			v += hp * 0.25 * t / SLAM_IMPACT
+		prev = x
+		if t >= SLAM_IMPACT:
+			var u := t - SLAM_IMPACT
+			var clang := sin(TAU * 173.0 * u) * 0.5 + sin(TAU * 431.0 * u) * 0.35 + sin(TAU * 797.0 * u) * 0.25 + sin(TAU * 1523.0 * u) * 0.12
+			v += clang * exp(-u * 7.0) * 0.8
+			v += sin(TAU * (55.0 * u + 60.0 * (1.0 - exp(-u * 20.0)) / 20.0)) * exp(-u * 8.0) * 1.0   # the thump
+			v += x * exp(-u * 45.0) * 0.9                                                           # the crack
+			# a bolt shooting home a moment later
+			if u > 0.12:
+				v += x * exp(-(u - 0.12) * 120.0) * 0.4 + sin(TAU * 2100.0 * u) * exp(-(u - 0.12) * 60.0) * 0.15
+		s[i] = clampf(tanh(v * 1.6), -1.0, 1.0) * 0.95
+	return s
+
+
+## Its feet and knuckles: a wet slap with a hollow knock under it.
+func _stalker_step() -> PackedFloat32Array:
+	var s := _buf(0.22)
+	var lp := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		lp += (_noise() - lp) * 0.35
+		s[i] = (lp * exp(-t * 55.0) * 1.2 + sin(TAU * (90.0 - 120.0 * t) * t) * exp(-t * 30.0) * 0.8) * 0.9
+	return s
+
+
+## A palm slapping the wallpaper, and the nails dragging.
+func _wall_grip() -> PackedFloat32Array:
+	var s := _buf(0.5)
+	var bp := 0.0
+	var bp2 := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		var x := _noise()
+		bp += (x - bp) * 0.5
+		var slap := (x - bp) * exp(-t * 70.0) * 1.3
+		bp2 += (x - bp2) * 0.15
+		var scr := bp2 * (0.5 + 0.5 * sin(TAU * 38.0 * t)) * exp(-maxf(t - 0.06, 0.0) * 8.0) * (1.0 if t > 0.04 else 0.0) * 0.6
+		s[i] = clampf(slap + scr, -1.0, 1.0) * 0.85
+	return s
+
+
+## Its breathing, close: a wet rasp, clicking in its throat. Loops.
+func _stalker_rasp(sec: float) -> PackedFloat32Array:
+	var s := _buf(sec)
+	var bp := 0.0
+	for i in s.size():
+		var t := float(i) / RATE
+		var cyc := fmod(t, 0.9) / 0.9                     # fast, ragged breaths
+		var env := sin(PI * minf(cyc / 0.45, 1.0)) if cyc < 0.45 else 0.55 * sin(PI * (cyc - 0.45) / 0.55)
+		bp += (_noise() - bp) * (0.12 if cyc < 0.45 else 0.06)
+		var click := 0.0
+		var ct := fmod(t, 0.075)
+		if cyc > 0.5 and fmod(t * 3.7, 1.0) < 0.5:
+			click = _noise() * exp(-ct * 300.0) * 0.8
+		var growl := sin(TAU * 62.0 * t) * sin(TAU * 31.0 * t) * 0.4
+		s[i] = clampf((bp * 1.6 + growl * 0.4) * env + click, -1.0, 1.0) * 0.7
+	_seam(s, 1500)
+	return s
+
+
+## Steel bars dropping into their slots: a ringing clang.
+func _gate_slam() -> PackedFloat32Array:
+	var s := _buf(2.2)
+	for i in s.size():
+		var t := float(i) / RATE
+		var v := 0.0
+		for k in 6:
+			var f := 210.0 * (1.0 + k * 1.37) * (1.0 + 0.01 * k)
+			v += sin(TAU * f * t) * exp(-t * (1.6 + k * 0.9)) / (1.0 + k * 0.6)
+		v += _noise() * exp(-t * 40.0) * 0.8 + sin(TAU * 50.0 * t) * exp(-t * 6.0) * 0.8
+		s[i] = clampf(tanh(v * 1.2), -1.0, 1.0) * 0.9
+	return s
+
+
+## Something shaking the bars, hard.
+func _bars_rattle() -> PackedFloat32Array:
+	var s := _buf(0.9)
+	for i in s.size():
+		var t := float(i) / RATE
+		var hit_t := fmod(t, 0.11)
+		var v := 0.0
+		for k in 4:
+			v += sin(TAU * (620.0 + k * 517.0) * hit_t + k) * exp(-hit_t * (30.0 + k * 10.0))
+		v += _noise() * exp(-hit_t * 90.0) * 0.6
+		s[i] = clampf(v * 0.35 * (1.0 - t / 0.9 * 0.5), -1.0, 1.0)
+	return s

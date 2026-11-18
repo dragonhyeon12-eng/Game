@@ -70,7 +70,18 @@ var _chase_idx := 0
 var _sealed := {}                 # "x,z|x,z" -> true: openings slammed shut
 var _env: Environment
 var _prop_cells := {}             # cells with something big in the middle (the cart, the bench): the chase route goes round them
-var _seal_queue: Array = []       # [time, path index]
+var _seal_queue: Array = []       # route indices whose rooms close next (one per beat)
+var _queued_to := 0
+var _last_beat := -1
+var _decoys: Array = []           # false trails: {at: route index, cells: [...], warned}
+var _decoy_lights: Array = []     # [light, route index of the trail's mouth]
+var _hazards: Array = []          # {kind: debris/pit/beam, idx, c, along, across, side, built}
+var _hinted := {}
+var _rasp: Node
+var _gate: Node3D
+var _bars_spot := Vector3.ZERO
+var _at_bars := false
+var _rattle_t := 0.0
 var _chase_lights: Array[OmniLight3D] = []
 var _chase_t := 0.0
 var _shriek_t := 2.0
@@ -473,6 +484,8 @@ func _process(delta: float) -> void:
 		_begin_chase()
 	if _chase_on:
 		_update_chase(delta)
+	elif _at_bars:
+		_update_bars(delta)
 	if Game.has_flag("maze_power") and Game.player:
 		var pp: Vector3 = Game.player.global_position
 		if _trail.is_empty() or _trail[-1].distance_to(pp) > 0.7:
@@ -638,6 +651,7 @@ func _wing(door_center: Vector3, out: Vector3, along: Vector3) -> void:
 	omni(_wing_xf * Vector3(9.25, 2.4, -4.0), Color(0.8, 0.12, 0.08), 0.35, 4.0, false)
 	_stalker = Stalker.new()
 	add_child(_stalker)
+	_stalker.planted.connect(_on_stalker_planted)
 	_stalker.global_position = _wing_xf * Vector3(9.25, 0, -4.2)
 	_stalker.rotation.y = atan2(z_axis.x, z_axis.z) + PI
 	trigger(_wing_xf * Vector3(8.6, 1.2, 0), Vector3(1.4, 2.4, 3.0), func():
@@ -885,9 +899,12 @@ func _tape() -> void:
 	Game.set_flag("maze_tape")
 
 
-func _lift_arrives() -> void:
+func _lift_arrives(chased := false) -> void:
 	if Game.in_sequence:
 		return
+	if chased:
+		await get_tree().create_timer(1.6, false).timeout
+		Game.hud.show_thought("It can't get through the bars. ...It's watching me.", 3.0)
 	Sfx.play("ding", 0.0)
 	for k in 2:
 		var side := -1.0 if k == 0 else 1.0
@@ -916,7 +933,9 @@ func _hunt(delta: float) -> void:
 			_path = _route(cell_at(me), cell_at(p))
 		if not _path.is_empty():
 			target = _path[0]
-			if Vector2(me.x - target.x, me.z - target.z).length() < 0.4:
+			if _chase_on:
+				target += _wall_hug(target, me)
+			if Vector2(me.x - target.x, me.z - target.z).length() < 0.45:
 				_path.pop_front()
 	elif not _trail.is_empty():
 		target = _trail[0]
@@ -925,8 +944,9 @@ func _hunt(delta: float) -> void:
 	var dist := me.distance_to(p)
 	var spd := 3.35 if dist > 4.0 else 3.7
 	if _chase_on:
-		# it never falls far behind, and right behind you it's just short of your sprint: any hesitation and it has you
-		spd = 5.0 if dist > 12.0 else (4.0 if dist > 5.0 else 3.3)
+		# it never falls far behind, and right behind you it's short of your sprint (about 4):
+		# any hesitation - a wrong turn, a crawl, a stumble - and it has you
+		spd = 6.5 if dist > 10.0 else (4.5 if dist > 4.5 else 3.55)
 	if in_wing and (_wing_xf.affine_inverse() * me).z < -1.2:
 		target = _wing_xf * Vector3(9.25, 0, 0)
 	_stalker.move_to(target if dist > 1.6 else p, spd, delta)
@@ -934,7 +954,34 @@ func _hunt(delta: float) -> void:
 		_trail = _trail.slice(-400)
 	if dist < 1.1:
 		_hunting = false
+		if _chase_on:
+			_chase_on = false
+			Sfx.stop_music(0.05)
+		_stalker.scramble = false
 		Game.entity_death("stalker", _stalker)
+
+
+## Scrambling along the walls: toward a wall of the room it's heading into, on the side it's already clinging to.
+func _wall_hug(target: Vector3, me: Vector3) -> Vector3:
+	var h := target - me
+	h.y = 0.0
+	if h.length() < 0.3:
+		return Vector3.ZERO
+	var hd := h.normalized()
+	var right := hd.cross(Vector3.UP)
+	var tc := cell_at(target)
+	var best := 0
+	var off := Vector3.ZERO
+	for d in 4:
+		var nrm := Vector3(DX[d], 0, DZ[d])
+		if absf(nrm.dot(hd)) > 0.5 or passable(tc.x, tc.y, d):
+			continue
+		var sd := 1 if nrm.dot(right) > 0.0 else -1
+		if best == 0 or sd == _stalker.grip_side:
+			best = sd
+			off = nrm * 1.25
+	_stalker.grip_side = best
+	return off
 
 
 # ------------------------------------------------------------------ the chase
@@ -987,10 +1034,9 @@ func _route_cells(from: Vector2i, to: Vector2i, avoid := {}) -> Array[Vector2i]:
 func _begin_chase() -> void:
 	_chase_on = true
 	_chase_t = 0.0
-	_chase_path = _route_cells(cell_at(Game.player.global_position), Vector2i(0, 0), _prop_cells)
-	if _chase_path.is_empty():
-		_chase_path = _route_cells(cell_at(Game.player.global_position), Vector2i(0, 0))
-	if _chase_path.is_empty():
+	var start := cell_at(Game.player.global_position)
+	_chase_path = _long_route(start, Vector2i(0, 0))
+	if _chase_path.size() < 2:
 		_chase_on = false
 		return
 	# the route is open: any shifting wall on it stays open
@@ -999,15 +1045,24 @@ func _begin_chase() -> void:
 		for w in _dynamic:
 			if Vector2(w.center.x - mid.x, w.center.z - mid.z).length() < 0.01 and not w.open:
 				_set_dynamic(w, true)
-	# every other light dies - the panels go dark - and red strobes mark the way
+	_plan_decoys()
+	_plan_hazards()
+	# every other light dies - the panels go dark - and red strobes mark the way (the false trails too)
 	for l in _lights:
 		l.dead = true
 		l.panel.material_override = Shapes.material(Color(0.2, 0.19, 0.17))
 	for i in _chase_path.size():
 		var c := _chase_path[i]
-		var l := omni(cell_center(c.x, c.y) + Vector3(0, WALL_H - 0.25, 0), Color(1.0, 0.1, 0.06), 0.0, 4.6, false)
-		_chase_lights.append(l)
-		part("box", cell_center(c.x, c.y) + Vector3(0, WALL_H - 0.03, 0), Vector3(0.5, 0.05, 0.5), Color(1.0, 0.15, 0.1), null, Vector3.ZERO, 6.0)
+		_chase_lights.append(_red_light(c))
+	for dc in _decoys:
+		for c in dc.cells:
+			_decoy_lights.append([_red_light(c), dc.at])
+	# the EXIT signs: the only honest thing in here
+	for i in range(1, _chase_path.size() - 1):
+		var din := _chase_path[i] - _chase_path[i - 1]
+		var dout := _chase_path[i + 1] - _chase_path[i]
+		if din != dout or _decoy_at(i) or i % 4 == 0:
+			_exit_sign(_chase_path[i], din, signi(din.x * dout.y - din.y * dout.x))
 	if _env:
 		var tw := create_tween().set_parallel()
 		tw.tween_property(_env, "ambient_light_color", Color(0.5, 0.06, 0.04), 0.6)
@@ -1016,26 +1071,229 @@ func _begin_chase() -> void:
 		tw.tween_property(_env, "fog_density", 0.022, 0.6)
 		if _env.volumetric_fog_enabled:
 			tw.tween_property(_env, "volumetric_fog_albedo", Color(1.0, 0.3, 0.25), 0.6)
+	Sfx.play_music("chase", 0.15)
 	Sfx.stinger("braam", 2.0)
 	Sfx.play("metal_screech", -2.0, 0.6)
 	Game.player.jolt(Vector3(-3, 2, 0))
-	Game.hud.show_thought("The walls - they're closing! Follow the red. RUN!", 3.0)
-	for i in mini(3, _chase_path.size()):
-		_seal_queue.append([0.15 + i * 0.18, i])
+	Game.hud.show_thought("The walls - they're closing! Follow the EXIT signs. RUN!", 3.0)
+	_stalker.scramble = true
+	Game.player.crouch_speed = 3.2
+	var glow := OmniLight3D.new()       # a sick red sheen on it, so you can see it coming
+	glow.light_color = Color(1.0, 0.25, 0.2)
+	glow.light_energy = 0.7
+	glow.omni_range = 3.2
+	glow.position = Vector3(0, 1.3, -0.6)
+	_stalker.add_child(glow)
+	if _rasp == null:
+		_rasp = Sfx.make_loop("stalker_rasp", true, 2.0, 22.0)
+		_stalker.add_child(_rasp)
+		_rasp.position = Vector3(0, 1.4, 0)
+	for i in mini(4, _chase_path.size()):
+		_seal_queue.append(i)
+	_queued_to = mini(3, _chase_path.size() - 1)
 
 
-## Slam shut every opening off the route around path cell i.
+## A long way round: out through a far part of the maze and back to the lift, never crossing itself.
+## (~45 rooms; the shortest way if there's no such loop.)
+func _long_route(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
+	var block := _prop_cells.duplicate()
+	var best: Array[Vector2i] = _route_cells(from, to, block)
+	var best_score := absf(best.size() - 46.0) + 30.0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value + 777
+	var cand: Array[Vector2i] = []
+	for x in W:
+		for z in H:
+			var m := Vector2i(x, z)
+			if m != from and m != to and not block.has(m):
+				cand.append(m)
+	for k in range(cand.size() - 1, 0, -1):
+		var j := rng.randi_range(0, k)
+		var tmp := cand[k]
+		cand[k] = cand[j]
+		cand[j] = tmp
+	var t0 := Time.get_ticks_msec()
+	for m in cand:
+		if Time.get_ticks_msec() - t0 > 250:
+			break
+		var a := _route_cells(from, m, block)
+		if a.is_empty():
+			continue
+		var avoid := block.duplicate()
+		for c in a:
+			avoid[c] = true
+		avoid.erase(m)
+		var b := _route_cells(m, to, avoid)
+		if b.is_empty():
+			continue
+		var ok := true
+		for c in b.slice(1):
+			if avoid.has(c):
+				ok = false
+				break
+		if not ok:
+			continue
+		var whole: Array[Vector2i] = a.duplicate()
+		whole.append_array(b.slice(1))
+		var score := absf(whole.size() - 46.0)
+		if score < best_score:
+			best_score = score
+			best = whole
+	return best
+
+
+func _red_light(c: Vector2i) -> OmniLight3D:
+	var l := omni(cell_center(c.x, c.y) + Vector3(0, WALL_H - 0.25, 0), Color(1.0, 0.1, 0.06), 0.0, 4.6, false)
+	l.visible = false
+	part("box", cell_center(c.x, c.y) + Vector3(0, WALL_H - 0.03, 0), Vector3(0.5, 0.05, 0.5), Color(1.0, 0.15, 0.1), null, Vector3.ZERO, 6.0)
+	return l
+
+
+func _decoy_at(i: int) -> Dictionary:
+	for dc in _decoys:
+		if dc.at == i:
+			return dc
+	return {}
+
+
+## False trails: lit red like the real way, a few rooms long, and every one ends in a wall.
+func _plan_decoys() -> void:
+	var on_route := {}
+	for c in _chase_path:
+		on_route[c] = true
+	var used := {}
+	var i := 4
+	while i < _chase_path.size() - 5:
+		var c := _chase_path[i]
+		var placed := false
+		for d in 4:
+			var n := Vector2i(c.x + DX[d], c.y + DZ[d])
+			if not _in(n.x, n.y) or on_route.has(n) or used.has(n) or _prop_cells.has(n) or not passable(c.x, c.y, d):
+				continue
+			var cells: Array[Vector2i] = [n]
+			var cur := n
+			for step in 2:
+				var nxt := Vector2i(-99, -99)
+				for d2 in 4:
+					var m := Vector2i(cur.x + DX[d2], cur.y + DZ[d2])
+					if _in(m.x, m.y) and m != c and not on_route.has(m) and not used.has(m) and not cells.has(m) \
+							and not _prop_cells.has(m) and passable(cur.x, cur.y, d2):
+						nxt = m
+						break
+				if nxt.x < 0:
+					break
+				cells.append(nxt)
+				cur = nxt
+			if cells.size() >= 2:
+				for x in cells:
+					used[x] = true
+				_decoys.append({"at": i, "cells": cells, "warned": false})
+				placed = true
+				break
+		i += 8 if placed else 1
+
+
+## Things in the way, on the straight stretches: junk to weave round, holes to jump, a fallen wall to crawl under.
+func _plan_hazards() -> void:
+	var kinds := ["debris", "pit", "beam", "debris", "pit", "debris", "beam", "pit", "debris", "pit"]
+	var k := 0
+	var last := 1
+	for i in range(3, _chase_path.size() - 3):
+		if i - last < 3 or not _decoy_at(i).is_empty() or not _decoy_at(i - 1).is_empty() or not _decoy_at(i + 1).is_empty():
+			continue
+		var din := _chase_path[i] - _chase_path[i - 1]
+		var dout := _chase_path[i + 1] - _chase_path[i]
+		if din != dout:
+			continue
+		var c := _chase_path[i]
+		var along := Vector3(din.x, 0, din.y)
+		_hazards.append({"kind": kinds[k % kinds.size()], "idx": i, "c": cell_center(c.x, c.y), "along": along,
+			"across": Vector3(-along.z, 0, along.x), "side": 1.0 if k % 2 == 0 else -1.0, "built": false})
+		k += 1
+		last = i
+
+
+## Route waypoints for walking the chase (the QA test): [point, action] where action is "", "jump", "crouch", "stand".
+func chase_waypoints() -> Array:
+	var out := []
+	for i in _chase_path.size():
+		var c := cell_center(_chase_path[i].x, _chase_path[i].y)
+		var h := {}
+		for hz in _hazards:
+			if hz.idx == i:
+				h = hz
+		if h.is_empty():
+			out.append([c, ""])
+			continue
+		var al: Vector3 = h.along
+		var ac: Vector3 = h.across
+		var sd: float = h.side
+		match String(h.kind):
+			"debris":
+				out.append([c - al * 1.3 - ac * sd * 1.25, ""])
+				out.append([c, ""])
+				out.append([c + al * 1.3 + ac * sd * 1.25, ""])
+			"pit":
+				out.append([c - al * 1.0, "jump"])
+				out.append([c + al * 1.6, ""])
+			"beam":
+				out.append([c - al * 0.9, "crouch"])
+				out.append([c + al * 1.15, "stand"])
+	return out
+
+
+func _exit_sign(c: Vector2i, din: Vector2i, turn: int) -> void:
+	var fwd := Vector3(din.x, 0, din.y)
+	var pos := cell_center(c.x, c.y) + fwd * 1.7 + Vector3(0, WALL_H - 0.42, 0)
+	var g := group(pos, rad_to_deg(atan2(-fwd.x, -fwd.z)))
+	var green := Color(0.1, 0.85, 0.3)
+	part("box", Vector3(0, 0.28, 0), Vector3(0.02, 0.36, 0.02), Color(0.2, 0.2, 0.2), g)
+	part("box", Vector3.ZERO, Vector3(1.05, 0.34, 0.05), green, g, Vector3.ZERO, 2.6)
+	var white := Color(1, 1, 1)
+	var ax := 0.0 if turn == 0 else (0.34 if turn > 0 else -0.34)
+	var tx := 0.0 if turn == 0 else -ax * 0.45
+	var lb := label(g.global_transform * Vector3(tx - (0.0 if turn != 0 else 0.15), 0, 0.03), g.rotation_degrees.y, "EXIT", 0.2, white, true)
+	lb.no_depth_test = false
+	# the arrow
+	if turn == 0:
+		var ux := 0.33
+		part("box", Vector3(ux, -0.02, 0.03), Vector3(0.045, 0.18, 0.01), white, g, Vector3.ZERO, 3.0)
+		part("box", Vector3(ux - 0.04, 0.05, 0.03), Vector3(0.045, 0.11, 0.01), white, g, Vector3(0, 0, -45), 3.0)
+		part("box", Vector3(ux + 0.04, 0.05, 0.03), Vector3(0.045, 0.11, 0.01), white, g, Vector3(0, 0, 45), 3.0)
+	else:
+		var s := float(turn)
+		part("box", Vector3(ax, 0, 0.03), Vector3(0.2, 0.045, 0.01), white, g, Vector3.ZERO, 3.0)
+		part("box", Vector3(ax + s * 0.065, 0.04, 0.03), Vector3(0.11, 0.045, 0.01), white, g, Vector3(0, 0, -45 * s), 3.0)
+		part("box", Vector3(ax + s * 0.065, -0.04, 0.03), Vector3(0.11, 0.045, 0.01), white, g, Vector3(0, 0, 45 * s), 3.0)
+
+
+## Slam shut every opening off the route around path cell i (a false trail's mouth stays open - and its far
+## end is walled up), and drop whatever's waiting in that room.
 func _seal_around(i: int) -> void:
 	var c := _chase_path[i]
 	var prev: Vector2i = _chase_path[i - 1] if i > 0 else Vector2i(-99, -99)
 	var nxt: Vector2i = _chase_path[i + 1] if i + 1 < _chase_path.size() else Vector2i(-99, -99)
+	var dc := _decoy_at(i)
+	var mouth: Vector2i = dc.cells[0] if not dc.is_empty() else Vector2i(-99, -99)
 	var k := 0
 	for d in 4:
 		var n := Vector2i(c.x + DX[d], c.y + DZ[d])
-		if n == prev or n == nxt or not _in(n.x, n.y) or not passable(c.x, c.y, d):
+		if n == prev or n == nxt or n == mouth or not _in(n.x, n.y) or not passable(c.x, c.y, d):
 			continue
-		_slam(c, n, d, k * 0.07)
+		_slam(c, n, d, k * Sfx.CHASE_BEAT * 0.5)
 		k += 1
+	if not dc.is_empty():
+		var cells: Array = dc.cells
+		for x in cells:
+			for d in 4:
+				var m := Vector2i(x.x + DX[d], x.y + DZ[d])
+				if cells.has(m) or (m == c and x == cells[0]) or not _in(m.x, m.y) or not passable(x.x, x.y, d):
+					continue
+				_slam(x, m, d, k * Sfx.CHASE_BEAT * 0.5)
+				k += 1
+	for h in _hazards:
+		if h.idx == i and not h.built:
+			_build_hazard(h, k * Sfx.CHASE_BEAT * 0.5)
 
 
 func _slam(a: Vector2i, b: Vector2i, d: int, delay: float) -> void:
@@ -1046,12 +1304,103 @@ func _slam(a: Vector2i, b: Vector2i, d: int, delay: float) -> void:
 	var body := solid_box(center + Vector3(0, WALL_H * 1.5 + 0.1, 0), size, WALL_B, null, "wallpaper")
 	var tw := create_tween()
 	tw.tween_interval(delay)
-	tw.tween_property(body, "position:y", WALL_H * 0.5, 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_callback(func(): Sfx.play_at("piston_slam", self, center + Vector3(0, 1.4, 0), 4.0, 32.0))
+	# the sound's impact is SLAM_IMPACT in: the wall lands exactly on it (and so on the beat)
+	tw.tween_property(body, "position:y", WALL_H * 0.5, Sfx.SLAM_IMPACT).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_callback(func():
-		Sfx.play_at("thud", self, center + Vector3(0, 1.0, 0), 3.0, 26.0)
 		var pl: Player = Game.player
-		if pl and pl.global_position.distance_to(center) < 7.0:
+		if pl and pl.global_position.distance_to(center) < 8.0:
 			pl.jolt(Vector3(randf_range(-2.5, -1.0), randf_range(-1.5, 1.5), randf_range(-1.5, 1.5))))
+
+
+func _build_hazard(h: Dictionary, delay: float) -> void:
+	h.built = true
+	var c: Vector3 = h.c
+	var al: Vector3 = h.along
+	var ac: Vector3 = h.across
+	var sd: float = h.side
+	var x_along := absf(al.x) > 0.5
+	var root := Node3D.new()
+	add_child(root)
+	var drop := 3.4
+	match String(h.kind):
+		"debris":
+			# a toppled filing cabinet and a desk, then another heap on the other side: weave
+			for j in 2:
+				var sgn := sd if j == 0 else -sd
+				var at := c + al * (-1.3 if j == 0 else 1.3) + ac * sgn * 1.15
+				var sz := Vector3(0.9, 1.1, 2.5) if x_along else Vector3(2.5, 1.1, 0.9)
+				solid_box(at + Vector3(0, 0.55, 0), sz, Color(0.42, 0.43, 0.42), root, "metal")
+				var top := part("box", at + Vector3(0, 1.25, 0) + ac * sgn * 0.3, Vector3(1.2, 0.3, 0.7) if x_along else Vector3(0.7, 0.3, 1.2),
+					Color(0.5, 0.42, 0.3), root, Vector3(0, 12 * sgn, 8), 0.0, "wood")
+				top.visible = true
+		"pit":
+			# the floor gives way: a hole right across, too deep to see the bottom
+			var sz := Vector3(1.6, 0.02, CELL - THICK) if x_along else Vector3(CELL - THICK, 0.02, 1.6)
+			var hole := MeshInstance3D.new()
+			hole.mesh = Shapes.mesh("box")
+			hole.scale = sz
+			var m := StandardMaterial3D.new()
+			m.albedo_color = Color(0, 0, 0)
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.disable_fog = true
+			hole.material_override = m
+			hole.position = c + Vector3(0, 0.012, 0)
+			root.add_child(hole)
+			# broken floor at both lips, tipping down into it
+			for e in [-1.0, 1.0]:
+				for j in 5:
+					var off: float = (j - 2) * 0.95 + randf_range(-0.15, 0.15)
+					var tilt: float = randf_range(18.0, 38.0) * e
+					var rot := Vector3(0, 0, -tilt) if x_along else Vector3(tilt, 0, 0)
+					part("box", c + al * e * (0.78 + randf_range(-0.05, 0.08)) + ac * off + Vector3(0, -0.06, 0),
+						(Vector3(0.36, 0.1, randf_range(0.7, 0.95)) if x_along else Vector3(randf_range(0.7, 0.95), 0.1, 0.36)),
+						CARPET.darkened(0.25), root, rot, 0.0, "carpet")
+			drop = 0.0
+			root.scale = Vector3(1, 1, 1) * 0.01
+		"beam":
+			# a wall section, fallen across the way: under it or nowhere
+			var sz := Vector3(0.5, WALL_H - 1.2, CELL - THICK) if x_along else Vector3(CELL - THICK, WALL_H - 1.2, 0.5)
+			var blk := solid_box(c + Vector3(0, 1.2 + (WALL_H - 1.2) * 0.5, 0), sz, WALL_B, root, "wallpaper")
+			blk.get_child(1).visible = false
+			var vis := part("box", c + Vector3(0, 1.75, 0), (Vector3(0.28, 1.15, CELL - THICK) if x_along else Vector3(CELL - THICK, 1.15, 0.28)),
+				WALL_B, root, (Vector3(7, 0, 0) if x_along else Vector3(0, 0, 7)), 0.0, "wallpaper")
+			vis.visible = true
+			# torn plaster along its edges, pale against the dark
+			for y in [1.2, 2.3]:
+				part("box", c + Vector3(0, y + (0.04 if y < 2.0 else -0.04), 0) - al * 0.15, (Vector3(0.08, 0.1, CELL - THICK - 0.2) if x_along else Vector3(CELL - THICK - 0.2, 0.1, 0.08)),
+					Color(0.85, 0.82, 0.74), root, (Vector3(7, 0, 0) if x_along else Vector3(0, 0, 7)), 0.6, "concrete")
+			# the back of it: studs and torn plasterboard; cables and ceiling tiles hanging where it came from
+			for j in 6:
+				var sx := -2.0 + j * 0.8
+				part("box", c + ac * sx + al * 0.18 + Vector3(0, 1.75 - sx * 0.06, 0), (Vector3(0.06, 1.1, 0.09) if x_along else Vector3(0.09, 1.1, 0.06)),
+					Color(0.62, 0.5, 0.34), root, (Vector3(7, 0, 0) if x_along else Vector3(0, 0, 7)), 0.0, "wood")
+			for j in 4:
+				var cx := randf_range(-2.0, 2.0)
+				var ln := randf_range(0.5, 1.2)
+				part("cylinder", c + ac * cx + al * randf_range(-0.6, 0.6) + Vector3(0, WALL_H - ln * 0.5, 0), Vector3(0.02, ln, 0.02),
+					Color(0.08, 0.08, 0.08), root, Vector3(randf_range(-12, 12), 0, randf_range(-12, 12)))
+			for j in 3:
+				part("box", c + ac * (j - 1) * 1.4 + Vector3(0, WALL_H - 0.35, 0) + al * 0.4, Vector3(0.6, 0.02, 0.6), CEILING, root,
+					Vector3(randf_range(-40, 40), 0, randf_range(-40, 40)), 0.0, "tiles_ceiling")
+	h.root = root
+	root.position.y = drop
+	var tw := create_tween()
+	tw.tween_interval(delay)
+	if h.kind == "pit":
+		tw.tween_callback(func():
+			Sfx.play_at("thud", self, c, 6.0, 30.0)
+			Sfx.play_at("scrape", self, c, 2.0, 25.0))
+		tw.tween_property(root, "scale", Vector3.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	else:
+		tw.tween_callback(func(): Sfx.play_at("piston_slam", self, c + Vector3(0, 1.4, 0), 4.0, 32.0))
+		tw.tween_property(root, "position:y", 0.0, Sfx.SLAM_IMPACT).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.tween_callback(func(): Sfx.play_at("metal_screech" if h.kind == "debris" else "thud", self, c + Vector3(0, 1.0, 0), -2.0, 26.0))
+
+
+func _music_clock() -> float:
+	var p := Sfx.music_pos("chase")
+	return p if p >= 0.0 else _chase_t
 
 
 func _update_chase(delta: float) -> void:
@@ -1061,22 +1410,55 @@ func _update_chase(delta: float) -> void:
 	# how far along the route you are (the nearest route cell a little ahead of where you were)
 	for j in range(_chase_idx, mini(_chase_idx + 4, _chase_path.size())):
 		if _chase_path[j] == pc:
-			if j > _chase_idx:
-				for k in range(_chase_idx + 3, mini(j + 3, _chase_path.size())):
-					_seal_queue.append([_chase_t + 0.05 + (k - _chase_idx - 3) * 0.2, k])
 			_chase_idx = maxi(_chase_idx, j)
 			break
-	for q in _seal_queue.duplicate():
-		if _chase_t >= q[0]:
-			_seal_queue.erase(q)
-			_seal_around(q[1])
-	# red strobes along the way (gentler with lower visual intensity)
+	while _queued_to < mini(_chase_idx + 4, _chase_path.size() - 1):
+		_queued_to += 1
+		_seal_queue.append(_queued_to)
+	# the walls come down on the beat: one room's worth per beat
+	var bt := int(floor((_music_clock() + Sfx.SLAM_IMPACT) / Sfx.CHASE_BEAT))
+	if bt != _last_beat:
+		_last_beat = bt
+		if not _seal_queue.is_empty():
+			_seal_around(_seal_queue.pop_front())
+	# red strobes running ahead of you toward the way out (gentler with lower visual intensity); only the
+	# nearby ones are lit at all
 	var v := clampf(Settings.visual_intensity, 0.0, 1.0)
 	for i in _chase_lights.size():
-		var on := 1.0 if sin(_chase_t * 11.0 - i * 0.9) > -0.2 else 1.0 - 0.85 * v
-		_chase_lights[i].light_energy = (2.4 if i >= _chase_idx else 0.35) * on
+		var near := i >= _chase_idx - 2 and i <= _chase_idx + 6
+		_chase_lights[i].visible = near
+		if near:
+			var on := 1.0 if sin(_chase_t * 11.0 - i * 0.9) > -0.2 else 1.0 - 0.85 * v
+			_chase_lights[i].light_energy = (2.4 if i >= _chase_idx else 1.1) * on
+	for dl in _decoy_lights:
+		var near: bool = dl[1] >= _chase_idx - 1 and dl[1] <= _chase_idx + 6
+		dl[0].visible = near
+		if near:
+			dl[0].light_energy = 2.4 if sin(_chase_t * 11.0 - dl[1] * 0.9) > -0.2 else 2.4 * (1.0 - 0.85 * v)
 	for l in _lights:
 		l.light.light_energy = 0.0
+	# the hazards: a word of warning the first time, and the holes swallow you if you don't jump
+	var feet := pl.global_position
+	for h in _hazards:
+		if not h.built:
+			continue
+		var rel: Vector3 = feet - h.c
+		var da: float = rel.dot(h.along)
+		var dx: float = rel.dot(h.across)
+		if not _hinted.has(h.kind) and da > -9.0 and da < -2.0 and absf(dx) < 2.5:
+			_hinted[h.kind] = true
+			match String(h.kind):
+				"pit": Game.hud.show_thought("The floor's gone - JUMP!", 2.0)
+				"beam": Game.hud.show_thought("It's down across the way - get under it! CROUCH!", 2.5)
+				"debris": Game.hud.show_thought("Junk in the way - round it, don't stop!", 2.0)
+		if h.kind == "pit" and absf(da) < 0.55 and absf(dx) < 2.4 and pl.is_on_floor() and feet.y < 0.15:
+			_fall_in_pit()
+			return
+	for dc in _decoys:
+		if not dc.warned and pc == dc.cells[dc.cells.size() - 1]:
+			dc.warned = true
+			Sfx.stinger("hit", 0.0)
+			Game.hud.show_thought("Dead end. DEAD END. Back - BACK!", 2.0)
 	# it, behind you
 	var dist := _stalker.global_position.distance_to(pl.global_position)
 	_beat_t -= delta
@@ -1089,19 +1471,95 @@ func _update_chase(delta: float) -> void:
 		Sfx.play_at("screech", self, _stalker.global_position + Vector3(0, 2, 0), -2.0, 30.0)
 		Game.hud.set_post(0.8, 0.5, 1.0, 1.4)
 	# terror, but never the kind that ends it for you: the chase is what decides
-	if pl.dread.fear < 88.0:
+	if pl.dread.fear < 80.0:
 		pl.dread.add_fear(2.5 * delta, "chased")
-	# the lift: a wall slams down behind you, between you and it
+	pl.dread.fear = minf(pl.dread.fear, 80.0)
+	pl.dread.stability = maxf(pl.dread.stability, 25.0)
+	# the lift: steel bars slam down behind you, between you and it
 	if pc == Vector2i(0, 0) and _chase_path.size() > 1:
 		_chase_on = false
 		_hunting = false
-		var before := _chase_path[_chase_path.size() - 2]
-		for d in 4:
-			if Vector2i(DX[d], DZ[d]) == before:
-				_slam(Vector2i(0, 0), before, d, 0.0)
+		_bar_gate(_chase_path[_chase_path.size() - 2])
+		Sfx.stop_music(0.1)
 		Sfx.stinger("hit", 2.0)
-		_stalker.speed = 0.0
-		_lift_arrives()
+		_lift_arrives(true)
+
+
+func _on_stalker_planted(kind: String, side: int, where: Vector3) -> void:
+	if not _hunting and not _at_bars:
+		return
+	match kind:
+		"foot": Sfx.play_at("stalker_step", self, where, -2.0, 30.0)
+		"hand": Sfx.play_at("stalker_step", self, where, 1.0, 30.0)
+		"wall": Sfx.play_at("wall_grip", self, where, 4.0, 30.0)
+	var pl: Player = Game.player
+	if _chase_on and pl and pl.global_position.distance_to(where) < 3.5:
+		pl.jolt(Vector3(randf_range(-0.8, -0.3), randf_range(-0.6, 0.6), 0))
+
+
+## Into a hole in the floor.
+func _fall_in_pit() -> void:
+	_chase_on = false
+	_hunting = false
+	Sfx.stop_music(0.05)
+	var pl: Player = Game.player
+	pl.add_collision_exception_with(_body)
+	create_tween().tween_property(pl, "global_position:y", pl.global_position.y - 9.0, 1.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	Game.entity_death("fall")
+	get_tree().create_timer(3.0, false).timeout.connect(func():
+		if is_instance_valid(pl) and is_instance_valid(_body):
+			pl.remove_collision_exception_with(_body))
+
+
+## Steel bars between you and it. It can't get through. It can still reach.
+func _bar_gate(before: Vector2i) -> void:
+	var dir := before - Vector2i(0, 0)
+	var dv := Vector3(dir.x, 0, dir.y)
+	var center := (cell_center(0, 0) + cell_center(before.x, before.y)) * 0.5
+	_sealed[_edge_key(Vector2i(0, 0), before)] = true
+	var g := group(center + Vector3(0, WALL_H + 0.2, 0), rad_to_deg(atan2(dv.x, dv.z)))
+	var steel := Color(0.3, 0.31, 0.32)
+	var span := CELL - PILLAR
+	var n := 22
+	for k in n:
+		var x := -span * 0.5 + span * (k + 0.5) / n
+		part("cylinder", Vector3(x, -WALL_H * 0.5, 0), Vector3(0.06, WALL_H, 0.06), steel, g, Vector3.ZERO, 0.0, "metal")
+	for y in [0.15, 1.1, WALL_H - 0.15]:
+		part("box", Vector3(0, y - WALL_H, 0), Vector3(span, 0.08, 0.1), steel.darkened(0.2), g, Vector3.ZERO, 0.0, "metal")
+	var blk := solid_box(center + Vector3(0, WALL_H * 0.5, 0), (Vector3(0.14, WALL_H, span) if dir.x != 0 else Vector3(span, WALL_H, 0.14)),
+		steel, null, "metal")
+	blk.get_child(1).visible = false
+	_gate = g
+	create_tween().tween_property(g, "position:y", center.y + WALL_H, 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	Sfx.play_at("gate_slam", self, center + Vector3(0, 1.4, 0), 6.0, 34.0)
+	_bars_spot = center + dv * 0.62
+	_at_bars = true
+	_stalker.scramble = true
+
+
+func _update_bars(delta: float) -> void:
+	if Game.in_sequence and not Game.has_flag("maze_escaped") and Game.zone_type != "maze":
+		return
+	var pl: Player = Game.player
+	if not _stalker.grab_bars:
+		if _stalker.move_to(_bars_spot, 6.0, delta) or _stalker.global_position.distance_to(_bars_spot) < 0.1:
+			_stalker.scramble = false
+			_stalker.grab_bars = true
+			_stalker.speed = 0.0
+			Sfx.play_at("gate_slam", self, _bars_spot + Vector3(0, 1.4, 0), 0.0, 30.0)
+	else:
+		if pl:
+			_stalker.face(pl.global_position, delta)
+		_rattle_t -= delta
+		if _rattle_t <= 0.0:
+			_rattle_t = randf_range(0.5, 1.1)
+			Sfx.play_at("bars_rattle", self, _bars_spot + Vector3(0, 1.5, 0), 3.0, 30.0)
+			if _gate:
+				var gx := _gate.position
+				var tw := create_tween()
+				for j in 4:
+					tw.tween_property(_gate, "position", gx + Vector3(randf_range(-0.03, 0.03), 0, randf_range(-0.03, 0.03)), 0.04)
+				tw.tween_property(_gate, "position", gx, 0.04)
 
 
 ## Inside the maze proper (not the wing or the service passage)?
