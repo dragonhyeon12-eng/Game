@@ -46,6 +46,8 @@ var _step_acc := 0.0
 var _jolt := Vector3.ZERO
 var _crouched := false
 var crouch_speed := 1.8       # (a chase lets you scramble under things faster)
+var jump_speed := JUMP_SPEED  # (a chase: higher...)
+var jump_boost := 0.0         # (...and a push forward, m/s)
 var _shape: CollisionShape3D
 var _hands: Array[Node3D] = []
 var _hands_t := -1.0
@@ -161,6 +163,8 @@ func reset_presentation() -> void:
 		h.visible = false
 	_jolt = Vector3.ZERO
 	crouch_speed = 1.8
+	jump_speed = JUMP_SPEED
+	jump_boost = 0.0
 	set_phasing(false)
 	manifestation.clear_all()
 	set_drone(0.0)
@@ -316,7 +320,9 @@ func _physics_process(delta: float) -> void:
 		if Game.zone:
 			velocity.y = maxf(velocity.y, -Game.zone.max_fall_at(global_position))
 	elif Input.is_action_just_pressed("jump") and not controls_locked and not _crouched:
-		velocity.y = JUMP_SPEED
+		velocity.y = jump_speed
+		if jump_boost > 0.0 and dir.length() > 0.1:
+			velocity += dir.normalized() * jump_boost
 	else:
 		velocity.y = maxf(velocity.y, -1.0)
 	move_and_slide()

@@ -946,7 +946,7 @@ func _hunt(delta: float) -> void:
 	if _chase_on:
 		# it never falls far behind, and right behind you it's short of your sprint (about 4):
 		# any hesitation - a wrong turn, a crawl, a stumble - and it has you
-		spd = 6.5 if dist > 10.0 else (4.5 if dist > 4.5 else 3.55)
+		spd = 8.0 if dist > 10.0 else (6.1 if dist > 4.5 else 4.9)
 	if in_wing and (_wing_xf.affine_inverse() * me).z < -1.2:
 		target = _wing_xf * Vector3(9.25, 0, 0)
 	_stalker.move_to(target if dist > 1.6 else p, spd, delta)
@@ -1065,10 +1065,10 @@ func _begin_chase() -> void:
 			_exit_sign(_chase_path[i], din, signi(din.x * dout.y - din.y * dout.x))
 	if _env:
 		var tw := create_tween().set_parallel()
-		tw.tween_property(_env, "ambient_light_color", Color(0.5, 0.06, 0.04), 0.6)
-		tw.tween_property(_env, "ambient_light_energy", 0.025, 0.6)
-		tw.tween_property(_env, "fog_light_color", Color(0.3, 0.02, 0.01), 0.6)
-		tw.tween_property(_env, "fog_density", 0.022, 0.6)
+		tw.tween_property(_env, "ambient_light_color", Color(0.75, 0.22, 0.16), 0.6)
+		tw.tween_property(_env, "ambient_light_energy", 0.16, 0.6)
+		tw.tween_property(_env, "fog_light_color", Color(0.3, 0.05, 0.03), 0.6)
+		tw.tween_property(_env, "fog_density", 0.01, 0.6)
 		if _env.volumetric_fog_enabled:
 			tw.tween_property(_env, "volumetric_fog_albedo", Color(1.0, 0.3, 0.25), 0.6)
 	Sfx.play_music("chase", 0.15)
@@ -1077,7 +1077,11 @@ func _begin_chase() -> void:
 	Game.player.jolt(Vector3(-3, 2, 0))
 	Game.hud.show_thought("The walls - they're closing! Follow the EXIT signs. RUN!", 3.0)
 	_stalker.scramble = true
-	Game.player.crouch_speed = 3.2
+	Game.player.crouch_speed = 3.6
+	# run for it: faster, and a long, high leap (the stalker's speeds match)
+	Game.player.sprint_speed = 5.6
+	Game.player.jump_speed = 5.6
+	Game.player.jump_boost = 2.5
 	var glow := OmniLight3D.new()       # a sick red sheen on it, so you can see it coming
 	glow.light_color = Color(1.0, 0.25, 0.2)
 	glow.light_energy = 0.7
@@ -1143,7 +1147,7 @@ func _long_route(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
 
 
 func _red_light(c: Vector2i) -> OmniLight3D:
-	var l := omni(cell_center(c.x, c.y) + Vector3(0, WALL_H - 0.25, 0), Color(1.0, 0.1, 0.06), 0.0, 4.6, false)
+	var l := omni(cell_center(c.x, c.y) + Vector3(0, WALL_H - 0.25, 0), Color(1.0, 0.25, 0.15), 0.0, 6.2, false)
 	l.visible = false
 	part("box", cell_center(c.x, c.y) + Vector3(0, WALL_H - 0.03, 0), Vector3(0.5, 0.05, 0.5), Color(1.0, 0.15, 0.1), null, Vector3.ZERO, 6.0)
 	return l
@@ -1425,16 +1429,16 @@ func _update_chase(delta: float) -> void:
 	# nearby ones are lit at all
 	var v := clampf(Settings.visual_intensity, 0.0, 1.0)
 	for i in _chase_lights.size():
-		var near := i >= _chase_idx - 2 and i <= _chase_idx + 6
+		var near := i >= _chase_idx - 3 and i <= _chase_idx + 7
 		_chase_lights[i].visible = near
 		if near:
-			var on := 1.0 if sin(_chase_t * 11.0 - i * 0.9) > -0.2 else 1.0 - 0.85 * v
-			_chase_lights[i].light_energy = (2.4 if i >= _chase_idx else 1.1) * on
+			var on := 1.0 if sin(_chase_t * 11.0 - i * 0.9) > -0.2 else 1.0 - 0.45 * v
+			_chase_lights[i].light_energy = (3.6 if i >= _chase_idx else 2.0) * on
 	for dl in _decoy_lights:
 		var near: bool = dl[1] >= _chase_idx - 1 and dl[1] <= _chase_idx + 6
 		dl[0].visible = near
 		if near:
-			dl[0].light_energy = 2.4 if sin(_chase_t * 11.0 - dl[1] * 0.9) > -0.2 else 2.4 * (1.0 - 0.85 * v)
+			dl[0].light_energy = 3.6 if sin(_chase_t * 11.0 - dl[1] * 0.9) > -0.2 else 3.6 * (1.0 - 0.45 * v)
 	for l in _lights:
 		l.light.light_energy = 0.0
 	# the hazards: a word of warning the first time, and the holes swallow you if you don't jump
@@ -1480,6 +1484,10 @@ func _update_chase(delta: float) -> void:
 		_chase_on = false
 		_hunting = false
 		_bar_gate(_chase_path[_chase_path.size() - 2])
+		pl.sprint_speed = sprint_speed()
+		pl.jump_speed = Player.JUMP_SPEED
+		pl.jump_boost = 0.0
+		pl.crouch_speed = 1.8
 		Sfx.stop_music(0.1)
 		Sfx.stinger("hit", 2.0)
 		_lift_arrives(true)
