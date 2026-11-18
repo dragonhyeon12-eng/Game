@@ -41,6 +41,36 @@
 			"title": "ABOVE",
 			"unlock": "above_escaped",
 			"text": "The elevator opened onto a roof above the clouds. Towers all around, going down into the fog further than towers go.\n\nI walked out along a plank over nothing to get a key, because there was a key at the end of it. I crossed a steel beam on my hands and knees when the wind came. When I looked back the beam wasn't there anymore.\n\nSomeone fell past, far away. No sound until they were already gone. I don't think it was anyone. I think it was supposed to be me.\n\nThere was a red light at the top of the mast. It was warm.\n\nA lift that went sideways through floors that don't exist. Stairs in the open air that were only there when I got close. A crane, a girder, a glass bridge that cracked under me.\n\nThe mast. The light at the top. When I touched it, the platform took itself apart and built a path, piece by piece, up into the sky. There was a door at the end of it, just standing there.\n\nI went through. I think I'm still going through."
+		},
+		{
+			"id": "blackout",
+			"title": "BLACKOUT",
+			"unlock": "bo_escaped",
+			"text": "A street like ours, after midnight, every house dark. The streetlights went out whenever I stopped looking at them. I learned to walk looking forward.\n\nThe dark wasn't empty. When I stayed in it too long, it got closer. I could feel it on the back of my neck like breath.\n\nA tree down across the road. Number 9's door open. A red bulb in the garage, and under red light there was a key that wasn't there before, and writing on the wall in a hand I didn't recognise. Or did.\n\nI turned all the lights on. The road was full of shadows. People's shadows. Nobody standing in them.\n\nThen the dark came back up the street, a lamp at a time, and I ran for the bus."
+		},
+		{
+			"id": "stilllife",
+			"title": "STILL LIFE",
+			"unlock": "sl_escaped",
+			"text": "The bus stopped outside a department store. The doors locked behind me. The music was still playing.\n\nThe mannequins never moved while I watched them. I stopped watching them once, to take the keys off the guard - who was one of them, in a cap - and when I turned round they had all stepped down.\n\nA family at a dinner table, with a place laid for me. I sat down. When the lights came back they were all looking at me.\n\nLevel 3 was a gallery. Plastic, then painted faces, then people I know. Mina. Mr. Halvorsen. Theo. Frozen. The last plinth was empty. The card said: YOU (coming soon)."
+		},
+		{
+			"id": "openspace",
+			"title": "OPEN SPACE",
+			"unlock": "os_escaped",
+			"text": "The staff exit opened onto a car park that never ended. The sky was so big it pressed down on me. There was nowhere to stand that was under anything.\n\nMy car was out there. It moved when I couldn't see it. The gas station on the horizon only came closer when I looked at my feet.\n\nThe phone was ringing. It was Mina. She said it's been raining since I left.\n\nOut the back of the shop there was a square the size of a town, and stairs down, and they moved whenever I blinked. So I didn't blink."
+		},
+		{
+			"id": "pattern",
+			"title": "PATTERN",
+			"unlock": "pt_escaped",
+			"text": "The stairs went down into a station tiled in hexagons. Then a room with six doors, and every doorway crusted with little holes. Clusters of them. I keep seeing them when I close my eyes.\n\nOnly one door was clean. It moved whenever I looked away. Every wrong door led back into the same room, and every time, there were more of them - on the walls, on the floor, on the ceiling.\n\nIn the middle, a round door of rings. Behind it, a hospital door. WARD 6."
+		},
+		{
+			"id": "quiet",
+			"title": "THE QUIET",
+			"unlock": "q_escaped",
+			"text": "A hospital. Number 13; they're serving 12. Every clock says a different time.\n\nThe visitors' book is full of my handwriting. Every night, 3:12 AM, visiting WARD 6. The records are for people who never existed. I knew all of them.\n\nThe pool water had got into the corridor. There were people under sheets in the doorways.\n\nWard 6 was my room. My desk. My computer, the video paused. The towel on the mirror. A hospital bed in the middle of it, empty and warm. The chart said time of death 3:12 AM, crossed out, and under it, in my writing: not yet.\n\nMr. Halvorsen was in the garden, with the pigeons. He gave me a key. He said the man who doesn't move only ever stood where I was most afraid. Someone has to.\n\nThe gate goes to the middle of it all."
 		}
 	]
 }

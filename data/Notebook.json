@@ -151,6 +151,69 @@
 			"text": "look down. you have to see where it's taking you.",
 			"style": "Unknown",
 			"revealOn": "above_skyway"
+		},
+		{
+			"id": "bo_light",
+			"order": 160,
+			"text": "stay in the light.",
+			"style": "Unknown",
+			"revealOn": "bo_tree"
+		},
+		{
+			"id": "bo_dark",
+			"order": 170,
+			"text": "the light lies. the dark only tells you the truth slower.",
+			"style": "Unknown",
+			"revealOn": "bo_key"
+		},
+		{
+			"id": "sl_blink",
+			"order": 180,
+			"text": "they can't move while you're looking. so don't look away. don't look away.",
+			"style": "Unknown",
+			"revealOn": "sl_key"
+		},
+		{
+			"id": "sl_seat",
+			"order": 190,
+			"text": "there is always a place laid for you.",
+			"style": "Unknown",
+			"revealOn": "sl_family"
+		},
+		{
+			"id": "os_road",
+			"order": 200,
+			"text": "don't look where you're going.",
+			"style": "Unknown",
+			"revealOn": "os_car"
+		},
+		{
+			"id": "os_watch",
+			"order": 210,
+			"text": "NEVER take your eyes off the way out.",
+			"style": "Unknown",
+			"revealOn": "os_plaza"
+		},
+		{
+			"id": "pt_clean",
+			"order": 220,
+			"text": "the clean one. only ever the clean one.",
+			"style": "Unknown",
+			"revealOn": "pt_hive"
+		},
+		{
+			"id": "q_visit",
+			"order": 230,
+			"text": "you've been here before. you sat by the bed. you never stay long enough.",
+			"style": "Unknown",
+			"revealOn": "q_book"
+		},
+		{
+			"id": "q_notyet",
+			"order": 240,
+			"text": "not yet.",
+			"style": "Player",
+			"revealOn": "q_chart"
 		}
 	]
 }

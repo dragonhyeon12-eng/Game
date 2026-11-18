@@ -269,5 +269,155 @@
 			"text": "Climb the shaft to the door at the top",
 			"after": "ten_shaft"
 		}
+	],
+	"blackout": [
+		{
+			"flag": "bo_tree",
+			"text": "Follow the streetlights up Larkspur Lane"
+		},
+		{
+			"flag": "bo_inside",
+			"text": "The road's blocked. Go through number 9",
+			"after": "bo_tree"
+		},
+		{
+			"flag": "bo_key",
+			"text": "The back door is padlocked. Find the key",
+			"after": "bo_inside"
+		},
+		{
+			"flag": "bo_backyard",
+			"text": "Get out the back door",
+			"after": "bo_key"
+		},
+		{
+			"flag": "bo_power",
+			"text": "Round the gardens to the junction box. Turn the power on",
+			"after": "bo_backyard"
+		},
+		{
+			"flag": "bo_escaped",
+			"text": "Get on the night bus",
+			"after": "bo_power"
+		}
+	],
+	"stilllife": [
+		{
+			"flag": "sl_directory",
+			"text": "Find a way out of the store"
+		},
+		{
+			"flag": "sl_key",
+			"text": "The escalator's locked. Find the security office",
+			"after": "sl_directory"
+		},
+		{
+			"flag": "sl_level2",
+			"text": "Unlock the escalator. Up to Level 2",
+			"after": "sl_key"
+		},
+		{
+			"flag": "sl_family",
+			"text": "The way up is shut. Look around Level 2",
+			"after": "sl_level2"
+		},
+		{
+			"flag": "sl_level3",
+			"text": "Up to Level 3",
+			"after": "sl_family"
+		},
+		{
+			"flag": "sl_escaped",
+			"text": "Find the staff exit",
+			"after": "sl_level3"
+		}
+	],
+	"openspace": [
+		{
+			"flag": "os_car",
+			"text": "Find your car (listen for it)"
+		},
+		{
+			"flag": "os_station",
+			"text": "Walk to the gas station",
+			"after": "os_car"
+		},
+		{
+			"flag": "os_call",
+			"text": "Answer the phone",
+			"after": "os_station"
+		},
+		{
+			"flag": "os_plaza",
+			"text": "Out the back of the shop",
+			"after": "os_call"
+		},
+		{
+			"flag": "os_escaped",
+			"text": "Get to the subway stairs",
+			"after": "os_plaza"
+		}
+	],
+	"pattern": [
+		{
+			"flag": "pt_hive",
+			"text": "Find the way out: the middle"
+		},
+		{
+			"flag": "pt_deep",
+			"text": "Go deeper through the doorway without holes ({hive}/4)",
+			"after": "pt_hive"
+		},
+		{
+			"flag": "pt_rings",
+			"text": "Line up the three rings",
+			"after": "pt_deep"
+		},
+		{
+			"flag": "pt_escaped",
+			"text": "Through the porthole door",
+			"after": "pt_rings"
+		}
+	],
+	"quiet": [
+		{
+			"flag": "q_number",
+			"text": "Take a number"
+		},
+		{
+			"flag": "q_book",
+			"text": "Sign the visitors' book",
+			"after": "q_number"
+		},
+		{
+			"flag": "q_records",
+			"text": "Find the patient's file in Records",
+			"after": "q_book"
+		},
+		{
+			"flag": "q_key",
+			"text": "Get the key to Ward 6 from the nurses' station",
+			"after": "q_records"
+		},
+		{
+			"flag": "q_chart",
+			"text": "Ward 6, at the end of the corridor",
+			"after": "q_key"
+		},
+		{
+			"flag": "q_garden",
+			"text": "Go out to the memorial garden",
+			"after": "q_chart"
+		},
+		{
+			"flag": "q_gatekey",
+			"text": "Talk to the man on the bench",
+			"after": "q_garden"
+		},
+		{
+			"flag": "q_escaped",
+			"text": "Through the gate",
+			"after": "q_gatekey"
+		}
 	]
 }

@@ -173,7 +173,8 @@ func _cancel_sequences() -> void:
 
 # ------------------------------------------------------------------ zones
 
-const ZONES := ["bedroom", "bedroom_dream", "city", "maze", "deep", "seabed", "abyss", "compression", "tenement", "above"]
+const ZONES := ["bedroom", "bedroom_dream", "city", "maze", "deep", "seabed", "abyss", "compression", "tenement", "above",
+	"blackout", "stilllife", "openspace", "pattern", "quiet"]
 
 
 func enter_zone(type: String, from_save := false, waking := false) -> void:
@@ -211,6 +212,16 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 			zone = TenementZone.new()
 		"above":
 			zone = AboveZone.new()
+		"blackout":
+			zone = BlackoutZone.new()
+		"stilllife":
+			zone = StillLifeZone.new()
+		"openspace":
+			zone = OpenSpaceZone.new()
+		"pattern":
+			zone = PatternZone.new()
+		"quiet":
+			zone = QuietZone.new()
 		_:
 			zone_type = ""
 			return
@@ -245,7 +256,16 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 		"above":
 			Sfx.play_music("deep", 6.0)
 			Sfx.music_gain = 0.6
-		_: Sfx.stop_music(1.5)   # the real bedroom stays quiet
+		"stilllife":
+			Sfx.play_music("muzak", 3.0)       # the store's own music, still playing for nobody
+			Sfx.music_gain = 0.7
+		"pattern":
+			Sfx.play_music("maze", 5.0)
+			Sfx.music_gain = 0.5
+		"quiet":
+			Sfx.play_music("title", 6.0)
+			Sfx.music_gain = 0.35
+		_: Sfx.stop_music(1.5)   # the real bedroom, the dark street, the open sky: quiet   # the real bedroom stays quiet
 	print("Entered zone: ", type, " (waking)" if waking else "")
 
 
@@ -318,7 +338,8 @@ func _restore_checkpoint(fear_override := -1.0, stability_override := -1.0) -> b
 ## The title screen: behind the menu, a slow tour of where each realm begins.
 const TITLE_TOUR := [["bedroom", "3:12 AM"], ["city", "THE CITY"], ["maze", "THE BACKROOMS"], ["deep", "THE DEEP"],
 	["seabed", "THE DEEP  -  THE SEABED"], ["abyss", "THE DEEP  -  THE ABYSS"], ["compression", "COMPRESSION"],
-	["tenement", "COMPRESSION  -  THE TENEMENT"], ["above", "ABOVE"]]
+	["tenement", "COMPRESSION  -  THE TENEMENT"], ["above", "ABOVE"], ["blackout", "BLACKOUT"], ["stilllife", "STILL LIFE"],
+	["openspace", "OPEN SPACE"], ["pattern", "PATTERN"], ["quiet", "THE QUIET"]]
 const TITLE_SHOT_SECONDS := 7.0
 var title_preview := false
 var _title_token := 0
@@ -659,23 +680,44 @@ func _realm_transition(flag: String, next: String, title: String, subtitle: Stri
 	set_mode("game")
 
 
-## End of the current build: the top of ABOVE.
 func on_above_exit() -> void:
+	_realm_transition("above_escaped", "blackout", "BLACKOUT", "Larkspur Lane. After midnight. The power's out.")
+
+
+func on_blackout_exit() -> void:
+	_realm_transition("bo_escaped", "stilllife", "STILL LIFE", "The Emporium. Open late. Nobody told the staff to go home.")
+
+
+func on_stilllife_exit() -> void:
+	_realm_transition("sl_escaped", "openspace", "OPEN SPACE", "Level 4. Then nothing at all, as far as you can see.")
+
+
+func on_openspace_exit() -> void:
+	_realm_transition("os_escaped", "pattern", "PATTERN", "Mind the gaps.")
+
+
+func on_pattern_exit() -> void:
+	_realm_transition("pt_escaped", "quiet", "THE QUIET", "Visiting hours.")
+
+
+## End of the current build: the garden gate in THE QUIET. (THE DESTINATION is not built yet.)
+func on_quiet_exit() -> void:
 	if in_sequence:
 		return
 	in_sequence = true
 	var t := _seq
 	set_mode("cinematic")
-	set_flag("above_escaped")
-	hud.fade_to(1.0, 1.5)
-	if not await _wait(1.8, t): return
+	set_flag("q_escaped")
+	hud.fade_to(1.0, 2.5, Color(0.95, 0.95, 0.92))
+	if not await _wait(2.8, t): return
 	Sfx.stop_music(0.01)
 	_leave_zone()
 	player.set_drone(0.0)
 	player.dread.set_profile(false, 0.0, 0.0, 10.0)
 	player.set_physics_process(false)
+	hud.set_fade(1.0)
 	if not await _wait(2.5, t): return
-	hud.show_card("ABOVE", "End of the current build. More of the dream is still being written. Thank you for playing.", 2.0)
+	hud.show_card("THE DESTINATION", "End of the current build. The last part of the dream is still being written. Thank you for playing.", 2.0)
 	if not await _wait(7.5, t): return
 	hud.hide_card(1.5)
 	if not await _wait(2.0, t): return
@@ -882,6 +924,52 @@ func entity_death(kind: String, who: Node3D = null) -> void:
 			Sfx.play("bubbles", 0.0, 0.6)
 			Sfx.play("sub_drop", 0.0)
 			if not await _wait(1.2, t): return
+		"shadow":
+			# the dark closes in from the edges. something cold over your eyes.
+			Sfx.play("whisper", 6.0, 0.8)
+			Sfx.stinger("sub_drop", 2.0)
+			for i in 14:
+				hud.set_post(0.5 + i * 0.04, 0.4, 1.0, 1.0 + i * 0.1)
+				player.jolt(Vector3(randf_range(-1.5, 0.5), randf_range(-1, 1), 0))
+				if i == 8:
+					Sfx.play("breath", 4.0, 0.7)
+				if not await _wait(0.09, t): return
+			Sfx.play("hit", 4.0, 0.6)
+			player.jolt(Vector3(-10, 0, 6))
+			hud.set_fade(1.0)
+			if not await _wait(1.2, t): return
+		"mannequin":
+			# you turn. it's already there. plastic. it doesn't have a face, and it's smiling.
+			if who:
+				look_toward(who.global_position + Vector3(0, 1.6, 0), 0.2)
+			Sfx.play("creak", 4.0, 1.6)
+			if not await _wait(0.25, t): return
+			if who:
+				var cam := player.camera.global_position
+				var fwd := -player.camera.global_transform.basis.z
+				fwd.y = 0.0
+				who.global_position = Vector3(cam.x, player.global_position.y, cam.z) + fwd.normalized() * 0.5
+				who.look_at(Vector3(cam.x, who.global_position.y, cam.z), Vector3.UP, true)
+			Sfx.play("hit", 6.0, 1.4)
+			Sfx.play("knock", 6.0, 1.8)
+			player.jolt(Vector3(-12, 8, 6))
+			hud.set_post(1.0, 0.6, 1.0, 1.2)
+			if not await _wait(0.15, t): return
+			await hud.jumpscare(1.5)
+			if t != _seq: return
+			hud.set_fade(1.0, Color(0.9, 0.88, 0.84))
+			if not await _wait(0.4, t): return
+			hud.set_fade(1.0)
+			if not await _wait(0.6, t): return
+		"pattern":
+			# the holes. on the walls, on your hands, on the inside of your eyes.
+			Sfx.play("static_burst", 2.0, 0.6)
+			Sfx.stinger("riser", 0.0)
+			await hud.holes_overlay(1.8)
+			if t != _seq: return
+			Sfx.play("hit", 4.0, 0.7)
+			hud.set_fade(1.0)
+			if not await _wait(0.8, t): return
 		_:
 			hud.fade_to(1.0, 0.3)
 			if not await _wait(0.4, t): return

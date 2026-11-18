@@ -410,6 +410,46 @@ func jumpscare(seconds := 1.6) -> void:
 	layer.queue_free()
 
 
+## The PATTERN death: clusters of small black holes open across the screen, spreading until nothing else is left.
+## (Abstract and non-graphic. Slower and sparser with lower visual intensity.)
+func holes_overlay(seconds := 1.8) -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 60
+	add_child(layer)
+	var view := HolesView.new()
+	view.set_anchors_preset(Control.PRESET_FULL_RECT)
+	view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(view)
+	var size := get_viewport().get_visible_rect().size
+	var intensity := clampf(Settings.visual_intensity, 0.2, 1.0)
+	var t := 0.0
+	var seeds: Array[Vector2] = []
+	while t < seconds:
+		if seeds.size() < 3 + int(t * 6.0) or randf() < 0.3:
+			seeds.append(Vector2(randf() * size.x, randf() * size.y))
+		var grow := t / seconds
+		for sd in seeds:
+			for k in int(6 * intensity) + 2:
+				var a := randf() * TAU
+				var r := randf() * (40.0 + 380.0 * grow)
+				view.holes.append([sd + Vector2(cos(a), sin(a)) * r, randf_range(3.0, 7.0 + 18.0 * grow)])
+		view.queue_redraw()
+		if randf() < 0.25:
+			Sfx.play("drip", -6.0, randf_range(0.6, 1.4))
+		await get_tree().create_timer(0.06, true).timeout
+		t += 0.06
+	await get_tree().create_timer(0.3, true).timeout
+	layer.queue_free()
+
+
+class HolesView extends Control:
+	var holes: Array = []
+	func _draw() -> void:
+		for h in holes:
+			draw_circle(h[0], h[1] * 1.35, Color(0.55, 0.42, 0.38, 0.5))
+			draw_circle(h[0], h[1], Color(0.02, 0.01, 0.01))
+
+
 ## Keys named in hints and thoughts, as the touch buttons are called (on phones and tablets).
 const TOUCH_WORDS := [
 	["Left mouse: take a bite    Right mouse: let go / toss\nMouse wheel: picture something else",

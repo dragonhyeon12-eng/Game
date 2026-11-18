@@ -3,7 +3,8 @@ extends Node3D
 ## shadow-casting lights, nodes and CPU frame time. Needs a display (e.g. xvfb-run).
 ##   godot --path . res://tests/perf_probe.tscn
 
-const ZONES := ["bedroom", "bedroom_dream", "city", "maze", "deep", "seabed", "abyss", "compression", "tenement", "above"]
+const ZONES := ["bedroom", "bedroom_dream", "city", "maze", "deep", "seabed", "abyss", "compression", "tenement", "above",
+	"blackout", "stilllife", "openspace", "pattern", "quiet"]
 
 
 func _ready() -> void:

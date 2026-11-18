@@ -3,8 +3,9 @@
 First-person psychological horror about lucid dreaming, unstable reality and subconscious fear.
 Made with **Godot 4.7** (free, open source, no account needed). Runs on Mac, Windows and Linux.
 
-Playable now, five realms, each a full expedition with a beginning, middle, climax and escape:
-bedroom → the summer **CITY** → the **BACKROOMS** → **THE DEEP** → **COMPRESSION** → **ABOVE**.
+Playable now: ten realms, each a full expedition with a beginning, middle, climax and escape:
+bedroom → the summer **CITY** → the **BACKROOMS** → **THE DEEP** → **COMPRESSION** → **ABOVE** →
+**BLACKOUT** → **STILL LIFE** → **OPEN SPACE** → **PATTERN** → **THE QUIET**. (The ending, THE DESTINATION, is next.)
 Every area has an **objectives** list in the top-right corner.
 
 ---
@@ -81,9 +82,33 @@ It takes effect when you enter the next area.
   the gap. 6. A glass skyway; the floor cracks and the lights die behind you. 7. Climb the mast and touch the
   light: the platform takes itself apart and builds a path into the sky, to a door.
   Looking down fills DREAD. Sometimes, far away, someone falls.
+- **BLACKOUT** (the dark). Larkspur Lane after midnight, every house dark. Streetlights go out when you stop
+  looking at them; stay in the dark too long and it takes you. A tree down across the road: through number 9,
+  where a red darkroom bulb shows a key that isn't there under any other light. Round the back gardens to the
+  junction box: every light comes on, and the road is full of people's shadows with nobody casting them. Then
+  the dark comes back up the street, a lamp at a time. Run for the night bus.
+- **STILL LIFE** (mannequins). The Emporium, after closing, the music still playing. The mannequins never move
+  while you watch them. The escalator keys are on the security guard, who is a mannequin in a cap. On Level 2,
+  THE PERFECT FAMILY at dinner, with a place laid for you; sit, and the way up opens, and they're all looking at
+  you. Level 3, LIFELIKE: figures more real one after another, then people you know, then an empty plinth with
+  your name on it. The lights fail behind you; in the dark they don't need you to look away.
+- **OPEN SPACE** (wide open places). The staff exit opens onto a car park with no end under a vast pale sky; out in
+  the open, fear builds by itself. Your car chirps somewhere and moves when unseen. The gas station on the horizon
+  gets no closer while you look at it: watch the road. A payphone rings: it's Mina. Out the back of the shop, a
+  plaza the size of a town, and subway stairs that move whenever you take your eyes off them.
+- **PATTERN** (clusters of holes). A station tiled in hexagons; then the hive: a six-sided room with six doorways,
+  every frame crusted with holes. Only the clean doorway goes on, and it moves when you look away; every other
+  doorway brings you back into the same room as the holes spread. Four rooms deep, a vault of three rings, and
+  behind it a hospital door: WARD 6.
+- **THE QUIET** (death). A hospital at night. Take a number (13; they're serving 12). The clocks disagree. The
+  visitors' book is in your handwriting: every night, 3:12 AM, Ward 6. Records for people who never existed
+  (you know them all). Pool water in the corridor, visitors under sheets in the doorways. Ward 6 is your room,
+  with a hospital bed in it; the chart says *not yet*. In the memorial garden Mr. Halvorsen gives you the key to
+  the gate at the end. (The gate leads to the ending, not built yet.)
   Swimming: Space up, C dive, watch your breath. Space at the surface next to the edge climbs out.
 - **Every entity kills differently**: the tall one in the Backrooms, the leviathan's jaws, the sheet figures,
-  the corridor folding shut, the long fall, the hands from the sea floor, the Observer when DREAD overwhelms you.
+  the corridor folding shut, the long fall, the hands from the sea floor, the dark, the mannequins, the holes,
+  the Observer when DREAD overwhelms you.
   Every death wakes you in your bedroom. Probably.
 - **The notebook** gains new lines at milestones - in your handwriting, and not always agreeing with the old ones.
 - **Dream journal** (title screen, or Pause > MENU): an entry for every part of the dream you have made it through.
@@ -126,12 +151,15 @@ scripts/core/            Observation ("is the player looking at this?"), Effects
                          Models (finds, sizes and animates optional model files)
 scripts/player/          Player controller (incl. swimming/breath), FPHands, Dread, Manifestation, ManifestedObject
 scripts/world/           Zone (base + geometry builder), BedroomZone, CityZone, MazeZone, DeepZone, SeabedZone,
-                         AbyssZone, CompressionZone, TenementZone, AboveZone; water, caustics and sky shaders
+                         AbyssZone, CompressionZone, TenementZone, AboveZone, BlackoutZone, StillLifeZone,
+                         OpenSpaceZone, PatternZone, QuietZone; water, caustics and sky shaders
 data/Objectives.json     the objective list for every area
 scripts/npc/             Human (procedural people), ModelBody (people from model files), NPC,
-                         Observer (+ glitch shader), Stalker (the Backrooms' entity)
+                         Observer (+ glitch shader), Stalker (the Backrooms' entity), Mannequin (STILL LIFE)
 scripts/ui/              HUD, menus, notebook, tutorial video, DREAD post-process shader
-tests/flow_test.tscn     automated playthrough of everything, title to the door in the sky, plus every death
+tests/flow_test.tscn     automated playthrough of everything, title to the garden gate in THE QUIET, plus every death
+tests/realms_test.tscn   the realms after ABOVE on their own (-- blackout / stilllife / openspace / pattern / quiet)
+tests/qa_test.tscn       walks the risky routes with real input (stairs, chases, doors, the mannequins)
 tests/gallery.tscn       renders review screenshots of each area
 tools/creatures/          Blender (bpy) generators for the custom creature models -> models/*.glb (not used by the game)
 unreal/                  the earlier Unreal Engine 5 version (archived, ignored by Godot)

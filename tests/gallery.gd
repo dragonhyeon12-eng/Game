@@ -307,6 +307,85 @@ func _run() -> void:
 			var lift: Vector3 = z.cell_center(0, 0) + Vector3(-1.2, 0, 0)
 			z._stalker.look_at(Vector3(lift.x, 0, lift.z), Vector3.UP, true)
 			_look(lift + Vector3(0, 1.6, 0), z._bars_spot + Vector3(0, 1.7, 0)),
+		"bo_start": func():
+			_zone("blackout")
+			_look(Vector3(1.5, 1.6, 1.0), Vector3(0, 1.2, -30)),
+		"bo_tree": func():
+			_zone("blackout")
+			_look(Vector3(-1.0, 1.6, -45.0), Vector3(2, 0.8, -55)),
+		"bo_red": func():
+			_zone("blackout")
+			var z: BlackoutZone = Game.zone
+			z._red_on()
+			_look(Vector3(18.0, 1.6, -45.0), Vector3(17.0, 1.4, -49)),
+		"bo_power": func():
+			_zone("blackout")
+			var z: BlackoutZone = Game.zone
+			z.no_dark_death = true
+			Game.player.global_position = BlackoutZone.BOX + Vector3(0, 0, 3)
+			z._power_on()
+			await get_tree().create_timer(4.5).timeout
+			Game.hud.set_post(0.3, 0.2, 0.5, 1.0)
+			_look(BlackoutZone.BOX + Vector3(3, 1.6, 4), Vector3(0, 0.5, -70)),
+		"sl_start": func():
+			_zone("stilllife")
+			_look(Vector3(0, 1.6, -2.2), Vector3(0, 1.4, -20)),
+		"sl_guard": func():
+			_zone("stilllife")
+			_look(Vector3(14.8, 1.6, -33.5), Vector3(17.5, 0.9, -30.6)),
+		"sl_family": func():
+			_zone("stilllife")
+			_look(Vector3(-6.5, 6.6, -27.0), Vector3(-10.0, 5.8, -30.0)),
+		"sl_lifelike": func():
+			_zone("stilllife")
+			_look(Vector3(0, 11.6, -16.0), Vector3(0, 11.0, -34.0)),
+		"sl_escalator": func():
+			_zone("stilllife")
+			_look(Vector3(0, 1.6, -9.5), Vector3(0, 3.0, -20.0)),
+		"os_start": func():
+			_zone("openspace")
+			_look(Vector3(0, 1.6, 2.0), Vector3(-10, 1.2, -60)),
+		"os_road": func():
+			_zone("openspace")
+			Game.set_flag("os_car")
+			_look(Vector3(0, 1.6, -110.0), Vector3(14, 6.0, -260)),
+		"os_station": func():
+			_zone("openspace")
+			_look(Vector3(4, 1.6, -235.0), Vector3(14, 2.5, -262)),
+		"os_plaza": func():
+			_zone("openspace")
+			Game.set_flag("os_plaza")
+			_look(OpenSpaceZone.PLAZA + Vector3(0, 1.6, -0.5), OpenSpaceZone.PLAZA + Vector3(20, 1.0, -120)),
+		"pt_platform": func():
+			_zone("pattern")
+			_look(Vector3(0, 1.6, -1.5), Vector3(0, 1.4, -20)),
+		"pt_hive": func():
+			_zone("pattern")
+			_look(PatternZone.C + Vector3(0, 1.6, 3.5), PatternZone.door_point(0) + Vector3(0, 1.3, 0)),
+		"pt_swarm": func():
+			_zone("pattern")
+			var z: PatternZone = Game.zone
+			z._swarm = 3
+			z._refresh_swarm()
+			z._true_door = 1
+			z._show_true_door()
+			_look(PatternZone.C + Vector3(-2, 1.6, 3.0), PatternZone.door_point(1) + Vector3(0, 1.3, 0)),
+		"pt_core": func():
+			_zone("pattern")
+			_look(PatternZone.CORE + Vector3(0, 1.6, 5.0), PatternZone.CORE + Vector3(0, 2.6, -8)),
+		"q_waiting": func():
+			_zone("quiet")
+			_look(Vector3(2, 1.6, -1.0), Vector3(-2, 1.2, -11)),
+		"q_flood": func():
+			_zone("quiet")
+			Game.zone._figures_awake = false
+			_look(Vector3(0, 1.6, -26.0), Vector3(0, 1.0, -44)),
+		"q_ward6": func():
+			_zone("quiet")
+			_look(Vector3(0.5, 1.6, -50.8), Vector3(-1.0, 1.0, -57)),
+		"q_garden": func():
+			_zone("quiet")
+			_look(Vector3(7.5, 1.6, -45.0), Vector3(15, 1.0, -43)),
 		"maze_power": func():
 			_zone("maze")
 			var z: MazeZone = Game.zone
@@ -505,7 +584,7 @@ func _run() -> void:
 	}
 	for name in views:
 		if only.is_empty() or only.has(name):
-			views[name].call()
+			await views[name].call()
 			if name == "death_hands" or name == "above_path":
 				await get_tree().create_timer(6.6).timeout
 			if name == "death_grab_a":

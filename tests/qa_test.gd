@@ -189,6 +189,49 @@ func _run() -> void:
 		check(Game.in_sequence, "into the hole (y=%.1f)" % Game.player.global_position.y)
 		await wait(1.0)
 		Game._cancel_sequences()
+	print("== BLACKOUT: through number 9 on foot - front door, living room, kitchen, back door, garden")
+	await zone("blackout")
+	var bz: BlackoutZone = Game.zone
+	bz.no_dark_death = true
+	Game.set_flag("bo_key")
+	place(Vector3(9.0, 0.05, -41.5), -90.0)
+	calm()
+	var walked := await run_to([Vector3(15.0, 0, -41.5), Vector3(21.5, 0, -41.5), Vector3(23.0, 0, -41.5)], false, 15.0)
+	check(walked, "front door to the back door (%s)" % Game.player.global_position.snapped(Vector3.ONE * 0.1))
+	for c in bz.get_children():
+		if c is Interactable and c.get_prompt() == "Unlock the padlock":
+			c.interact()
+	await wait(1.2)
+	walked = await run_to([Vector3(26.0, 0, -41.5), Vector3(30.0, 0, -50.0)], false, 10.0)
+	check(walked and Game.has_flag("bo_backyard"), "out into the back garden (%s)" % Game.player.global_position.snapped(Vector3.ONE * 0.1))
+	place(Vector3(9.5, 0.05, -44.5), -90.0)
+	walked = await run_to([Vector3(17.0, 0, -44.5)], false, 6.0)
+	check(not walked, "...and no way round the house: the garage wall is solid")
+	print("== STILL LIFE: look away, and it's there")
+	await zone("stilllife")
+	var sz: StillLifeZone = Game.zone
+	var hunter: Mannequin = sz._figures[0]
+	place(Vector3(-2.0, 0.05, -12.0), 0.0)           # facing -z
+	hunter.global_position = Vector3(-2.0, 0.12, -6.5)  # behind you
+	hunter.hunting = true
+	calm()
+	var tq := 0.0
+	while tq < 8.0 and not Game.in_sequence:
+		await wait(0.1)
+		tq += 0.1
+	check(Game.in_sequence, "it came up behind you (%.1f s)" % tq)
+	await wait(1.0)
+	Game._cancel_sequences()
+	await zone("stilllife")
+	sz = Game.zone
+	hunter = sz._figures[0]
+	place(Vector3(-2.0, 0.05, -12.0), 180.0)         # facing it
+	hunter.global_position = Vector3(-2.0, 0.12, -6.5)
+	hunter.hunting = true
+	var hp: Vector3 = hunter.global_position
+	await wait(3.0)
+	check(hunter.global_position.distance_to(hp) < 0.01 and not Game.in_sequence, "watched, it doesn't move")
+	hunter.hunting = false
 	print("== THE DEEP: through the one door that works, into the next room")
 	await zone("abyss")
 	var best: Interactable = null

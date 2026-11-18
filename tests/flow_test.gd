@@ -434,14 +434,31 @@ func _run() -> void:
 	check(Journal.is_unlocked("deep"), "journal entry THE DEEP unlocked")
 	await _compression()
 	await _above()
-	check(Game.title_preview and Game.hud.menu_open(), "returned to title")
+	# through the door in the sky: BLACKOUT, STILL LIFE, OPEN SPACE, PATTERN, THE QUIET (tests/realms_test.gd)
+	for k in 30:
+		await wait(0.5)
+		if Game.zone_type == "blackout" and Game.mode == "game" and not Game.in_sequence:
+			break
+	var realms = load("res://tests/realms_test.gd").new()
+	add_child(realms)
+	await realms.run_from("blackout")
+	for f in realms.failures:
+		failures.append(f)
+	for e in ["blackout", "stilllife", "openspace", "pattern"]:
+		check(Journal.is_unlocked(e), "journal entry %s unlocked" % e)
+	for k in 40:
+		await wait(0.5)
+		if Game.title_preview and Game.hud.menu_open():
+			break
+	check(Journal.is_unlocked("quiet"), "journal entry THE QUIET unlocked")
+	check(Game.title_preview and Game.hud.menu_open(), "the end of the build: back to the title")
 	for e in ["video", "summer", "maze"]:
 		check(Journal.is_unlocked(e), "journal entry %s unlocked" % e)
 
 	print("== continue from checkpoint")
 	Game.continue_game()
 	await wait(1.0)
-	check(Game.zone_type == "above", "continue restores the ABOVE checkpoint")
+	check(Game.zone_type == "quiet", "continue restores THE QUIET checkpoint")
 	await _deaths()
 
 	if failures.is_empty():
@@ -633,7 +650,7 @@ func _above() -> void:
 	check(Game.player.global_position.y > last.global_position.y - 0.5, "walking the path")
 	await shot("the_path")
 	check(use("Step through"), "the door in the sky")
-	await wait(16.0)
+	await wait(3.0)
 	check(Journal.is_unlocked("above"), "journal entry ABOVE unlocked")
 
 
@@ -759,7 +776,7 @@ func _tenement() -> void:
 
 ## Every entity's death plays through and wakes you at the checkpoint.
 func _deaths() -> void:
-	for kind in ["fall", "crush", "sheet", "observer", "leviathan", "stalker"]:
+	for kind in ["fall", "crush", "sheet", "observer", "leviathan", "stalker", "shadow", "mannequin", "pattern"]:
 		print("== death: ", kind)
 		Game.player.dread.set_values(20, 80)
 		var who: Node3D = null
@@ -769,6 +786,12 @@ func _deaths() -> void:
 			Game.zone.add_child(lev)
 			lev.place_head(Game.player.global_position + fwd * 25.0 + Vector3(0, 3, 0), -fwd)
 			who = lev
+		elif kind == "mannequin":
+			var m := Mannequin.new()
+			Game.zone.add_child(m)
+			m.build()
+			m.global_position = Game.player.global_position + fwd * 2.0
+			who = m
 		elif kind == "sheet" or kind == "stalker":
 			who = Node3D.new()
 			Game.zone.add_child(who)
@@ -785,4 +808,4 @@ func _deaths() -> void:
 			await wait(0.5)
 			if Game.mode == "game" and not Game.in_sequence:
 				break
-		check(Game.mode == "game" and not Game.in_sequence and Game.zone_type == "above", "%s: woke up and back at the checkpoint" % kind)
+		check(Game.mode == "game" and not Game.in_sequence and Game.zone_type == "quiet", "%s: woke up and back at the checkpoint" % kind)

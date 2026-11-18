@@ -108,12 +108,13 @@ func _build_music() -> void:
 	call_deferred("_music_ready", "maze", _to_wav(_track_maze(), true))
 	call_deferred("_music_ready", "deep", _to_wav(_track_deep(), true))
 	call_deferred("_music_ready", "chase", _to_wav(_track_chase(), true))
+	call_deferred("_music_ready", "muzak", _to_wav(_track_muzak(), true))
 	print("Sfx: music generated in %d ms (background thread)" % (Time.get_ticks_msec() - t0))
 
 
 ## No threads (web): build the tracks on the main thread, one per pause, the title theme first.
 func _build_music_stepwise() -> void:
-	for track in ["title", "city", "maze", "deep", "chase"]:
+	for track in ["title", "city", "maze", "deep", "chase", "muzak"]:
 		await get_tree().create_timer(0.5 if track == "title" else 2.0, true).timeout
 		var data: PackedFloat32Array
 		match track:
@@ -121,6 +122,7 @@ func _build_music_stepwise() -> void:
 			"city": data = _track_city()
 			"maze": data = _track_maze()
 			"chase": data = _track_chase()
+			"muzak": data = _track_muzak()
 			_: data = _track_deep()
 		_music_ready(track, _to_wav(data, true))
 
@@ -1337,3 +1339,52 @@ func _bars_rattle() -> PackedFloat32Array:
 		v += _noise() * exp(-hit_t * 90.0) * 0.6
 		s[i] = clampf(v * 0.35 * (1.0 - t / 0.9 * 0.5), -1.0, 1.0)
 	return s
+
+
+
+## The Emporium's music: cheerful electric piano over a soft bossa, on a tape that's been played too many
+## times - it wobbles, and now and then it drags.
+func _track_muzak() -> PackedFloat32Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 909
+	var beat := 0.5                     # 120 bpm
+	var bars := 8
+	var n := int(beat * 4.0 * bars * RATE)
+	var buf := PackedFloat32Array()
+	buf.resize(n)
+	# Fmaj7, Em7, Dm7, G7 (twice)
+	var chords := [[53, 57, 60, 64], [52, 55, 59, 62], [50, 53, 57, 60], [43, 53, 59, 62]]
+	var roots := [41, 40, 38, 43]
+	var melody := [72, 69, 67, 69, 72, 74, 72, 69, 67, 64, 62, 64, 67, 69, 67, 64]
+	for i in n:
+		var t := float(i) / RATE
+		# the tape: a slow wobble in pitch, and a drag every 8 seconds
+		var wow := 1.0 + 0.006 * sin(TAU * 0.55 * t) + (-0.03 * smoothstep(0.0, 0.3, fmod(t, 8.0)) * (1.0 - smoothstep(0.3, 0.9, fmod(t, 8.0))))
+		var bt := t / beat
+		var bar := int(bt / 4.0) % 4
+		var fb := fmod(bt, 1.0) * beat
+		var v := 0.0
+		# chord stabs on 1 and the "and" of 2 (bossa)
+		var b4 := fmod(bt, 4.0)
+		for hit in [0.0, 1.5, 3.0]:
+			if b4 >= hit and b4 < hit + 1.4:
+				var u: float = (b4 - hit) * beat
+				for m in chords[bar]:
+					var f := _hz(m) * wow
+					v += (sin(TAU * f * u) + 0.3 * sin(TAU * f * 2.0 * u)) * exp(-u * 3.0) * 0.07
+		# bass
+		var bu := fmod(bt, 2.0) * beat
+		v += sin(TAU * _hz(roots[bar] + (7 if fmod(bt, 4.0) >= 2.0 else 0)) * wow * bu) * exp(-bu * 2.0) * 0.28
+		# rimshot and shaker
+		var x := rng.randf() * 2.0 - 1.0
+		v += x * exp(-fmod(t, beat * 0.5) * 60.0) * 0.05
+		if int(bt) % 4 == 3 or int(bt) % 4 == 1:
+			v += x * exp(-fb * 90.0) * 0.12
+		# the melody: a soft vibraphone, one note per beat
+		var mi := int(bt) % melody.size()
+		var mf := _hz(melody[mi]) * wow
+		v += sin(TAU * mf * fb) * exp(-fb * 2.5) * 0.12 * (1.0 + 0.3 * sin(TAU * 5.0 * t))
+		# hiss
+		v += x * 0.006
+		buf[i] = v * 0.9
+	return buf

@@ -258,6 +258,205 @@
 				"Morning! Or afternoon. Whatever it is!",
 				"Same loop every day. Never gets old!"
 			]
+		},
+		{
+			"id": "phone_mina",
+			"entries": [
+				{
+					"ifFlag": "",
+					"node": "start"
+				}
+			],
+			"nodes": [
+				{
+					"id": "start",
+					"speaker": "The phone",
+					"text": "...Hello? Oh, thank goodness. It's Mina, love. From the cart. By the fountain?",
+					"next": "hub"
+				},
+				{
+					"id": "hub",
+					"speaker": "Mina",
+					"text": "I've been ringing every phone in the city. You went such a long way.",
+					"choices": [
+						{
+							"text": "How did you get this number?",
+							"next": "number"
+						},
+						{
+							"text": "Where am I?",
+							"next": "where"
+						},
+						{
+							"text": "Is any of this real?",
+							"next": "real",
+							"effects": [
+								"rule:break:rule_realworld"
+							]
+						},
+						{
+							"text": "How do I get out of here?",
+							"next": "out"
+						}
+					]
+				},
+				{
+					"id": "number",
+					"speaker": "Mina",
+					"text": "You gave it me. Don't you remember? You said, ring if it ever rains. It's raining, love. It hasn't stopped since you left.",
+					"next": "hub"
+				},
+				{
+					"id": "where",
+					"speaker": "Mina",
+					"text": "Somewhere very big and very empty, by the sound of it. You always did wander off too far.",
+					"next": "hub"
+				},
+				{
+					"id": "real",
+					"speaker": "",
+					"text": "A long silence on the line. Rain, somewhere behind her.",
+					"next": "real2"
+				},
+				{
+					"id": "real2",
+					"speaker": "Mina",
+					"text": "Real? I sell ice cream to people who never eat it. ...Don't ask me things like that. It makes the line go funny.",
+					"next": "hub"
+				},
+				{
+					"id": "out",
+					"speaker": "Mina",
+					"text": "Out the back, there's a way down. Stairs. Now listen: don't you take your eyes off them. Things out there don't like being looked at - but while you're looking, they can't go anywhere.",
+					"next": "out2"
+				},
+				{
+					"id": "out2",
+					"speaker": "Mina",
+					"text": "And come back to the park, after. Everyone's waiting for you. Even the man who doesn't move. Especially him.",
+					"next": "bye",
+					"effects": [
+						"flag:os_call"
+					]
+				},
+				{
+					"id": "bye",
+					"speaker": "",
+					"text": "The line clicks. Then a dial tone. Then nothing at all - not even the dial tone.",
+					"next": "end"
+				}
+			]
+		},
+		{
+			"id": "halvorsen_quiet",
+			"entries": [
+				{
+					"ifFlag": "q_gatekey",
+					"node": "after"
+				},
+				{
+					"ifFlag": "",
+					"node": "start"
+				}
+			],
+			"nodes": [
+				{
+					"id": "start",
+					"speaker": "Mr. Halvorsen",
+					"text": "Oh. You found the garden. Hardly anybody finds the garden. Sit, if you like. The pigeons don't mind.",
+					"next": "hub"
+				},
+				{
+					"id": "hub",
+					"speaker": "Mr. Halvorsen",
+					"text": "It's very quiet here. That's the point of it, I think.",
+					"choices": [
+						{
+							"text": "What is this place?",
+							"next": "place"
+						},
+						{
+							"text": "Are you... dead?",
+							"next": "dead"
+						},
+						{
+							"text": "Who's in Ward 6?",
+							"next": "ward"
+						},
+						{
+							"text": "The man who doesn't move. Do you know him?",
+							"next": "him"
+						},
+						{
+							"text": "I have to keep going.",
+							"next": "go"
+						}
+					]
+				},
+				{
+					"id": "place",
+					"speaker": "Mr. Halvorsen",
+					"text": "Somewhere for the ones who aren't needed any more. When a dream's over, the people in it have to go somewhere. Most of us end up here. It's not a bad place. There's a bench.",
+					"next": "hub"
+				},
+				{
+					"id": "dead",
+					"speaker": "Mr. Halvorsen",
+					"text": "I'm not sure I was ever alive, to be honest with you. I was the old man on the bench. That was the whole of me. ...It was a good bench.",
+					"next": "hub"
+				},
+				{
+					"id": "ward",
+					"speaker": "",
+					"text": "He throws a crumb. The pigeons don't move for it.",
+					"next": "ward2"
+				},
+				{
+					"id": "ward2",
+					"speaker": "Mr. Halvorsen",
+					"text": "You know who's in Ward 6. You've been visiting every night. You sit by the bed, and you never stay long enough to see who wakes up.",
+					"next": "hub"
+				},
+				{
+					"id": "him",
+					"speaker": "Mr. Halvorsen",
+					"text": "Him. He was in your city. And your yellow rooms, and your water, and up on your roofs. He's very tired, I think. Carrying all of it about, for you.",
+					"next": "him2"
+				},
+				{
+					"id": "him2",
+					"speaker": "Mr. Halvorsen",
+					"text": "He never did anything to anyone, you know. He only ever stood where you were most afraid. Someone has to.",
+					"next": "hub"
+				},
+				{
+					"id": "go",
+					"speaker": "Mr. Halvorsen",
+					"text": "The gate, at the far end. It goes somewhere none of us have been. The middle of it all, they say. The pigeons found this in the grass - I think it's yours.",
+					"next": "go2",
+					"effects": [
+						"flag:q_gatekey"
+					]
+				},
+				{
+					"id": "go2",
+					"speaker": "",
+					"text": "He puts an old iron key in your hand. It's warm, as if he'd been holding it a long time.",
+					"next": "go3"
+				},
+				{
+					"id": "go3",
+					"speaker": "Mr. Halvorsen",
+					"text": "Mind how you go. And if you see the summer again... say hello to the bench for me.",
+					"next": "end"
+				},
+				{
+					"id": "after",
+					"speaker": "Mr. Halvorsen",
+					"text": "Go on. The gate. I'll be here. I'm always here.",
+					"next": "end"
+				}
+			]
 		}
 	]
 }
