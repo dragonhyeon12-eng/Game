@@ -63,6 +63,10 @@ func fear_decay() -> float: return 1.5
 func floor_surface() -> String: return "concrete"
 func walk_speed() -> float: return 2.6
 func sprint_speed() -> float: return 4.3
+## A light can be pictured here (hold Q) - a weak one: the dark still counts.
+func allows_manifestation() -> bool: return true
+func manifest_allowlist() -> Array: return ["flashlight"]
+func flashlight_scale() -> float: return 0.4
 
 
 func player_start() -> Transform3D:
@@ -291,7 +295,7 @@ func _update_dark(delta: float, p: Vector3) -> void:
 	var dark := not _lit(p)
 	var pl: Player = Game.player
 	if dark:
-		_dark_t += delta
+		_dark_t += delta * (0.35 if pl.manifestation.is_holding("flashlight") else 1.0)   # a torch only buys you time
 		if pl.dread.fear < 85.0:
 			pl.dread.add_fear(5.0 * delta, "the dark")
 		if _dark_t > 2.5 and _dark_warned == 0:

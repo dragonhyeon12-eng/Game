@@ -248,6 +248,8 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 	if title_preview:
 		print("Entered zone: ", type, " (title)")
 		return
+	if zone.allows_manifestation() and zone.flashlight_scale() < 1.0:
+		_light_hint(type)
 	Sfx.music_gain = 1.0
 	match type:
 		"city": Sfx.play_music("city", 4.0)
@@ -275,6 +277,18 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 			Sfx.music_gain = 0.35
 		_: Sfx.stop_music(1.5)   # the real bedroom, the dark street, the open sky: quiet   # the real bedroom stays quiet
 	print("Entered zone: ", type, " (waking)" if waking else "")
+
+
+## The dark realms: tell them (once each) that a light can be pictured.
+func _light_hint(type: String) -> void:
+	if has_flag("hint_light_" + type):
+		return
+	set_flag("hint_light_" + type)
+	var t := _seq
+	if not await _wait(12.0, t): return
+	if player.manifestation.is_holding("flashlight"):
+		return
+	hud.show_hint("Too dark? Picture a light.\n" + ("Hold PICTURE" if TouchControls.wanted() else "Hold Q"), 7.0)
 
 
 func _leave_zone() -> void:

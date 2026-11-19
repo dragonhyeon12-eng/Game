@@ -57,6 +57,10 @@ func fear_decay() -> float: return 1.2
 func floor_surface() -> String: return "wood"
 func walk_speed() -> float: return 2.3
 func sprint_speed() -> float: return 3.7
+## A light can be pictured here (hold Q) - a weak one: the dark still counts.
+func allows_manifestation() -> bool: return true
+func manifest_allowlist() -> Array: return ["flashlight"]
+func flashlight_scale() -> float: return 0.45
 
 
 func player_start() -> Transform3D:
