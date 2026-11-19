@@ -13,6 +13,8 @@ var head_bob := true
 var camera_effects := true
 ## 0..1: vignette/grain/desaturation/flicker depth/red flash.
 var visual_intensity := 1.0
+## Epilepsy-safe mode: no flashing, strobing or flicker anywhere (overrides visual_intensity's flashing parts).
+var epilepsy_safe := false
 ## 0..1: drone, knocks, hum intensity.
 var audio_intensity := 1.0
 var master_volume := 0.8
@@ -34,7 +36,7 @@ var touch_controls := 0.0
 var language := 1.0 if OS.get_locale_language() == "ko" else 0.0
 
 const KEYS := ["mouse_sensitivity", "invert_y", "fov", "head_bob", "camera_effects", "visual_intensity",
-	"audio_intensity", "master_volume", "music_volume", "text_scale", "show_dread_meter", "menu_corruption", "self_unpause", "quality", "super_shaders", "show_objectives", "deaths_seen", "touch_controls", "language"]
+	"audio_intensity", "master_volume", "music_volume", "text_scale", "show_dread_meter", "menu_corruption", "self_unpause", "quality", "super_shaders", "show_objectives", "deaths_seen", "touch_controls", "language", "epilepsy_safe"]
 
 
 func _ready() -> void:
@@ -66,6 +68,16 @@ func apply() -> void:
 		vp.msaa_3d = Viewport.MSAA_4X if super_shaders else Viewport.MSAA_DISABLED
 		vp.use_taa = super_shaders
 	changed.emit()
+
+
+## How strong flashing/flicker/distortion effects may be: 0 in epilepsy-safe mode.
+func visual() -> float:
+	return 0.0 if epilepsy_safe else visual_intensity
+
+
+## May lights flicker, spark or strobe at all?
+func flashing_ok() -> bool:
+	return not epilepsy_safe
 
 
 func set_value(key: String, value) -> void:

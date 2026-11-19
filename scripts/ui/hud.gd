@@ -373,7 +373,7 @@ func jumpscare(seconds := 1.6) -> void:
 	img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	layer.add_child(img)
-	var intensity := clampf(Settings.visual_intensity, 0.0, 1.0)
+	var intensity := clampf(Settings.visual(), 0.0, 1.0)
 	Sfx.stinger("jumpscare", 4.0)
 	Sfx.play("static_burst", -2.0 + 6.0 * Settings.audio_intensity, 1.3)
 	if intensity <= 0.05:
@@ -421,7 +421,7 @@ func holes_overlay(seconds := 1.8) -> void:
 	view.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(view)
 	var size := get_viewport().get_visible_rect().size
-	var intensity := clampf(Settings.visual_intensity, 0.2, 1.0)
+	var intensity := clampf(Settings.visual(), 0.2, 1.0)
 	var t := 0.0
 	var seeds: Array[Vector2] = []
 	while t < seconds:
@@ -649,7 +649,12 @@ func _settings(back: Callable) -> void:
 	var num := func(key: String, lo: float, hi: float, step: float, fmt: Callable) -> Dictionary:
 		return {"label": "", "key": key,
 			"value": func(): return fmt.call(Settings.get(key)),
-			"adjust": func(dir: int): Settings.set_value(key, clampf(snappedf(Settings.get(key) + dir * step, step), lo, hi))}
+			"adjust": func(dir: int):
+				var v: float = Settings.get(key)
+				var nv := snappedf(v + signi(dir) * step, step)
+				if dir == 2 and v >= hi - step * 0.01:
+					nv = lo          # (a tap on the row: wraps round)
+				Settings.set_value(key, clampf(nv, lo, hi))}
 	var flag := func(key: String) -> Dictionary:
 		return {"label": "", "key": key,
 			"value": func(): return onoff.call(Settings.get(key)),
@@ -660,6 +665,7 @@ func _settings(back: Callable) -> void:
 		["Field of view", num.call("fov", 60.0, 100.0, 5.0, func(v): return "%d" % roundi(v))],
 		["Head bob", flag.call("head_bob")],
 		["Camera jolts", flag.call("camera_effects")],
+		["Epilepsy-safe mode", flag.call("epilepsy_safe")],
 		["Visual intensity", num.call("visual_intensity", 0.0, 1.0, 0.1, pct)],
 		["Horror audio intensity", num.call("audio_intensity", 0.0, 1.0, 0.1, pct)],
 		["Master volume", num.call("master_volume", 0.0, 1.0, 0.1, pct)],
@@ -680,7 +686,7 @@ func _settings(back: Callable) -> void:
 		it.label = r[0]
 		items.append(it)
 	items.append({"label": "BACK", "action": back})
-	var m := DPMenu.create("SETTINGS", "Left / Right to change. Intensity settings soften flicker, distortion and horror audio.", items)
+	var m := DPMenu.create("SETTINGS", "Tap the arrows (or Left / Right) to change. Epilepsy-safe mode removes all flashing, strobing and flicker.", items)
 	m.on_back = back
 	_set_menu(m)
 

@@ -69,6 +69,7 @@ var _chase_path: Array[Vector2i] = []
 var _chase_idx := 0
 var _sealed := {}                 # "x,z|x,z" -> true: openings slammed shut
 var _env: Environment
+var _no_hazard := {}              # rooms with something in a corner (the note desks): no debris dropped in them
 var _prop_cells := {}             # cells with something big in the middle (the cart, the bench): the chase route goes round them
 var _seal_queue: Array = []       # route indices whose rooms close next (one per beat)
 var _queued_to := 0
@@ -368,7 +369,8 @@ func _props() -> void:
 		var c := Vector2i(rng.randi_range(1, W - 1), rng.randi_range(1, H - 1))
 		if c == _exit_cell:
 			continue
-		# in a corner of the room, never across the middle where you'd run through it
+		# in a corner of the room, never across the middle where you'd run through it (and no debris dropped in here)
+		_no_hazard[c] = true
 		var reach := 1.3 if i % 2 == 0 else 1.5
 		var p := cell_center(c.x, c.y) + Vector3(reach * (1.0 if rng.randf() < 0.5 else -1.0), 0, (1.4 if i % 2 == 0 else 1.25) * (1.0 if rng.randf() < 0.5 else -1.0))
 		if i % 2 == 0:  # water cooler
@@ -550,7 +552,7 @@ func _process(delta: float) -> void:
 
 func on_dread(dread: float, stage: int, delta: float) -> void:
 	var d := dread / 100.0
-	var v := clampf(Settings.visual_intensity, 0.0, 1.0)
+	var v := clampf(Settings.visual(), 0.0, 1.0)
 	var ppos: Vector3 = Game.player.global_position
 	# fluorescent flicker, stronger as the dream destabilises (scaled by visual intensity: photosensitivity)
 	# Only the lights near the player cast shadows (36 shadowed lights would be far too heavy).
@@ -922,6 +924,8 @@ func _portals() -> void:
 		var from := cell_center(a.x, a.y)
 		var to := cell_center(b.x, b.y)
 		trigger(from + Vector3(0, 1.2, 0), Vector3(1.5, 2.4, 1.5), func():
+			if _chase_on or _at_bars:
+				return          # (not in the chase: it would throw you off the one route there is)
 			var off: Vector3 = Game.player.global_position - from
 			Game.player.global_position = to + off
 			Sfx.play("glitch", -14.0)
@@ -1027,6 +1031,14 @@ func _wall_hug(target: Vector3, me: Vector3) -> Vector3:
 
 
 # ------------------------------------------------------------------ the chase
+
+## (tests) Is the doorway between two neighbouring rooms open - not walled, not slammed?
+func _passable_route_check(a: Vector2i, b: Vector2i) -> bool:
+	for d in 4:
+		if Vector2i(a.x + DX[d], a.y + DZ[d]) == b:
+			return passable(a.x, a.y, d)
+	return false
+
 
 static func _edge_key(a: Vector2i, b: Vector2i) -> String:
 	var lo := a if (a.x < b.x or (a.x == b.x and a.y < b.y)) else b
@@ -1271,6 +1283,8 @@ func _plan_hazards() -> void:
 		if din != dout:
 			continue
 		var c := _chase_path[i]
+		if _prop_cells.has(c) or _no_hazard.has(c):
+			continue      # (a water cooler or a desk in a corner would block the way round)
 		var along := Vector3(din.x, 0, din.y)
 		_hazards.append({"kind": kinds[k % kinds.size()], "idx": i, "c": cell_center(c.x, c.y), "along": along,
 			"across": Vector3(-along.z, 0, along.x), "side": 1.0 if k % 2 == 0 else -1.0, "built": false})
@@ -1295,6 +1309,7 @@ func chase_waypoints() -> Array:
 		var sd: float = h.side
 		match String(h.kind):
 			"debris":
+				out.append([c - al * 2.4, ""])          # (through the doorway first, then sidestep)
 				out.append([c - al * 1.3 - ac * sd * 1.25, ""])
 				out.append([c, ""])
 				out.append([c + al * 1.3 + ac * sd * 1.25, ""])
@@ -1520,25 +1535,26 @@ func _update_chase(delta: float) -> void:
 			_seal_around(_seal_queue.pop_front())
 	# red strobes running ahead of you toward the way out (gentler with lower visual intensity); only the
 	# nearby ones are lit at all
-	var v := clampf(Settings.visual_intensity, 0.0, 1.0)
+	var v := clampf(Settings.visual(), 0.0, 1.0)
 	for i in _chase_lights.size():
-		var near := i >= _chase_idx - 3 and i <= _chase_idx + 7
+		var near := i >= _chase_idx - 2 and i <= _chase_idx + 5
 		_chase_lights[i].visible = near
 		if near:
 			var on := 1.0 if sin(_chase_t * 11.0 - i * 0.9) > -0.2 else 1.0 - 0.45 * v
 			_chase_lights[i].light_energy = (3.6 if i >= _chase_idx else 2.0) * on
 	for dl in _decoy_lights:
-		var near: bool = dl[1] >= _chase_idx - 1 and dl[1] <= _chase_idx + 6
+		var near: bool = dl[1] >= _chase_idx - 1 and dl[1] <= _chase_idx + 4
 		dl[0].visible = near
 		if near:
 			dl[0].light_energy = 3.6 if sin(_chase_t * 11.0 - dl[1] * 0.9) > -0.2 else 3.6 * (1.0 - 0.45 * v)
 	for l in _lights:
 		l.light.light_energy = 0.0
+		l.light.visible = false       # (off, not just dark: in the browser each surface only takes a few lights)
 	for sp in _sparks:
 		var light: OmniLight3D = sp[0]
 		light.light_energy = maxf(0.0, light.light_energy - delta * 25.0)
 		sp[1] -= delta
-		if sp[1] <= 0.0:
+		if sp[1] <= 0.0 and Settings.flashing_ok():
 			sp[1] = randf_range(0.6, 3.5)
 			light.light_energy = randf_range(2.0, 4.0)
 			if light.global_position.distance_to(pl.global_position) < 14.0:
@@ -1719,7 +1735,8 @@ func _expedition() -> void:
 			spots.append(c)
 	_prop_cells[spots[0]] = true    # the bench and the cart stand in the middle of their rooms
 	_prop_cells[spots[2]] = true
-	var bench_c: Vector3 = cell_center(spots[0].x, spots[0].y)
+	# (the big ones stand in a corner of their room, out of the way of anyone running through)
+	var bench_c: Vector3 = cell_center(spots[0].x, spots[0].y) + Vector3(-1.3, 0, -1.5)
 	if not prop("bench", bench_c, 30.0):
 		box(bench_c + Vector3(0, 0.45, 0), Vector3(1.8, 0.08, 0.5), Color(0.5, 0.32, 0.18))
 	interactable(bench_c + Vector3(0, 0.6, 0), Vector3(2.0, 1.2, 1.0), func(): return "Park bench",
@@ -1728,9 +1745,9 @@ func _expedition() -> void:
 	shape_at("cylinder", sign_c + Vector3(0, 1.4, 0), Vector3(0.06, 2.8, 0.06), Color(0.3, 0.32, 0.3), true, Vector3.ZERO, "metal")
 	box(sign_c + Vector3(0.45, 2.6, 0), Vector3(0.9, 0.22, 0.03), Color(0.1, 0.35, 0.18), false, 0.0, "metal")
 	label(sign_c + Vector3(0.45, 2.6, 0.02), 0, "PARK AVE", 0.09, Color(0.95, 0.95, 0.9), false)
-	var cart: Vector3 = cell_center(spots[2].x, spots[2].y)
-	box(cart + Vector3(0, 0.7, 0), Vector3(2.4, 0.9, 1.1), Color(0.95, 0.92, 0.85), true, 20.0)
-	box(cart + Vector3(0, 1.08, 0), Vector3(2.44, 0.12, 1.14), Color(0.95, 0.5, 0.6), false, 20.0)
+	var cart: Vector3 = cell_center(spots[2].x, spots[2].y) + Vector3(1.45, 0, 1.45)
+	box(cart + Vector3(0, 0.7, 0), Vector3(1.7, 0.9, 0.9), Color(0.95, 0.92, 0.85), true, 45.0)
+	box(cart + Vector3(0, 1.08, 0), Vector3(1.74, 0.12, 0.94), Color(0.95, 0.5, 0.6), false, 45.0)
 	interactable(cart + Vector3(0, 1.0, 0), Vector3(2.6, 1.2, 1.4), func(): return "Ice cream cart",
 		func():
 			Game.hud.show_thought("Mina's cart. Every tub is melted. Long ago. It smells like the summer, gone off.", 4.0)
@@ -1740,6 +1757,7 @@ func _expedition() -> void:
 		"\"%s then %s. Never the other way round.\"" % [_order[1], _order[2]],
 		"\"%s last. Or it hears you.\"" % _order[3]]
 	for k in 3:
+		_no_hazard[spots[3 + k]] = true
 		var nc: Vector3 = cell_center(spots[3 + k].x, spots[3 + k].y) + Vector3(1.0, 0, -1.2)
 		box(nc + Vector3(0, 0.73, 0), Vector3(1.2, 0.04, 0.6), Color(0.55, 0.5, 0.42), true, 0.0, "wood")
 		box(nc + Vector3(0, 0.36, 0), Vector3(1.1, 0.72, 0.5), Color(0.45, 0.4, 0.33), false, 0.0, "wood")

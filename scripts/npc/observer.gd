@@ -200,7 +200,7 @@ func _process(delta: float) -> void:
 
 
 func _apply_glitch() -> void:
-	_mat.set_shader_parameter("glitch", _glitch * clampf(Settings.visual_intensity, 0.3, 1.0))
+	_mat.set_shader_parameter("glitch", _glitch * (clampf(Settings.visual_intensity, 0.3, 1.0) if Settings.flashing_ok() else 0.0))
 
 
 func request_relocation(ground: Vector3) -> void:

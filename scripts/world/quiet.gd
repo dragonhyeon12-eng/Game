@@ -540,7 +540,7 @@ func _process(delta: float) -> void:
 	_t += delta
 	for l in _lights:
 		if l[2]:
-			l[0].light_energy = l[1] * (0.1 if randf() < 0.05 else 1.0)
+			l[0].light_energy = l[1] * (0.1 if randf() < 0.05 and Settings.flashing_ok() else 1.0)
 	# the heart monitor: a beep a second; flat, for a while, after the chart
 	_monitor_t -= delta
 	if _monitor_t <= 0.0:

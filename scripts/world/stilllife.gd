@@ -613,7 +613,7 @@ func _process(delta: float) -> void:
 	_update_figures(delta, p)
 	_update_climax(delta)
 	for l in _panel_lights:
-		if l[0].visible and randf() < 0.004:
+		if l[0].visible and randf() < 0.004 and Settings.flashing_ok():
 			l[0].light_energy = l[1] * 0.2
 		else:
 			l[0].light_energy = move_toward(l[0].light_energy, l[1], delta * 4.0)

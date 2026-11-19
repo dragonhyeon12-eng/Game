@@ -474,7 +474,7 @@ func _process(delta: float) -> void:
 	_mast.visible = blink > 0.5
 	_mast_light.light_energy = 2.0 * blink
 	for i in _lamps.size():
-		_lamps[i].light_energy = 0.7 * (0.15 if sin(_t * (7.0 + i * 3.1)) * sin(_t * 1.3 + i) > 0.85 else 1.0)
+		_lamps[i].light_energy = 0.7 * (0.15 if sin(_t * (7.0 + i * 3.1)) * sin(_t * 1.3 + i) > 0.85 and Settings.flashing_ok() else 1.0)
 	if Game.in_sequence:
 		return
 	# the deep is never quiet: metal groaning somewhere, something vast moving, a voice that isn't one

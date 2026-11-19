@@ -366,7 +366,7 @@ func _ride() -> void:
 		Game.player.jolt(Vector3(randf_range(-1.5, 1.5), randf_range(-1, 1), randf_range(-1.5, 1.5)))
 		Game.player.dread.add_fear(3.5, "elevator")
 		for b in _bulbs:
-			b[0].light_energy = b[1] * (0.0 if randf() < 0.4 else 1.0)
+			b[0].light_energy = b[1] * (0.0 if randf() < 0.4 and Settings.flashing_ok() else 1.0)
 		if k == 5:
 			Game.hud.show_thought("It's getting smaller. It's getting smaller.", 3.0)
 		await get_tree().create_timer(0.5, false).timeout
@@ -624,7 +624,7 @@ func on_player_entered(from_save: bool) -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	for b in _bulbs:
-		if b[2]:
+		if b[2] and Settings.flashing_ok():
 			b[0].light_energy = b[1] * (0.15 if randf() < 0.04 else 1.0)
 	var pl: Player = Game.player
 	if pl == null or Game.in_sequence:

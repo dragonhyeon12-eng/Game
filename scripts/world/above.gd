@@ -481,7 +481,7 @@ func on_player_entered(from_save: bool) -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
-	_beacon.light_energy = 4.0 if fmod(_t, 1.6) < 0.8 else 0.4
+	_beacon.light_energy = (4.0 if fmod(_t, 1.6) < 0.8 else 0.4) if Settings.flashing_ok() else 2.5
 	_update_fallers(delta)
 	var pl: Player = Game.player
 	if pl == null or Game.in_sequence:

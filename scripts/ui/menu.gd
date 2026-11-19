@@ -10,6 +10,7 @@ var on_timeout: Callable
 var _buttons: Array[Button] = []
 var _items: Array = []
 var _age := 0.0
+var _scroll: ScrollContainer
 
 
 static func create(title: String, subtitle: String, items: Array, footnote := "", corrupted := false) -> DPMenu:
@@ -46,6 +47,25 @@ func _build(title: String, subtitle: String, items: Array, footnote: String, cor
 	spacer.custom_minimum_size = Vector2(0, 22)
 	box.add_child(spacer)
 
+	# long lists (settings) scroll - by wheel, by drag on a touch screen - so every row can be reached on a phone
+	var list: Container = box
+	if items.size() > 10:
+		var scroll := ScrollContainer.new()
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		scroll.custom_minimum_size = Vector2(760, 0)
+		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		scroll.scroll_deadzone = 12
+		box.alignment = BoxContainer.ALIGNMENT_BEGIN
+		box.offset_top = 40
+		box.offset_bottom = -30
+		box.add_child(scroll)
+		_scroll = scroll
+		var inner := VBoxContainer.new()
+		inner.add_theme_constant_override("separation", 4)
+		inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.add_child(inner)
+		list = inner
+
 	for i in items.size():
 		var it: Dictionary = items[i]
 		var b := UIStyle.flat_button(_label_for(it), 24)
@@ -56,8 +76,21 @@ func _build(title: String, subtitle: String, items: Array, footnote: String, cor
 		b.pressed.connect(_on_pressed.bind(i))
 		b.gui_input.connect(_on_button_input.bind(i))
 		b.mouse_entered.connect(b.grab_focus)
-		box.add_child(b)
 		_buttons.append(b)
+		if it.has("adjust"):
+			# real arrow buttons you can tap (on a phone there are no Left / Right keys)
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 6)
+			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			b.custom_minimum_size = Vector2(520, 0)
+			row.add_child(b)
+			for d in [-1, 1]:
+				var ab := _arrow_button("<" if d < 0 else ">")
+				ab.pressed.connect(_on_arrow.bind(i, d))
+				row.add_child(ab)
+			list.add_child(row)
+		else:
+			list.add_child(b)
 
 	if footnote != "":
 		var f := UIStyle.label(footnote, 12, Color(0.55, 0.55, 0.55, 0.85))
@@ -86,8 +119,35 @@ func set_timeout(seconds: float, callback: Callable) -> void:
 
 func _label_for(it: Dictionary) -> String:
 	if it.has("value"):
-		return "%s     <  %s  >" % [tr(it.label), tr(str(it.value.call()))]
+		return "%s     %s" % [tr(it.label), tr(str(it.value.call()))]
 	return it.label
+
+
+func _arrow_button(text: String) -> Button:
+	var ab := Button.new()
+	ab.text = text
+	ab.focus_mode = Control.FOCUS_NONE
+	ab.custom_minimum_size = Vector2(64, 46)
+	ab.add_theme_font_size_override("font_size", UIStyle.size(26))
+	ab.add_theme_color_override("font_color", UIStyle.TEXT)
+	ab.add_theme_color_override("font_hover_color", UIStyle.ACCENT)
+	ab.add_theme_color_override("font_pressed_color", UIStyle.ACCENT)
+	for state in ["normal", "hover", "pressed"]:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(1, 1, 1, 0.08 if state == "normal" else 0.18)
+		sb.set_corner_radius_all(6)
+		sb.border_width_bottom = 2
+		sb.border_color = Color(1, 1, 1, 0.15)
+		ab.add_theme_stylebox_override(state, sb)
+	return ab
+
+
+func _on_arrow(i: int, dir: int) -> void:
+	if _age < 0.15:
+		return
+	_items[i].adjust.call(dir)
+	_refresh()
+	_buttons[i].grab_focus()
 
 
 func _refresh() -> void:
@@ -104,7 +164,7 @@ func _on_pressed(i: int) -> void:
 		return  # ignore the key press that opened the menu
 	var it: Dictionary = _items[i]
 	if it.has("adjust"):
-		it.adjust.call(1)
+		it.adjust.call(2)        # tapping the row itself: the next value, round to the first again after the last
 		_refresh()
 	elif it.has("action"):
 		it.action.call()
@@ -122,6 +182,12 @@ func _on_button_input(event: InputEvent, i: int) -> void:
 		it.adjust.call(1)
 		_refresh()
 		accept_event()
+
+
+## A finger dragged over the list scrolls it, wherever it starts (even on a row's button).
+func _input(event: InputEvent) -> void:
+	if _scroll and is_visible_in_tree() and event is InputEventScreenDrag:
+		_scroll.scroll_vertical -= int(event.relative.y)
 
 
 func _unhandled_input(event: InputEvent) -> void:

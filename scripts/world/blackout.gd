@@ -342,7 +342,7 @@ func _update_wires(delta: float) -> void:
 	for w in _wires:
 		(w[0] as OmniLight3D).light_energy = maxf(0.0, (w[0] as OmniLight3D).light_energy - delta * 20.0)
 		(w[1] as MeshInstance3D).visible = (w[0] as OmniLight3D).light_energy > 0.2
-	if _spark_t <= 0.0:
+	if _spark_t <= 0.0 and Settings.flashing_ok():
 		_spark_t = randf_range(0.15, 1.4)
 		var w: Array = _wires.pick_random()
 		(w[0] as OmniLight3D).light_energy = randf_range(2.0, 5.0)

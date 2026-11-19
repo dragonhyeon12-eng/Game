@@ -1035,7 +1035,7 @@ func _death_sequence(prelude := "fade") -> void:
 	player.jolt(Vector3(-4, -3, 2))
 	Sfx.play("thud", -2.0, 0.8)
 	if not await _wait(0.35, t): return
-	hud.set_fade(0.75 * clampf(Settings.visual_intensity, 0.3, 1.0), Color(0.55, 0, 0))
+	hud.set_fade(0.75 * clampf(Settings.visual(), 0.3, 1.0), Color(0.55, 0, 0) if Settings.flashing_ok() else Color(0.12, 0, 0))
 	if not await _wait(0.2, t): return
 	hud.fade_to(1.0, 0.2)
 	if not await _wait(1.5, t): return
@@ -1082,7 +1082,7 @@ func _process(delta: float) -> void:
 	var d := player.dread
 	_smoothed_dread = lerpf(_smoothed_dread, d.alpha(), clampf(delta * 1.5, 0.0, 1.0))
 	var s := _smoothed_dread
-	var v := clampf(Settings.visual_intensity, 0.0, 1.0)
+	var v := clampf(Settings.visual(), 0.0, 1.0)
 	hud.set_post(0.25 + 0.75 * s * v, maxf(0.0, s - 0.25) * 0.5 * v, 0.45 * s * v, maxf(0.0, s - 0.5) * 2.0 * v)
 	player.set_drone(smoothstep(0.2, 1.0, s) * 1.2 if d.nightmare else 0.0)
 	Sfx.set_muffled(player.underwater)
