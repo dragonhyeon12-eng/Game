@@ -18,3 +18,6 @@ models/creatures/draped_*.png
 models/observer_*.png
 models/player_*.png
 models/fp_hand_*.png
+
+# surface textures: their import settings matter (mipmaps on - without them far walls stripe)
+!models/textures/**/*.import
