@@ -15,6 +15,12 @@
 			"after": "has_notebook"
 		}
 	],
+	"shifting": [
+		{
+			"flag": "shift_exit",
+			"text": "Find the EXIT (it moves if you leave it alone)"
+		}
+	],
 	"city": [
 		{
 			"flag": "city_landmarks",

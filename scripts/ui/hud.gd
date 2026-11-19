@@ -605,6 +605,7 @@ func open_title(has_save: bool) -> void:
 	items.append({"label": "NEW GAME", "action": Game.start_new_game})
 	items.append({"label": "DREAM JOURNAL", "action": func(): _set_menu(JournalUI.create(func(): open_title(Game.has_checkpoint())))})
 	items.append({"label": "SETTINGS", "action": func(): _settings(func(): open_title(Game.has_checkpoint()))})
+	items.append({"label": "PROTOTYPE: THE SHIFT (WIP)", "action": Game.start_prototype})
 	if not OS.has_feature("web"):   # a browser tab can't quit itself
 		items.append({"label": "QUIT", "action": Game.quit_game})
 	_set_menu(DPMenu.create("DREAM PROTOCOL", "a lucid dream", items, "Vertical slice - work in progress"))

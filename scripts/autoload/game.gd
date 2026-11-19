@@ -222,6 +222,8 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 			zone = PatternZone.new()
 		"quiet":
 			zone = QuietZone.new()
+		"shifting":
+			zone = ShiftZone.new()       # (prototype: not part of the story, never saved)
 		_:
 			zone_type = ""
 			return
@@ -429,6 +431,17 @@ func continue_game() -> void:
 	set_mode("game")
 	hud.set_fade(1.0)
 	hud.fade_to(0.0, 2.0)
+
+
+## PROTOTYPE: the shifting-rooms test bed, straight from the title. Leaves your saved game alone.
+func start_prototype() -> void:
+	_stop_title()
+	hud.close_menu()
+	_reset_world()
+	enter_zone("shifting")
+	set_mode("game")
+	hud.set_fade(1.0)
+	hud.fade_to(0.0, 1.5)
 
 
 func return_to_title() -> void:

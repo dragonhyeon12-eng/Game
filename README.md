@@ -126,6 +126,20 @@ It takes effect when you enter the next area.
 - **If DREAD reaches 100** you wake up in your bedroom. Probably.
 - **Checkpoints** at the start of each area; **Continue** on the title screen.
 
+## Prototype: THE SHIFT (work in progress)
+
+On the title screen, **PROTOTYPE: THE SHIFT (WIP)** opens a test bed for the randomness mechanic (it
+doesn't touch your saved game). The map is a 6 x 6 grid of rooms (*segments*) with a wall, a doorway or
+nothing between each pair. What you aren't looking at **dissipates**: after a few seconds out of sight a
+room loses its small things, then its light and colour, then its furniture, until it is a bare grey shell.
+Ignored long enough, it **rebuilds** as a different kind of room. Walls between rooms nobody is watching
+open, close and move (a door only closes if every room can still be reached), and the EXIT moves if you
+leave it alone. Nothing changes while any part of it is in view, the room you're in counts as seen, and
+nothing changes within reach of you. **F3** toggles a debug map (grey = intact, yellow/orange/red =
+dissipating, blue = just rebuilt, white outline = in view). Code: `scripts/world/shift.gd`;
+test: `tests/shift_test.tscn` (checks every frame that nothing in view changed and that every room stays
+reachable, then walks to the exit while it shifts); before/after screenshots: `tests/shift_shots.tscn`.
+
 ## Languages
 
 English and **한국어 (Korean)**: Settings > Language / 언어. On a Korean system or browser the game starts in Korean.
