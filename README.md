@@ -22,7 +22,11 @@ Every area has an **objectives** list in the top-right corner.
 
 That's it. No other downloads, no Xcode.
 
-**If it runs slowly** (older or Intel Macs): Pause → MENU → SETTINGS → *Graphics quality* → **LOW**.
+**If it runs slowly** (older or Intel Macs, phones): Pause → MENU → SETTINGS → *Graphics quality* → **LOW**, and
+turn *Resolution* down (50-100 %; the text and menus stay sharp). The browser version starts on LOW, at 65 %
+resolution on phones and tablets and 80 % on computers. LOW drops lamp shadows, glow and SSAO, uses simpler water,
+sky and screen filters, fewer sides on round things and fewer cloud sprites, and leaves trees and mannequins out
+past a distance.
 It takes effect when you enter the next area.
 
 ## Controls
@@ -138,7 +142,7 @@ tappable < > arrows, and the list scrolls with a finger.
 
 Mouse sensitivity, invert look, field of view, head bob, camera jolts, **visual intensity** (flicker,
 vignette, distortion, red flash), **horror audio intensity**, master volume, text size, DREAD meter,
-menu corruption on/off, self-unpause on/off, show objectives, graphics quality, and **super duper shaders** (global illumination,
+menu corruption on/off, self-unpause on/off, show objectives, graphics quality, resolution, and **super duper shaders** (global illumination,
 reflections, volumetric fog, anti-aliasing - needs a strong GPU).
 
 ## Project layout

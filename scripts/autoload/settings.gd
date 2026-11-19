@@ -24,7 +24,9 @@ var show_dread_meter := true
 var menu_corruption := true
 var self_unpause := true
 ## 0 = low (fast, for older Macs), 1 = high (SDFGI, volumetric fog, SSAO).
-var quality := 1.0
+var quality := 0.0 if OS.has_feature("web") else 1.0
+## 3D resolution: 1 = full, 0.5 = half (much faster on phones; the HUD stays sharp).
+var render_scale := (0.65 if DisplayServer.is_touchscreen_available() else 0.8) if OS.has_feature("web") else 1.0
 ## Every expensive effect on: global illumination, reflections, volumetric fog, MSAA + TAA. Needs a strong GPU.
 var super_shaders := false
 var show_objectives := true
@@ -36,7 +38,7 @@ var touch_controls := 0.0
 var language := 1.0 if OS.get_locale_language() == "ko" else 0.0
 
 const KEYS := ["mouse_sensitivity", "invert_y", "fov", "head_bob", "camera_effects", "visual_intensity",
-	"audio_intensity", "master_volume", "music_volume", "text_scale", "show_dread_meter", "menu_corruption", "self_unpause", "quality", "super_shaders", "show_objectives", "deaths_seen", "touch_controls", "language", "epilepsy_safe"]
+	"audio_intensity", "master_volume", "music_volume", "text_scale", "show_dread_meter", "menu_corruption", "self_unpause", "quality", "super_shaders", "show_objectives", "deaths_seen", "touch_controls", "language", "epilepsy_safe", "render_scale"]
 
 
 func _ready() -> void:
@@ -48,8 +50,11 @@ func _ready() -> void:
 func load_settings() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(PATH) == OK:
+		var migrate := not cfg.has_section_key("settings", "render_scale")
 		for k in KEYS:
 			set(k, cfg.get_value("settings", k, get(k)))
+		if migrate and OS.has_feature("web"):
+			quality = 0.0     # settings saved before the performance pass: start the browser on LOW
 	apply()
 
 
@@ -67,6 +72,10 @@ func apply() -> void:
 	if vp:
 		vp.msaa_3d = Viewport.MSAA_4X if super_shaders else Viewport.MSAA_DISABLED
 		vp.use_taa = super_shaders
+		vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
+		vp.scaling_3d_scale = clampf(render_scale, 0.5, 1.0)
+		vp.positional_shadow_atlas_size = 2048 if quality >= 1 else 1024
+		vp.mesh_lod_threshold = 1.0 if quality >= 1 else 5.0     # LOW: models drop to simpler versions sooner
 	changed.emit()
 
 

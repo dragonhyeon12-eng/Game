@@ -42,7 +42,7 @@ var _open := false
 var _t := 0.0
 var _hint := 0
 var no_swarm_death := false
-static var _hole_mesh: CylinderMesh
+static var _hole_mesh: ArrayMesh
 var _armed := true            # (after coming back in through a doorway: not until you're in the room again)
 
 
@@ -96,12 +96,18 @@ func _cluster(parent: Node3D, center: Vector3, normal: Vector3, radius: float, c
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	if _hole_mesh == null:
-		_hole_mesh = CylinderMesh.new()       # cheap: 8 sides, no rings (there are thousands of these)
-		_hole_mesh.radial_segments = 8
-		_hole_mesh.rings = 0
-		_hole_mesh.top_radius = 0.5
-		_hole_mesh.bottom_radius = 0.5
-		_hole_mesh.height = 1.0
+		# a flat 8-sided disc, facing up: 8 triangles. (Each hole only ever shows its top, and there are
+		# tens of thousands of them.)
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		st.set_normal(Vector3.UP)
+		for i in 8:
+			var a0 := TAU * i / 8.0
+			var a1 := TAU * (i + 1) / 8.0
+			st.add_vertex(Vector3(0, 0.5, 0))
+			st.add_vertex(Vector3(cos(a0) * 0.5, 0.5, sin(a0) * 0.5))
+			st.add_vertex(Vector3(cos(a1) * 0.5, 0.5, sin(a1) * 0.5))
+		_hole_mesh = st.commit()
 	mm.mesh = _hole_mesh
 	mm.instance_count = count
 	var up := normal.normalized()
@@ -127,7 +133,7 @@ func _hex_tiles(center: Vector3, size: Vector2, normal_up := true) -> void:
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	var cm := CylinderMesh.new()
 	cm.radial_segments = 6
-	cm.rings = 1
+	cm.rings = 0
 	cm.top_radius = 0.5
 	cm.bottom_radius = 0.5
 	cm.height = 1.0

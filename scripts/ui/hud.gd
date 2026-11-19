@@ -83,7 +83,8 @@ func _build() -> void:
 
 	_post = _full(ColorRect.new())
 	_post_mat = ShaderMaterial.new()
-	_post_mat.shader = load("res://scripts/ui/post.gdshader")
+	_post_mat.shader = load("res://scripts/ui/post.gdshader" if Settings.quality >= 1 else "res://scripts/ui/post_lite.gdshader")
+	Settings.changed.connect(func(): _post_mat.shader = load("res://scripts/ui/post.gdshader" if Settings.quality >= 1 else "res://scripts/ui/post_lite.gdshader"))
 	_post.material = _post_mat
 	root.add_child(_post)
 
@@ -675,6 +676,7 @@ func _settings(back: Callable) -> void:
 		["Menu corruption", flag.call("menu_corruption")],
 		["Game may unpause itself", flag.call("self_unpause")],
 		["Graphics quality (next area)", num.call("quality", 0.0, 1.0, 1.0, func(v): return "HIGH" if v >= 1 else "LOW")],
+		["Resolution (lower = faster)", num.call("render_scale", 0.5, 1.0, 0.05, pct)],
 		["Super duper shaders (strong GPU)", flag.call("super_shaders")],
 		["Show objectives", flag.call("show_objectives")],
 		["Touch controls", num.call("touch_controls", 0.0, 2.0, 1.0, func(v): return ["AUTO", "ON", "OFF"][clampi(roundi(v), 0, 2)])],

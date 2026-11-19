@@ -217,7 +217,7 @@ func _water(r: Rect2, level: float) -> Node3D:
 	plane.subdivide_depth = mini(int(r.size.y * 2.0), 96)
 	mi.mesh = plane
 	var mat := ShaderMaterial.new()
-	mat.shader = load("res://scripts/world/water.gdshader")
+	mat.shader = load("res://scripts/world/water.gdshader" if Settings.quality >= 1 else "res://scripts/world/water_lite.gdshader")
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(mi)
@@ -225,6 +225,8 @@ func _water(r: Rect2, level: float) -> Node3D:
 
 
 func _caustics(r: Rect2, y: float) -> void:
+	if Settings.quality < 1:
+		return      # LOW graphics: no moving light on the pool floor
 	var mi := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(r.size.x, r.size.y)

@@ -230,6 +230,7 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 	main.add_child(zone)
 	zone.build()
 	zone.finish_batches()
+	zone.cheapen()
 	player.teleport(zone.player_start())
 	if from_save:
 		var cp = zone.saved_checkpoint()

@@ -10,35 +10,47 @@ static func mesh(kind: String) -> Mesh:
 	if _meshes.has(kind):
 		return _meshes[kind]
 	var m: Mesh
+	var hi := Settings.quality >= 1      # LOW graphics: fewer sides on round things
 	match kind:
 		"sphere":
 			var s := SphereMesh.new()
 			s.radius = 0.5
 			s.height = 1.0
-			s.radial_segments = 24
-			s.rings = 12
+			s.radial_segments = 24 if hi else 14
+			s.rings = 12 if hi else 7
 			m = s
 		"cylinder":
 			var c := CylinderMesh.new()
 			c.top_radius = 0.5
 			c.bottom_radius = 0.5
 			c.height = 1.0
-			c.radial_segments = 20
+			c.radial_segments = 20 if hi else 12
+			c.rings = 0
+			m = c
+		"pipe":
+			# a cylinder with few sides, for things there are hundreds of
+			var c := CylinderMesh.new()
+			c.top_radius = 0.5
+			c.bottom_radius = 0.5
+			c.height = 1.0
+			c.radial_segments = 8
+			c.rings = 0
 			m = c
 		"cone":
 			var c := CylinderMesh.new()
 			c.top_radius = 0.0
 			c.bottom_radius = 0.5
 			c.height = 1.0
-			c.radial_segments = 20
+			c.radial_segments = 20 if hi else 12
+			c.rings = 0
 			m = c
 		"capsule":
 			# 1 wide, 2 tall: scale by (width, length / 2, depth)
 			var c := CapsuleMesh.new()
 			c.radius = 0.5
 			c.height = 2.0
-			c.radial_segments = 16
-			c.rings = 6
+			c.radial_segments = 16 if hi else 10
+			c.rings = 6 if hi else 3
 			m = c
 		"taper":
 			# a cylinder that narrows toward the bottom (forearms, shins, fingers)
@@ -46,7 +58,8 @@ static func mesh(kind: String) -> Mesh:
 			c.top_radius = 0.5
 			c.bottom_radius = 0.38
 			c.height = 1.0
-			c.radial_segments = 14
+			c.radial_segments = 14 if hi else 10
+			c.rings = 0
 			m = c
 		"plane":
 			var p := PlaneMesh.new()

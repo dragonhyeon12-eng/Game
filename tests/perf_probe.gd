@@ -8,6 +8,10 @@ const ZONES := ["bedroom", "bedroom_dream", "city", "maze", "deep", "seabed", "a
 
 
 func _ready() -> void:
+	if OS.get_cmdline_user_args().has("--low"):
+		Settings.quality = 0.0
+		Settings.render_scale = 0.65
+		Settings.apply()
 	Game.boot(self)
 	_run.call_deferred()
 
@@ -31,6 +35,9 @@ func _run() -> void:
 			objs += RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME)
 			tris += RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)
 			cpu += Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0
+		var shots := OS.get_cmdline_user_args().find("--shots")
+		if shots >= 0:
+			get_viewport().get_texture().get_image().save_png(OS.get_cmdline_user_args()[shots + 1] + "/" + z + ".png")
 		var omni := Game.zone.find_children("*", "OmniLight3D", true, false)
 		var spots := Game.zone.find_children("*", "SpotLight3D", true, false)
 		var shadowed := 0

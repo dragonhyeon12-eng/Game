@@ -78,7 +78,7 @@ func add_shape(kind: String, xf: Transform3D, color: Color, collide := false, su
 				var s := SphereShape3D.new()
 				s.radius = 0.5
 				cs.shape = s
-			"cylinder", "cone":
+			"cylinder", "cone", "pipe":
 				var c := CylinderShape3D.new()
 				c.radius = 0.5
 				c.height = 1.0
@@ -187,11 +187,11 @@ const BATCH_CELL := 64.0     # small scattered things (grass...) are split into 
 
 
 ## Instances [[Transform3D, Color], ...] grouped by cell.
-static func _cells(list: Array) -> Dictionary:
+static func _cells(list: Array, cell := BATCH_CELL) -> Dictionary:
 	var out := {}
 	for it in list:
 		var o: Vector3 = (it[0] as Transform3D).origin
-		var k := Vector2i(floori(o.x / BATCH_CELL + 0.5), floori(o.z / BATCH_CELL + 0.5))
+		var k := Vector2i(floori(o.x / cell + 0.5), floori(o.z / cell + 0.5))
 		if not out.has(k):
 			out[k] = []
 		out[k].append(it)
@@ -219,23 +219,85 @@ func _finish_scatter() -> void:
 		var mesh: Mesh = e[0]
 		# small things (grass, pebbles) fade out with distance; nobody sees a grass clump 80 m away
 		var small := mesh != null and mesh.get_aabb().size.length() < 1.6
-		for cell in (_cells(e[1]).values() if small else [e[1]]):
+		for cell in _cells(e[1], BATCH_CELL if small else 32.0).values():   # (big modules: smaller cells, culled and simplified sooner)
 			var mmi := _multimesh(mesh, cell)
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if e[2] and not small else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			if not small and Settings.quality < 1:
+				mmi.visibility_range_end = 150.0      # LOW: building modules etc. are left out far away
+				mmi.visibility_range_end_margin = 10.0
 			if small:
-				mmi.visibility_range_end = 70.0
+				mmi.visibility_range_end = 70.0 if Settings.quality >= 1 else 40.0
 				mmi.visibility_range_end_margin = 10.0
 				mmi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	_scatter.clear()
+
+
+const CHUNK := 24.0         # static shapes are batched per 24 m square, so the camera culls what's behind it
+							# and a lamp only re-draws the shapes near it (the browser renderer draws once per light)
 
 
 func finish_batches() -> void:
 	_finish_scatter()
 	for key in _batches:
 		var parts: PackedStringArray = key.split("|", true, 1)
-		var mmi := _multimesh(Shapes.mesh(parts[0]), _batches[key])
-		mmi.material_override = Shapes.surface(parts[1])
+		var mesh := Shapes.mesh(parts[0])
+		var mat := Shapes.surface(parts[1])
+		var chunks := {}
+		for it in _batches[key]:
+			var xf: Transform3D = it[0]
+			var sc := xf.basis.get_scale()
+			var k := Vector3i(9999, 0, 9999)      # huge things (ground, long walls) stay together
+			if maxf(sc.x, maxf(sc.y, sc.z)) < CHUNK:
+				k = Vector3i(floori(xf.origin.x / CHUNK), floori(xf.origin.y / (CHUNK * 2.0)), floori(xf.origin.z / CHUNK))
+			if not chunks.has(k):
+				chunks[k] = []
+			chunks[k].append(it)
+		for k in chunks:
+			var mmi := _multimesh(mesh, chunks[k])
+			mmi.material_override = mat
 	_batches.clear()
+
+
+## LOW graphics quality: no shadows from lamps, a smaller shadow budget, lights skipped sooner.
+func cheapen() -> void:
+	if Settings.quality >= 1:
+		return
+	for l in find_children("*", "Light3D", true, false):
+		if l is DirectionalLight3D:
+			l.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+			l.directional_shadow_max_distance = minf(l.directional_shadow_max_distance, 40.0)
+		else:
+			l.shadow_enabled = false
+			if l.distance_fade_enabled:
+				l.distance_fade_begin = minf(l.distance_fade_begin, 30.0)
+	for e in _envs:
+		e.glow_enabled = false
+		e.ssao_enabled = false
+		e.adjustment_enabled = false
+		if e.sky:
+			# a moving sky re-lights the scene every frame: do it in small steps, at low resolution
+			e.sky.process_mode = Sky.PROCESS_MODE_INCREMENTAL
+			e.sky.radiance_size = Sky.RADIANCE_SIZE_32
+			if e.sky.sky_material is ShaderMaterial:
+				(e.sky.sky_material as ShaderMaterial).set_shader_parameter("octaves", 3)
+	# trees and figures far away: not drawn (there are hundreds of trees, and figures are many parts each)
+	for n in find_children("*", "GeometryInstance3D", true, false):
+		var gi := n as GeometryInstance3D
+		if gi.visibility_range_end > 0.0:
+			continue
+		var far := 0.0
+		var a: Node = gi
+		while a != null and a != self:
+			if a is Mannequin:
+				far = 40.0
+				break
+			if String(a.name).to_lower().begins_with("tree"):
+				far = 70.0
+				break
+			a = a.get_parent()
+		if far > 0.0:
+			gi.visibility_range_end = far
+			gi.visibility_range_end_margin = 6.0
 
 
 ## An individual mesh (for things that change at runtime).
@@ -326,7 +388,7 @@ func omni(pos: Vector3, color: Color, energy: float, rng: float, shadows := true
 	l.light_energy = energy
 	l.omni_range = rng
 	l.omni_attenuation = 1.2
-	l.shadow_enabled = shadows
+	l.shadow_enabled = shadows and Settings.quality >= 1
 	_fade_with_distance(l, rng)
 	add_child(l)
 	return l

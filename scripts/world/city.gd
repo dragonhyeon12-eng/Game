@@ -177,7 +177,7 @@ func _skyline() -> void:
 
 ## Distant skyline: large modern facades, two bays a side, double-height floors (they are far away).
 func _far_building(base: Vector3, h: float, col: Color, _rng: RandomNumberGenerator) -> bool:
-	if not Props.has("facade_kit"):
+	if not Props.has("facade_kit") or Settings.quality < 1:     # (LOW graphics: plain blocks, far away)
 		return false
 	var floors := int(h / 7.2)
 	for face in 4:
@@ -349,7 +349,7 @@ func _fountain_water(pos: Vector3, radius: float) -> void:
 	disc.rings = 8
 	mi.mesh = disc
 	var mat := ShaderMaterial.new()
-	mat.shader = load("res://scripts/world/water.gdshader")
+	mat.shader = load("res://scripts/world/water.gdshader" if Settings.quality >= 1 else "res://scripts/world/water_lite.gdshader")
 	mat.set_shader_parameter("absorb", 0.6)
 	mat.set_shader_parameter("wave_height", 0.004)
 	mi.material_override = mat

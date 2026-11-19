@@ -413,12 +413,13 @@ func _clouds(rng: RandomNumberGenerator) -> void:
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
 	mm.mesh = quad
-	mm.instance_count = 420
+	var lo := Settings.quality < 1       # LOW graphics: fewer, bigger billows (overlapping see-through sprites are slow on phones)
+	mm.instance_count = 150 if lo else 420
 	for i in mm.instance_count:
 		var ang := rng.randf() * TAU
 		var dist := sqrt(rng.randf()) * 320.0
 		var y := rng.randf_range(-44.0, -14.0)
-		var s := rng.randf_range(22.0, 70.0) * (1.0 + (y + 44.0) / 60.0)
+		var s := rng.randf_range(22.0, 70.0) * (1.0 + (y + 44.0) / 60.0) * (1.4 if lo else 1.0)
 		var p := Vector3(cos(ang) * dist + 12, y, sin(ang) * dist - 8)
 		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3(s, s * 0.6, 1.0)), p))
 		var lit := rng.randf_range(0.0, 1.0)

@@ -35,6 +35,7 @@ var face: Node3D          # painted features, a wig... (the realistic ones)
 ## realism 0: blank plastic. 1: painted eyes and mouth. 2: and a wig and lips.
 func build(col := Color(0.9, 0.86, 0.8), realism := 0, h := 1.0) -> void:
 	_plastic = Shapes.material(col, 0.28)
+	var joints := Settings.quality >= 1      # LOW graphics: no separate ball joints (a third fewer parts)
 	scale = Vector3.ONE * h
 	_pelvis = _pivot(self, Vector3(0, 0.95, 0))
 	_mesh(_pelvis, "sphere", Vector3.ZERO, Vector3(0.32, 0.2, 0.2))
@@ -55,10 +56,12 @@ func build(col := Color(0.9, 0.86, 0.8), realism := 0, h := 1.0) -> void:
 		_mesh(face, "sphere", Vector3(0, 0.3, -0.02), Vector3(0.21, 0.2, 0.23), Shapes.material(Color(0.2, 0.13, 0.08), 0.7))
 	for side in [-1.0, 1.0]:
 		var sh := _pivot(chest, Vector3(0.2 * side, 0.44, 0))
-		_mesh(sh, "sphere", Vector3.ZERO, Vector3.ONE * 0.08)
+		if joints:
+			_mesh(sh, "sphere", Vector3.ZERO, Vector3.ONE * 0.08)
 		_mesh(sh, "capsule", Vector3(0, -0.15, 0), Vector3(0.075, 0.15, 0.075))
 		var el := _pivot(sh, Vector3(0, -0.3, 0))
-		_mesh(el, "sphere", Vector3.ZERO, Vector3.ONE * 0.06)
+		if joints:
+			_mesh(el, "sphere", Vector3.ZERO, Vector3.ONE * 0.06)
 		_mesh(el, "capsule", Vector3(0, -0.14, 0), Vector3(0.06, 0.14, 0.06))
 		_mesh(el, "capsule", Vector3(0, -0.32, 0.01), Vector3(0.06, 0.05, 0.03))    # a hand like a paddle
 		_sh.append(sh)
@@ -66,7 +69,8 @@ func build(col := Color(0.9, 0.86, 0.8), realism := 0, h := 1.0) -> void:
 		var hip := _pivot(_pelvis, Vector3(0.1 * side, -0.05, 0))
 		_mesh(hip, "capsule", Vector3(0, -0.22, 0), Vector3(0.11, 0.22, 0.11))
 		var kn := _pivot(hip, Vector3(0, -0.45, 0))
-		_mesh(kn, "sphere", Vector3.ZERO, Vector3.ONE * 0.08)
+		if joints:
+			_mesh(kn, "sphere", Vector3.ZERO, Vector3.ONE * 0.08)
 		_mesh(kn, "capsule", Vector3(0, -0.21, 0), Vector3(0.08, 0.21, 0.08))
 		_mesh(kn, "capsule", Vector3(0, -0.44, 0.05), Vector3(0.07, 0.05, 0.12))
 		_hip.append(hip)

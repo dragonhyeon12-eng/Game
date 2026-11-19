@@ -2,7 +2,7 @@ shader_type canvas_item;
 // DREAD post-processing: vignette, desaturation, film grain and a faint colour fringe.
 // Driven every frame by Game (scaled by the visual-intensity accessibility setting).
 
-uniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;
+uniform sampler2D screen_tex : hint_screen_texture, filter_linear;   // (read 1:1: no mipmaps needed)
 uniform float vignette = 0.25;
 uniform float grain = 0.0;
 uniform float desat = 0.0;

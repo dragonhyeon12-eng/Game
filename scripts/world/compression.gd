@@ -721,17 +721,17 @@ func _wall_detail() -> void:
 				var along_x := d.y != 0                       # the run goes along x when the wall is north/south
 				var rot := Vector3(0, 0, 90) if along_x else Vector3(90, 0, 0)
 				# two horizontal runs under the ceiling
-				shape_at("cylinder", face - n * 0.12 + Vector3(0, h - 0.2, 0), Vector3(0.1, 1.02, 0.1), rust, false, rot, "metal")
-				shape_at("cylinder", face - n * 0.24 + Vector3(0, h - 0.36, 0), Vector3(0.07, 1.02, 0.07), grey, false, rot, "metal")
+				shape_at("pipe", face - n * 0.12 + Vector3(0, h - 0.2, 0), Vector3(0.1, 1.02, 0.1), rust, false, rot, "metal")
+				shape_at("pipe", face - n * 0.24 + Vector3(0, h - 0.36, 0), Vector3(0.07, 1.02, 0.07), grey, false, rot, "metal")
 				if (c + r) % 2 == 0:
 					# a bracket holding both
 					shape_at("box", face - n * 0.15 + Vector3(0, h - 0.28, 0), (Vector3(0.04, 0.32, 0.3) if along_x else Vector3(0.3, 0.32, 0.04)), grey.darkened(0.3), false, Vector3.ZERO, "metal")
 				var roll := rng.randf()
 				if roll < 0.09 and ch != ",":
 					# a pipe down the wall, a valve wheel on it
-					shape_at("cylinder", face - n * 0.1 + Vector3(0, (h - 0.2) * 0.5, 0), Vector3(0.09, h - 0.2, 0.09), green, false, Vector3.ZERO, "metal")
+					shape_at("pipe", face - n * 0.1 + Vector3(0, (h - 0.2) * 0.5, 0), Vector3(0.09, h - 0.2, 0.09), green, false, Vector3.ZERO, "metal")
 					var wheel_rot := Vector3(90, 0, 0) if along_x else Vector3(0, 0, 90)
-					shape_at("cylinder", face - n * 0.2 + Vector3(0, 1.3, 0), Vector3(0.28, 0.03, 0.28), Color(0.6, 0.12, 0.1), false, wheel_rot, "metal")
+					shape_at("pipe", face - n * 0.2 + Vector3(0, 1.3, 0), Vector3(0.28, 0.03, 0.28), Color(0.6, 0.12, 0.1), false, wheel_rot, "metal")
 				elif roll < 0.15:
 					# a vent grille, standing out from the wall, slats and all
 					var vy := 0.45 if rng.randf() < 0.5 else 1.7
@@ -742,7 +742,7 @@ func _wall_detail() -> void:
 				elif roll < 0.19:
 					# a junction box with a conduit up to the ceiling
 					shape_at("box", face - n * 0.08 + Vector3(0, 1.5, 0), (Vector3(0.35, 0.45, 0.14) if along_x else Vector3(0.14, 0.45, 0.35)), Color(0.5, 0.5, 0.45), false, Vector3.ZERO, "metal")
-					shape_at("cylinder", face - n * 0.05 + Vector3(0, 1.73 + (h - 1.73) * 0.5, 0), Vector3(0.04, h - 1.73, 0.04), grey, false, Vector3.ZERO, "metal")
+					shape_at("pipe", face - n * 0.05 + Vector3(0, 1.73 + (h - 1.73) * 0.5, 0), Vector3(0.04, h - 1.73, 0.04), grey, false, Vector3.ZERO, "metal")
 
 
 ## Optional creatures (models/creatures/): rats that bolt when you come near (one runs into the vent
