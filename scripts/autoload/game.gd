@@ -231,6 +231,11 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 	zone.build()
 	zone.finish_batches()
 	player.teleport(zone.player_start())
+	if from_save:
+		var cp = zone.saved_checkpoint()
+		if cp != null:
+			player.teleport(cp)
+			player.rotation.y = (cp as Transform3D).basis.get_euler().y
 	player.dread.set_profile(zone.is_nightmare(), zone.fear_gain(), zone.fear_floor(), zone.fear_decay())
 	player.set_movement(zone.walk_speed(), zone.sprint_speed(), zone.floor_surface())
 	var pacing := zone.anomaly_pacing()

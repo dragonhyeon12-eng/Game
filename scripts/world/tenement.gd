@@ -277,7 +277,7 @@ func _apartment() -> void:
 	# the bathroom, and the vent
 	_room(-40.0, -37.15, -10.5, -7.5, 2.4, Color(0.85, 0.87, 0.86), "tiles_pool", Color(0.6, 0.62, 0.6), "tiles_floor", PLASTER, {
 		"e": [[1.5, 0.9, 2.1]],
-		"w": [[1.5, 0.9, 1.25, 0.05]],
+		"w": [[1.5, 0.9, 1.25]],
 	})
 	part("box", Vector3(-38.6, 0.3, -10.05), Vector3(2.0, 0.6, 0.7), Color(0.9, 0.9, 0.88), null, Vector3.ZERO, 0.0, "tiles_pool")
 	blocker(Vector3(-38.6, 0.3, -10.05), Vector3(2.0, 0.6, 0.7))
@@ -322,24 +322,24 @@ func _duct() -> void:
 	var m := Color(0.45, 0.46, 0.46)
 	var h := 1.25
 	# leg one: west from the bathroom, x -40 .. -53.45, narrowing. It turns south at the end.
-	for sg in [[-40.0, -44.0, 0.9], [-44.0, -48.0, 0.8], [-48.0, -53.45, 0.72]]:
+	for sg in [[-40.0, -44.0, 0.9], [-44.0, -48.0, 0.86], [-48.0, -53.45, 0.82]]:   # (the player is 0.68 across)
 		var xa: float = sg[0]
 		var xb: float = sg[1]
 		var w: float = sg[2]
 		box(Vector3((xa + xb) * 0.5, -0.05, -9.0), Vector3(xa - xb, 0.1, 1.2), m, true, 0.0, "metal")
 		box(Vector3((xa + xb) * 0.5, h + 0.05, -9.0), Vector3(xa - xb, 0.1, 1.2), m, true, 0.0, "metal")
 		box(Vector3((xa + xb) * 0.5, h * 0.5, -9.0 + w * 0.5 + 0.05), Vector3(xa - xb, h, 0.1), m, true, 0.0, "metal")
-		var xs := maxf(xb, -52.6)
+		var xs := maxf(xb, -52.48)
 		box(Vector3((xa + xs) * 0.5, h * 0.5, -9.0 - w * 0.5 - 0.05), Vector3(xa - xs, h, 0.1), m, true, 0.0, "metal")
 	box(Vector3(-53.5, h * 0.5, -9.0), Vector3(0.1, h, 1.0), m, true, 0.0, "metal")
 	# leg two: south, z -9 .. -24, narrower still
-	for sg in [[-9.0, -15.0, 0.7], [-15.0, -24.0, 0.66]]:
+	for sg in [[-9.0, -15.0, 0.8], [-15.0, -24.0, 0.78]]:
 		var za: float = sg[0]
 		var zb: float = sg[1]
 		var w: float = sg[2]
 		box(Vector3(-53.0, -0.05, (za + zb) * 0.5), Vector3(1.2, 0.1, za - zb), m, true, 0.0, "metal")
 		box(Vector3(-53.0, h + 0.05, (za + zb) * 0.5), Vector3(1.2, 0.1, za - zb), m, true, 0.0, "metal")
-		var za2 := za - 0.45 if za > -9.5 else za
+		var za2 := za - 0.53 if za > -9.5 else za
 		box(Vector3(-53.0 - w * 0.5 - 0.05, h * 0.5, (za + zb) * 0.5), Vector3(0.1, h, za - zb), m, true, 0.0, "metal")
 		box(Vector3(-53.0 + w * 0.5 + 0.05, h * 0.5, (za2 + zb) * 0.5), Vector3(0.1, h, za2 - zb), m, true, 0.0, "metal")
 	# thin light through the slats, here and there
@@ -388,7 +388,7 @@ func _stairwell() -> void:
 		var north_gaps := []
 		var east_gaps := []
 		if k == 0:
-			north_gaps = [[1.1, 0.75, 1.25, 0.05]]
+			north_gaps = [[1.1, 0.84, 1.25]]
 			east_gaps = [[0.8, 1.0, 2.1]]
 		_wall(Vector2(O.x - 2.1, O.z), Vector2(O.x + 2.1, O.z), STOREY, col, "concrete", north_gaps, y)
 		_wall(Vector2(O.x + 2.1, O.z), Vector2(O.x + 2.1, O.z - 6.3), STOREY, col, "concrete", east_gaps, y)

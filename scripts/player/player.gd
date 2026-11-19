@@ -45,6 +45,7 @@ var _bob_blend := 0.0
 var _step_acc := 0.0
 var _jolt := Vector3.ZERO
 var _crouched := false
+const CHASE_SPRINT := 1.3     # running for your life is faster than running
 var crouch_speed := 1.8       # (a chase lets you scramble under things faster)
 var jump_speed := JUMP_SPEED  # (a chase: higher...)
 var jump_boost := 0.0         # (...and a push forward, m/s)
@@ -303,7 +304,8 @@ func _physics_process(delta: float) -> void:
 		_update_focus()
 		return
 	var sprinting := Input.is_action_pressed("sprint") and not controls_locked and not _crouched
-	var speed := (crouch_speed if _crouched else (sprint_speed if sprinting else walk_speed))
+	var chased: bool = Game.zone != null and Game.zone.is_chasing()
+	var speed := (crouch_speed if _crouched else (sprint_speed * (CHASE_SPRINT if chased else 1.0) if sprinting else walk_speed))
 	var dir := (transform.basis * Vector3(input.x, 0, input.y))
 	dir.y = 0
 	dir = dir.normalized() * minf(input.length(), 1.0)

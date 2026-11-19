@@ -49,9 +49,10 @@ func setup(def: Dictionary) -> void:
 		# a beam pointing where the object points (-Z)
 		var l := SpotLight3D.new()
 		var ld: Dictionary = def["light"]
-		l.spot_range = float(ld.get("range", 25.0))
+		var k: float = Game.zone.flashlight_scale() if Game.zone != null else 1.0
+		l.spot_range = float(ld.get("range", 25.0)) * lerpf(0.5, 1.0, k)
 		l.spot_angle = float(ld.get("angle", 25.0))
-		l.light_energy = float(ld.get("energy", 5.0))
+		l.light_energy = float(ld.get("energy", 5.0)) * k
 		l.light_color = Color(1.0, 0.95, 0.85)
 		l.shadow_enabled = true
 		l.spot_attenuation = 0.65

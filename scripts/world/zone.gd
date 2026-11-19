@@ -18,6 +18,10 @@ func fear_decay() -> float: return 1.5
 func floor_surface() -> String: return "concrete"
 func walk_speed() -> float: return 2.6
 func sprint_speed() -> float: return 4.3
+## True while something is chasing you: the player runs faster for as long as it lasts.
+func is_chasing() -> bool: return false
+## How strong a pictured flashlight is here (dark realms keep it weak, so the dark still counts).
+func flashlight_scale() -> float: return 1.0
 ## Seconds between unobserved changes when stable / unstable. Negative = never.
 func anomaly_pacing() -> Vector2: return Vector2(-1, -1)
 func player_start() -> Transform3D: return Transform3D.IDENTITY
@@ -590,3 +594,34 @@ func ground_y(pos: Vector3, fallback := 0.0) -> float:
 	var q := PhysicsRayQueryParameters3D.create(pos + Vector3.UP * 20.0, pos + Vector3.DOWN * 50.0, 1)
 	var hit := space.intersect_ray(q)
 	return hit.position.y if hit else fallback
+
+
+## A checkpoint: from now on, dying (or Continue) puts you back on this spot, with the story as it
+## stands. Each one only fires once (by id); calling it again with the same id does nothing.
+func checkpoint(id: String, pos: Vector3, yaw_deg := 0.0) -> void:
+	var key := "cp_" + zone_id()
+	var cur = Game.counters.get(key, {})
+	if cur is Dictionary and String(cur.get("id", "")) == id:
+		return
+	Game.counters[key] = {"id": id, "x": pos.x, "y": pos.y, "z": pos.z, "yaw": deg_to_rad(yaw_deg)}
+	Game.save_checkpoint()
+	Game.hud.show_hint("Checkpoint.", 2.0)
+
+
+## Where the last checkpoint in this zone put you (null if there's none).
+func saved_checkpoint() -> Variant:
+	var cp = Game.counters.get("cp_" + zone_id(), null)
+	if not cp is Dictionary:
+		return null
+	var xf := Transform3D(Basis(Vector3.UP, float(cp.get("yaw", 0.0))), Vector3(float(cp.x), float(cp.y), float(cp.z)))
+	return xf
+
+
+func checkpoint_id() -> String:
+	var cp = Game.counters.get("cp_" + zone_id(), null)
+	return String(cp.get("id", "")) if cp is Dictionary else ""
+
+
+## A checkpoint you walk into.
+func checkpoint_zone(id: String, center: Vector3, size: Vector3, spawn: Vector3, yaw_deg := 0.0) -> void:
+	trigger(center, size, func(): checkpoint(id, spawn, yaw_deg))

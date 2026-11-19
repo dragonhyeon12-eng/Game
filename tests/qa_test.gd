@@ -344,8 +344,9 @@ func _run() -> void:
 	place(Vector3(-39.0, 0.05, -9.0), 90.0)
 	Game.player._set_crouch(true)
 	calm()
-	p = await walk(4.0)
-	check(p.x < -46.0, "crawl along the duct (x=%.1f)" % p.x)
+	var through_duct := await run_to([Vector3(-53.0, 0, -9.0), Vector3(-53.0, 0, -23.5), Vector3(-53.0, 0, -25.2)], false, 40.0)
+	p = Game.player.global_position
+	check(through_duct and p.z < -24.6, "crawl the whole duct, crouched, out into the stairwell (%s)" % p)
 
 	print("== COMPRESSION: outrunning the collapse")
 	await zone("tenement")
