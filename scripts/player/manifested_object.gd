@@ -54,7 +54,11 @@ func setup(def: Dictionary) -> void:
 		l.spot_angle = float(ld.get("angle", 25.0))
 		l.light_energy = float(ld.get("energy", 5.0)) * k
 		l.light_color = Color(1.0, 0.95, 0.85)
-		l.shadow_enabled = true
+		# a light at your eye barely casts visible shadows; on LOW none at all. With shadows, push them off
+		# the surfaces: a long beam and a small shadow map otherwise stripe far walls ("shadow acne")
+		l.shadow_enabled = Settings.quality >= 1
+		l.shadow_bias = 0.15
+		l.shadow_normal_bias = 3.0
 		l.spot_attenuation = 0.65
 		l.spot_angle_attenuation = 0.6      # a bright core fading to a soft edge, not a hard ring
 		l.position = Vector3(0, 0, -0.12)
