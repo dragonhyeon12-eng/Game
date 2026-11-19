@@ -206,7 +206,7 @@ func _stilllife() -> void:
 	await wait(6.0)
 	check(not z._sections[0].on, "a section's gone dark")
 	_calm_figures(z)
-	place(StillLifeZone.EXIT + Vector3(0, -1.95, 1.2), 0.0)
+	place(StillLifeZone.EXIT + Vector3(0, 0.05, 1.4), 0.0)
 	await wait(0.3)
 	check(use("Staff exit"), "the staff exit")
 

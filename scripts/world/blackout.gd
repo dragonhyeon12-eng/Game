@@ -578,6 +578,7 @@ func _power_on() -> void:
 	for s in _crowd:
 		s.visible = true
 	Sfx.stinger("braam", 0.0)
+	Sfx.play_music("suspense", 1.0)
 	observer.position = Vector3(0, 0, -20)
 	observer.try_appear_at(Vector3(0, 0, -20))
 	Game.hud.show_thought("Shadows. All down the road. People's shadows. There's nobody there. THERE'S NOBODY THERE.", 4.5)
@@ -585,6 +586,7 @@ func _power_on() -> void:
 	# the bus, and then the dark, coming back up the street from the far end
 	_bus_arrives()
 	_wave_t = 0.0
+	Sfx.play("siren", 0.0)
 	Sfx.play("static_burst", 0.0, 0.5)
 
 

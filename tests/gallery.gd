@@ -196,6 +196,9 @@ func _run() -> void:
 		"comp_drying_door": func():
 			_zone("compression")
 			_look(Vector3(1.0, 1.6, -18.5), Vector3(-4, 1.6, -14.5)),
+		"comp_corridor": func():
+			_zone("compression")
+			_look(Vector3(0.5, 1.6, -4.0), Vector3(0.5, 1.4, -14)),
 		"comp_hub": func():
 			_zone("compression")
 			_look(Vector3(2.0, 1.6, -15.0), Vector3(1.0, 1.2, -22)),
@@ -478,6 +481,9 @@ func _run() -> void:
 			z._update_collapse(0.016)
 			z._collapse = false
 			_look(Vector3(-30, 1.6, -24.8), Vector3(-40, 1.0, -24.8)),
+		"above_down": func():
+			_zone("above")
+			_look(Vector3(6, 1.6, 2), Vector3(40, -50, -30)),
 		"above_far": func():
 			_zone("above")
 			_look(Vector3(2, 1.6, -5), Vector3(19, 30, -157)),

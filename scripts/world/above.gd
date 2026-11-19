@@ -385,14 +385,52 @@ func _skyline(rng: RandomNumberGenerator) -> void:
 
 
 func _clouds(rng: RandomNumberGenerator) -> void:
-	# a floor of cloud far below: one sheet, and heaped billows on it
-	box(Vector3(12, -46, -8), Vector3(600, 0.5, 600), Color(0.17, 0.18, 0.24), false, 0.0, 1.0)
-	for i in 160:
+	# a sea of cloud far below, lit by the moon: a pale floor, and soft billows heaped on it at every depth -
+	# camera-facing puffs with soft edges, drifting. The height fog (see _sky) swallows everything under them.
+	box(Vector3(12, -46, -8), Vector3(900, 0.5, 900), Color(0.2, 0.22, 0.3), false, 0.0, 1.0)
+	var tex := GradientTexture2D.new()
+	tex.width = 128
+	tex.height = 128
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(0.5, 0.0)
+	var g := Gradient.new()
+	g.set_color(0, Color(1, 1, 1, 0.9))
+	g.set_color(1, Color(1, 1, 1, 0.0))
+	g.add_point(0.55, Color(1, 1, 1, 0.45))
+	tex.gradient = g
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = tex
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.billboard_keep_scale = true
+	mat.vertex_color_use_as_albedo = true
+	mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = quad
+	mm.instance_count = 420
+	for i in mm.instance_count:
 		var ang := rng.randf() * TAU
-		var dist := sqrt(rng.randf()) * 260.0
-		var s := rng.randf_range(18.0, 55.0)
-		var p := Vector3(cos(ang) * dist + 12, rng.randf_range(-47.0, -42.0), sin(ang) * dist - 8)
-		shape_at("sphere", p, Vector3(s, s * 0.16, s * 0.9), Color(0.19, 0.2, 0.27).lightened(rng.randf_range(0.0, 0.06)), false, Vector3(0, rng.randf_range(0, 360), 0), 1.0)
+		var dist := sqrt(rng.randf()) * 320.0
+		var y := rng.randf_range(-44.0, -14.0)
+		var s := rng.randf_range(22.0, 70.0) * (1.0 + (y + 44.0) / 60.0)
+		var p := Vector3(cos(ang) * dist + 12, y, sin(ang) * dist - 8)
+		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3(s, s * 0.6, 1.0)), p))
+		var lit := rng.randf_range(0.0, 1.0)
+		mm.set_instance_color(i, Color(0.42, 0.46, 0.6, 0.55).lerp(Color(0.62, 0.66, 0.8, 0.7), lit * lit))
+	_cloud_sea = MultiMeshInstance3D.new()
+	_cloud_sea.multimesh = mm
+	_cloud_sea.material_override = mat
+	_cloud_sea.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_cloud_sea)
+
+
+var _cloud_sea: MultiMeshInstance3D
 
 
 func _sky() -> void:
@@ -419,10 +457,10 @@ func _sky() -> void:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.06, 0.07, 0.11)
+	env.fog_light_color = Color(0.14, 0.16, 0.24)
 	env.fog_density = 0.006
-	env.fog_height = -30.0
-	env.fog_height_density = 0.08
+	env.fog_height = -8.0              # under the rooftops it thickens fast: the towers go down into cloud
+	env.fog_height_density = 0.12
 	env.glow_intensity = 1.0
 	environment(env)
 
@@ -482,6 +520,8 @@ func on_player_entered(from_save: bool) -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	_beacon.light_energy = (4.0 if fmod(_t, 1.6) < 0.8 else 0.4) if Settings.flashing_ok() else 2.5
+	if _cloud_sea:
+		_cloud_sea.position = Vector3(sin(_t * 0.013) * 9.0, 0, _t * 0.25 - floorf(_t * 0.25 / 40.0) * 40.0)   # drifting
 	_update_fallers(delta)
 	var pl: Player = Game.player
 	if pl == null or Game.in_sequence:

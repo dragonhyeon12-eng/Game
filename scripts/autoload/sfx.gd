@@ -285,6 +285,13 @@ func play_at(name: String, parent: Node, position: Vector3, volume_db := 0.0, ma
 	p.play()
 
 
+static func _looping(st: AudioStream) -> AudioStream:
+	if st is AudioStreamMP3 and not st.loop:
+		st = st.duplicate()
+		st.loop = true
+	return st
+
+
 ## A looping ambient player. 3D if positional.
 func make_loop(name: String, positional: bool, volume_db := 0.0, max_distance := 30.0) -> Node:
 	var p: Node
@@ -294,13 +301,13 @@ func make_loop(name: String, positional: bool, volume_db := 0.0, max_distance :=
 		p3.unit_size = 5.0
 		p3.volume_db = volume_db
 		p3.autoplay = true
-		p3.stream = streams.get(name)
+		p3.stream = _looping(streams.get(name))
 		p = p3
 	else:
 		var p2 := AudioStreamPlayer.new()
 		p2.volume_db = volume_db
 		p2.autoplay = true
-		p2.stream = streams.get(name)
+		p2.stream = _looping(streams.get(name))
 		p = p2
 	return p
 
@@ -392,6 +399,32 @@ func _build_all() -> void:
 	streams["gate_slam"] = _to_wav(_gate_slam(), false)
 	streams["bars_rattle"] = _to_wav(_bars_rattle(), false)
 	print("Sfx: synthesized %d sounds in %d ms" % [streams.size(), Time.get_ticks_msec() - t0])
+	_load_recorded()
+
+
+## Recorded sounds (assets/audio). A name already synthesized ("hit") is replaced by the recording;
+## if a file is missing, the synthesized one stays.
+const RECORDED := {
+	"hit": "res://assets/audio/impact_hit.mp3",                  # a real horror impact
+	"siren": "res://assets/audio/air_raid_siren.mp3",            # the Backrooms chase; the dark coming back in BLACKOUT
+	"horror_swell": "res://assets/audio/horror_swell.mp3",       # reveals: the family at the table, the chart in Ward 6
+	"dark_soundscape": "res://assets/audio/dark_soundscape.mp3", # the hive; the plaza
+	"underwater_deep": "res://assets/audio/underwater_deep.mp3", # THE DEEP's seabed and abyss (loops)
+}
+const RECORDED_MUSIC := {"suspense": "res://assets/audio/suspense_cue.mp3"}
+
+
+func _load_recorded() -> void:
+	for k in RECORDED:
+		var st = load(RECORDED[k])
+		if st is AudioStream:
+			streams[k] = st
+	for k in RECORDED_MUSIC:
+		var m = load(RECORDED_MUSIC[k])
+		if m is AudioStreamMP3:
+			m = m.duplicate()
+			m.loop = true
+			music[k] = m
 
 
 func _room_tone(sec: float) -> PackedFloat32Array:

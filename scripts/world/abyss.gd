@@ -116,7 +116,8 @@ func build() -> void:
 	omni(lamp_p + Vector3(0, 4.2, 0), Color(1.0, 0.8, 0.5), 1.2, 9.0, false)
 	trigger(lamp_p + Vector3(0, 1, 0), Vector3(4, 2.4, 4), func():
 		Game.hud.show_thought("A street lamp. From the park. On the bottom of the sea, still on.", 3.5))
-	ambient("underwater", Vector3.ZERO, false, -8.0)
+	ambient("underwater", Vector3.ZERO, false, -12.0)
+	ambient("underwater_deep", Vector3.ZERO, false, -4.0)
 	ambient("drone", Vector3.ZERO, false, -18.0)
 
 

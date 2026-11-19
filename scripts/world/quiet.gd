@@ -420,6 +420,7 @@ func _chart() -> void:
 	Game.hud.show_thought("PATIENT: (scratched out). TIME OF DEATH: 3:12 AM. ...Crossed out. Underneath, in my handwriting: 'not yet.'", 6.0)
 	# the monitor flatlines - then, after a long moment, picks up again. every clock stops at 3:12.
 	_monitor_flat = true
+	Sfx.play("horror_swell", -2.0)
 	Sfx.play("chime", 0.0, 0.5)
 	await get_tree().create_timer(3.5, false).timeout
 	_monitor_flat = false

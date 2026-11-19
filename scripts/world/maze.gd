@@ -1133,6 +1133,7 @@ func _begin_chase() -> void:
 			tw.tween_property(_env, "volumetric_fog_albedo", Color(1.0, 0.3, 0.25), 0.6)
 	Sfx.play_music("chase", 0.15)
 	Sfx.stinger("braam", 2.0)
+	Sfx.play("siren", -3.0)
 	Sfx.play("metal_screech", -2.0, 0.6)
 	Game.player.jolt(Vector3(-3, 2, 0))
 	Game.hud.show_thought("The walls - they're closing! Follow the EXIT signs. RUN!", 3.0)

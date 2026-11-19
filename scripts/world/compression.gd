@@ -115,6 +115,7 @@ func build() -> void:
 	_vent()
 	_drying_room()
 	_props()
+	_wall_detail()
 	_vermin()
 
 	var env := make_env(Color(0.35, 0.32, 0.27), 0.05)
@@ -693,6 +694,55 @@ func _hints(p: Vector3) -> void:
 		_hint = maxi(_hint, 2)
 		Game.set_flag("comp_saw_box")
 		Game.hud.show_thought("A freight elevator. Dead. And the fuse box beside it is empty.", 4.0)
+
+
+## Pipes and ducts along the walls: two runs under the ceiling with brackets, pipes dropping down the walls
+## (some with valve wheels), vent grilles and junction boxes standing proud of the concrete. Just to look at:
+## none of it collides, so it never makes a tight space tighter than it was built.
+func _wall_detail() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4711
+	var rust := Color(0.42, 0.26, 0.16)
+	var grey := Color(0.36, 0.38, 0.39)
+	var green := Color(0.22, 0.3, 0.24)
+	var dirs := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	for r in H:
+		for c in W:
+			var ch := _at(c, r)
+			if not ch in [".", ",", "S", "E"]:
+				continue
+			var h: float = CEILING[ch]
+			var cc := cell_center(c, r)
+			for d: Vector2i in dirs:
+				if _at(c + d.x, r + d.y) != "#":
+					continue
+				var n := Vector3(d.x, 0, d.y)                  # toward the wall
+				var face := cc + n * 0.5
+				var along_x := d.y != 0                       # the run goes along x when the wall is north/south
+				var rot := Vector3(0, 0, 90) if along_x else Vector3(90, 0, 0)
+				# two horizontal runs under the ceiling
+				shape_at("cylinder", face - n * 0.12 + Vector3(0, h - 0.2, 0), Vector3(0.1, 1.02, 0.1), rust, false, rot, "metal")
+				shape_at("cylinder", face - n * 0.24 + Vector3(0, h - 0.36, 0), Vector3(0.07, 1.02, 0.07), grey, false, rot, "metal")
+				if (c + r) % 2 == 0:
+					# a bracket holding both
+					shape_at("box", face - n * 0.15 + Vector3(0, h - 0.28, 0), (Vector3(0.04, 0.32, 0.3) if along_x else Vector3(0.3, 0.32, 0.04)), grey.darkened(0.3), false, Vector3.ZERO, "metal")
+				var roll := rng.randf()
+				if roll < 0.09 and ch != ",":
+					# a pipe down the wall, a valve wheel on it
+					shape_at("cylinder", face - n * 0.1 + Vector3(0, (h - 0.2) * 0.5, 0), Vector3(0.09, h - 0.2, 0.09), green, false, Vector3.ZERO, "metal")
+					var wheel_rot := Vector3(90, 0, 0) if along_x else Vector3(0, 0, 90)
+					shape_at("cylinder", face - n * 0.2 + Vector3(0, 1.3, 0), Vector3(0.28, 0.03, 0.28), Color(0.6, 0.12, 0.1), false, wheel_rot, "metal")
+				elif roll < 0.15:
+					# a vent grille, standing out from the wall, slats and all
+					var vy := 0.45 if rng.randf() < 0.5 else 1.7
+					var vsize := Vector3(0.6, 0.38, 0.1) if along_x else Vector3(0.1, 0.38, 0.6)
+					shape_at("box", face - n * 0.05 + Vector3(0, vy, 0), vsize, grey.darkened(0.2), false, Vector3.ZERO, "metal")
+					for k in 4:
+						shape_at("box", face - n * 0.11 + Vector3(0, vy - 0.12 + k * 0.08, 0), (Vector3(0.52, 0.025, 0.02) if along_x else Vector3(0.02, 0.025, 0.52)), Color(0.08, 0.08, 0.08), false, Vector3.ZERO, "metal")
+				elif roll < 0.19:
+					# a junction box with a conduit up to the ceiling
+					shape_at("box", face - n * 0.08 + Vector3(0, 1.5, 0), (Vector3(0.35, 0.45, 0.14) if along_x else Vector3(0.14, 0.45, 0.35)), Color(0.5, 0.5, 0.45), false, Vector3.ZERO, "metal")
+					shape_at("cylinder", face - n * 0.05 + Vector3(0, 1.73 + (h - 1.73) * 0.5, 0), Vector3(0.04, h - 1.73, 0.04), grey, false, Vector3.ZERO, "metal")
 
 
 ## Optional creatures (models/creatures/): rats that bolt when you come near (one runs into the vent

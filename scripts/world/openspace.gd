@@ -374,6 +374,7 @@ func _to_plaza() -> void:
 	Game.player.teleport(Transform3D(Basis(Vector3.UP, 0.0), PLAZA + Vector3(0, 0.05, -0.5)))
 	Game.set_flag("os_plaza")
 	Sfx.play("wind", 0.0, 0.8)
+	Sfx.play("dark_soundscape", -3.0)
 	Game.hud.fade_to(0.0, 1.5, Color(1, 1, 1))
 	Game.in_sequence = false
 	Game.set_mode("game")

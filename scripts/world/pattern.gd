@@ -395,6 +395,7 @@ func _update_hive(delta: float, p: Vector3) -> void:
 	if not _in_hive:
 		if rel.length() < APO - 1.0:
 			_in_hive = true
+			Sfx.play("dark_soundscape", -2.0)
 			Game.set_flag("pt_hive")
 			_set_body(_back_plug, true)
 			_entry = WAY_IN
@@ -456,6 +457,7 @@ func _pass_through(i: int) -> void:
 			l.light_color = Color(0.95, 1.0, 0.9).lerp(Color(0.95, 0.85, 0.55), _depth / 4.0)
 			l.light_energy = 1.2 - _depth * 0.15
 		Sfx.play("whoosh", -8.0, 0.7)
+		Sfx.play("dark_soundscape", -4.0)
 		if _depth >= 4:
 			_true_door = 0
 			_set_body(_core_plug, false)

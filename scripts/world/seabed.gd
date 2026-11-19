@@ -156,6 +156,7 @@ func build() -> void:
 
 	_sea_life()
 	ambient("drone", Vector3.ZERO, false, -16.0)
+	ambient("underwater_deep", Vector3.ZERO, false, -4.0)
 	ambient("water_lap", Vector3(0, 10, 0), false, -24.0)
 
 

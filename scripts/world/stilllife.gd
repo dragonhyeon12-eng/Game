@@ -19,7 +19,7 @@ const CEIL := 4.4
 const ESC_A := Vector3(0, 0, -14.0)         # Level 1 -> 2 (bottom), climbing toward -z
 const ESC_B := Vector3(6.0, STOREY, -26.0)  # Level 2 -> 3 (bottom), climbing toward +z
 const ESC_RUN := 8.66                       # 30 degrees, 5 m up
-const EXIT := Vector3(0, 2.0 * STOREY, D + 0.3)
+const EXIT := Vector3(0, 2.0 * STOREY, D + 0.3)      # (at floor level)
 const SEAT := Vector3(-8.6, STOREY, -29.4)
 
 const WALL := Color(0.86, 0.84, 0.8)
@@ -484,6 +484,7 @@ func _sit() -> void:
 	for l in _panel_lights:
 		l[0].visible = false
 	Sfx.play("switch", 0.0, 0.7)
+	Sfx.play("horror_swell", -2.0)
 	Sfx.stop_music(0.05)
 	await get_tree().create_timer(1.6, false).timeout
 	if t != Game._seq: return
@@ -557,10 +558,10 @@ func _level3() -> void:
 		var m := _mannequin(at, -90.0 * s, ["stand", "wave", "hip"][k % 3], true, 1)
 		m.set_meta("wakes", "sl_lights3")
 	# the staff exit
-	box(EXIT + Vector3(0, -0.95, 0.1), Vector3(1.4, 2.3, 0.1), Color(0.3, 0.32, 0.3), false, 0.0, "metal")
-	part("box", EXIT + Vector3(0, 1.4, 0.2), Vector3(1.0, 0.25, 0.04), Color(0.1, 0.8, 0.3), null, Vector3.ZERO, 2.5)
-	label(EXIT + Vector3(0, 1.4, 0.23), 0, "STAFF EXIT", 0.07, Color(1, 1, 1), true)
-	interactable(EXIT + Vector3(0, -1.0, 0.5), Vector3(1.4, 2.0, 0.6), func(): return "Staff exit",
+	box(EXIT + Vector3(0, 1.15, 0.1), Vector3(1.4, 2.3, 0.1), Color(0.3, 0.32, 0.3), false, 0.0, "metal")
+	part("box", EXIT + Vector3(0, 2.6, 0.2), Vector3(1.0, 0.25, 0.04), Color(0.1, 0.8, 0.3), null, Vector3.ZERO, 2.5)
+	label(EXIT + Vector3(0, 2.6, 0.23), 0, "STAFF EXIT", 0.07, Color(1, 1, 1), true)
+	interactable(EXIT + Vector3(0, 1.1, 0.5), Vector3(1.4, 2.0, 0.6), func(): return "Staff exit",
 		func():
 			Sfx.play("door_creak", -2.0, 0.8)
 			Game.on_stilllife_exit())
@@ -574,6 +575,7 @@ func _begin_climax() -> void:
 	if _climax_t >= 0.0:
 		return
 	_climax_t = 0.0
+	Sfx.play_music("suspense", 0.4)
 	Game.set_flag("sl_lights3")
 	Sfx.stinger("braam", -2.0)
 	Sfx.play("switch", 2.0, 0.5)

@@ -132,6 +132,10 @@ Korean fonts: `fonts/` (renamed subsets of NAVER's Nanum fonts, SIL Open Font Li
 
 ## Accessibility (Settings)
 
+**Epilepsy-safe mode** turns off every flash, strobe and flicker (jumpscares hold one still image; lights
+stop flickering; sparks, the Observer's glitch and the beacon's blink stop). On phones, every setting has
+tappable < > arrows, and the list scrolls with a finger.
+
 Mouse sensitivity, invert look, field of view, head bob, camera jolts, **visual intensity** (flicker,
 vignette, distortion, red flash), **horror audio intensity**, master volume, text size, DREAD meter,
 menu corruption on/off, self-unpause on/off, show objectives, graphics quality, and **super duper shaders** (global illumination,
@@ -160,6 +164,10 @@ scripts/ui/              HUD, menus, notebook, tutorial video, DREAD post-proces
 tests/flow_test.tscn     automated playthrough of everything, title to the garden gate in THE QUIET, plus every death
 tests/realms_test.tscn   the realms after ABOVE on their own (-- blackout / stilllife / openspace / pattern / quiet)
 tests/qa_test.tscn       walks the risky routes with real input (stairs, chases, doors, the mannequins)
+tests/reach_test.tscn    progress stoppers: every interactable reachable by a player, every story trigger standable
+tests/chase_stress.tscn  the Backrooms chase over 40 maze seeds: every route connected and walkable
+tests/settings_test.tscn the settings menu used like a phone (tapping the arrows)
+assets/audio/            recorded sounds (see Credits)
 tests/gallery.tscn       renders review screenshots of each area
 tools/creatures/          Blender (bpy) generators for the custom creature models -> models/*.glb (not used by the game)
 unreal/                  the earlier Unreal Engine 5 version (archived, ignored by Godot)
@@ -190,3 +198,10 @@ open `tests/flow_test.tscn` in the editor and press **F6**, or from a terminal:
 ```
 godot --path . res://tests/flow_test.tscn
 ```
+
+## Credits
+
+Recorded sounds in `assets/audio/` (from Pixabay, under the Pixabay Content License):
+deep underwater ambience (capaholiczsfx), dark mysterious soundscape and horror impact hit (Universfield),
+dark suspense thriller cue (openmindaudio), horror (arctsound), air raid siren. Everything else is synthesized
+in `scripts/autoload/sfx.gd`. 3D props: Quaternius (CC0), see `models/LICENSE-Quaternius.txt`.
