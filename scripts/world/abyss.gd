@@ -251,7 +251,7 @@ func _rooms(tile: Color) -> void:
 	box(Vector3(2.5, 2.7, -45), Vector3(2, 0.2, 2), tile.darkened(0.5), true, 0.0, "tiles_ceiling")
 	for x in [1.4, 3.6]:
 		box(Vector3(x, 1.3, -45), Vector3(0.2, 2.8, 2), tile, true, 0.0, "tiles_pool")
-	_room_box(-46.0, -54.0, tile.darkened(0.15), [], true, 2.5)
+	_room_box(-46.0, -54.0, tile.darkened(0.15), [0.0], true, 2.5)   # a gap behind the fake panel
 	box(Vector3(0, 1.5, -54.0), Vector3(1.6, 3.2, 0.2), tile.darkened(0.15), false, 0.0, "tiles_pool")   # looks solid. isn't.
 	var bub := marine_snow(80, Color(0.85, 0.95, 1.0, 0.7))
 	bub.emission_box_extents = Vector3(0.6, 1.2, 0.1)
