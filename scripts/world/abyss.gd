@@ -348,7 +348,7 @@ func _raise_bridge() -> void:
 	Sfx.stinger("riser", -2.0)
 	var start := CROSS + Vector3(0, 0, -25)
 	var end_z := STATION_Z + 1.0
-	var n := int((start.z - end_z) / 2.0)
+	var n := int((start.z - end_z) / 2.0) + 1     # (one more: the last tile overlaps the station floor - no gap)
 	_bridge_body = StaticBody3D.new()
 	add_child(_bridge_body)
 	for k in n:
