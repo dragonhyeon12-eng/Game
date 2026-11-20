@@ -20,6 +20,8 @@ const SETS := {
 		["tenement", Vector3(-31.8, 0.05, -9.0), 80.0, -12.0, "apt_kids"], ["tenement", Vector3(-34.5, 0.05, -10.5), -60.0, -8.0, "apt_kids2"],
 		["tenement", Vector3(-37.5, 0.05, -9.0), 90.0, -18.0, "apt_bath"], ["tenement", Vector3(-20.0, 0.05, -9.0), 90.0, 4.0, "apt_yellow"]],
 	"skyline": [["city", Vector3(0, 0.3, 7.0), 0.0, 4.0, "sky_park"], ["city", Vector3(68.5, 0.3, 0.0), 0.0, 2.0, "sky_street"]],
+	"fix": [["deep", Vector3(-29.6, 0.05, -2.6), 70.0, -6.0, "lockers_shut"], ["deep", Vector3(-29.6, 0.05, -2.6), 70.0, -6.0, "lockers_open", "open_locker"],
+		["maze", Vector3.ZERO, 0.0, -5.0, "breakers_off", "breakers"], ["maze", Vector3.ZERO, 0.0, -5.0, "breakers_some_up", "flip_two"]],
 	"cave": [["seabed", Vector3(2, 0.05, -128.0), 0.0, 4.0, "cave_mouth"], ["seabed", Vector3(2.5, 0.05, -150.0), 0.0, 0.0, "cave_tunnel"],
 		["seabed", Vector3(2, 0.05, -172.0), 0.0, 3.0, "cave_chamber"]],
 }
@@ -51,7 +53,20 @@ func _run() -> void:
 					we.environment.ambient_light_color = Color(0.8, 0.82, 0.9)
 					we.environment.background_color = Color(0.45, 0.55, 0.7)
 		var pl: Player = Game.player
-		pl.teleport(Transform3D(Basis(Vector3.UP, deg_to_rad(spec[2])), spec[1]))
+		var at: Vector3 = spec[1]
+		var yaw: float = deg_to_rad(spec[2])
+		var act: String = spec[5] if spec.size() > 5 else ""
+		if act == "open_locker":
+			Game.zone._open_locker(true)
+		if act == "breakers" or act == "flip_two":      # stand at the maze's breaker panel, facing it
+			var wx: Transform3D = Game.zone._wing_xf
+			at = wx * Vector3(20.5, 0.05, 0.0)
+			var d: Vector3 = wx.basis * Vector3(1, 0, 0)
+			yaw = atan2(-d.x, -d.z)
+			if act == "flip_two":
+				Game.zone._set_breaker(Game.zone._breakers[0], true)
+				Game.zone._set_breaker(Game.zone._breakers[2], true)
+		pl.teleport(Transform3D(Basis(Vector3.UP, yaw), at))
 		pl._pitch = deg_to_rad(spec[3])
 		pl.head.rotation.x = pl._pitch
 		pl.dread.set_values(0.0, 100.0)

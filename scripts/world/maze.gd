@@ -498,7 +498,7 @@ func _restore_chase() -> void:
 	open_door(_maint_door, 100.0, 0.01)
 	_main_switch.rotation_degrees.z = 160.0
 	for b in _breakers:
-		(b.group as Node3D).rotation_degrees.z = 160.0
+		_set_breaker(b, true)
 	for l in _lights:
 		l.light.light_color = Color(1.0, 0.35, 0.25)
 		l.base = 1.2
@@ -744,10 +744,21 @@ func _wing(door_center: Vector3, out: Vector3, along: Vector3) -> void:
 		var lever := prop("breaker", Vector3(0, 0.0, 0), rad_to_deg(atan2(-out.x, -out.z)), 0.8, g)
 		if lever == null:
 			part("box", Vector3(0, 0.12, 0), Vector3(0.05, 0.25, 0.05), Color(0.1, 0.1, 0.1), g)
-		g.rotation_degrees.z = 0.0
+		var pivot: Node3D = null
+		if lever:
+			# only the lever moves: hang it on a hinge at its pivot block (the box stays on the wall)
+			for mi in lever.find_children("Lever*", "MeshInstance3D", true, false):
+				pivot = Node3D.new()
+				pivot.position = Vector3(0.115, 0, 0.02)
+				lever.add_child(pivot)
+				mi.get_parent().remove_child(mi)
+				mi.transform = Transform3D.IDENTITY
+				pivot.add_child(mi)
+				break
 		label(_wing_xf * Vector3(21.78, 1.15, zc), rad_to_deg(atan2(-out.x, -out.z)), letter, 0.08, Color(0.95, 0.95, 0.9), false)
-		var b := {"group": g, "letter": letter, "up": false}
+		var b := {"group": g, "lever": pivot, "letter": letter, "up": false}
 		_breakers.append(b)
+		_set_breaker(b, false)
 		interactable(_wing_xf * Vector3(21.7, 1.5, zc), Vector3(0.3, 0.5, 0.4), func(): return "Breaker " + letter + (" (up)" if b.up else ""),
 			func(): _flip(b), func(): return not Game.has_flag("maze_power"))
 	_main_switch = group(_wing_xf * Vector3(21.78, 1.1, 0.95))
@@ -859,7 +870,7 @@ func _flip(b: Dictionary) -> void:
 	if b.up:
 		return
 	b.up = true
-	(b.group as Node3D).rotation_degrees.z = 160.0
+	_set_breaker(b, true)
 	Sfx.play("switch", -4.0)
 	_flipped.append(b.letter)
 	var i := _flipped.size() - 1
@@ -870,7 +881,7 @@ func _flip(b: Dictionary) -> void:
 		Sfx.play("glitch", -6.0)
 		for x in _breakers:
 			x.up = false
-			(x.group as Node3D).rotation_degrees.z = 0.0
+			_set_breaker(x, false)
 		_flipped.clear()
 		for wl in _wing_lights:
 			wl[0].visible = false
@@ -1774,3 +1785,12 @@ func _expedition() -> void:
 					Game.counters["notes"] = int(Game.counters.get("notes", 0)) + 1
 					if Game.counters["notes"] >= 3:
 						Game.set_flag("maze_notes"))
+
+
+## A breaker's lever: up (on) or down. With the model, only the lever swings on its hinge;
+## the stand-in box (no model) tips as a whole, as before.
+func _set_breaker(b: Dictionary, up: bool) -> void:
+	if b.get("lever") != null:
+		(b.lever as Node3D).rotation_degrees.x = 0.0 if up else 110.0
+	else:
+		(b.group as Node3D).rotation_degrees.z = 160.0 if up else 0.0

@@ -193,17 +193,67 @@ def _small(d):
     _one(d + "/valve_wheel.glb", "ValveWheel", lambda: {"red": scene.material("valve_red", base_color=(0.55, 0.08, 0.05), roughness=0.5, metallic=0.4),
                                                          "iron": scene.material("valve_iron", base_color=(0.15, 0.15, 0.15), roughness=0.6, metallic=0.7)}, wheel)
 
-    def breaker(mb):
+    # the box and its lever are separate meshes ("Box", "Lever"): the game flips only the lever. The lever is built
+    # around the origin; it hinges at PIVOT (Blender x 0.115, y -0.02, z 0 = Godot (0.115, 0, 0.02)).
+    def breaker_box(mb):
         box(mb, (-0.15, 0.0, -0.22), (0.15, 0.12, 0.22), "grey", 0.3)
         box(mb, (-0.13, -0.005, -0.2), (0.13, 0.0, 0.2), "grey", 0.3)
         box(mb, (0.1, -0.03, -0.05), (0.13, 0.0, 0.05), "black", 0.1)         # pivot block
-        mb.tube([Vector((0.115, -0.02, 0.0)), Vector((0.115, -0.1, 0.12))], [0.012, 0.012], 8, "black", [])
-        mb.tube([Vector((0.115, -0.1, 0.12)), Vector((0.115, -0.13, 0.16))], [0.022, 0.022], 10, "red", [], cap_start=True)
         box(mb, (-0.1, -0.006, 0.08), (0.02, -0.004, 0.16), "label", 0.1)
-    _one(d + "/breaker.glb", "Breaker", lambda: {"grey": scene.material("breaker_grey", base_color=(0.45, 0.47, 0.46), roughness=0.5, metallic=0.5),
-                                                  "black": scene.material("breaker_black", base_color=(0.05, 0.05, 0.05), roughness=0.6),
-                                                  "red": scene.material("breaker_red", base_color=(0.7, 0.08, 0.05), roughness=0.4),
-                                                  "label": scene.material("breaker_label", base_color=(0.9, 0.75, 0.1), roughness=0.6)}, breaker)
+
+    def breaker_lever(mb):
+        mb.tube([Vector((0.0, 0.0, 0.0)), Vector((0.0, -0.08, 0.12))], [0.012, 0.012], 8, "black", [])
+        mb.tube([Vector((0.0, -0.08, 0.12)), Vector((0.0, -0.11, 0.16))], [0.022, 0.022], 10, "red", [], cap_start=True)
+    scene.reset()
+    M = {"grey": scene.material("breaker_grey", base_color=(0.45, 0.47, 0.46), roughness=0.5, metallic=0.5),
+         "black": scene.material("breaker_black", base_color=(0.05, 0.05, 0.05), roughness=0.6),
+         "red": scene.material("breaker_red", base_color=(0.7, 0.08, 0.05), roughness=0.4),
+         "label": scene.material("breaker_label", base_color=(0.9, 0.75, 0.1), roughness=0.6)}
+    bx, lv = MeshBuilder(), MeshBuilder()
+    breaker_box(bx)
+    breaker_lever(lv)
+    _out(d + "/breaker.glb", [(bx, bx.to_object("Box", M, recalc_normals=True)), (lv, lv.to_object("Lever", M, recalc_normals=True))])
+
+    # a changing-room locker, 0.57 wide x 0.55 deep x 2.0 high, front facing Godot +Z: the body ("Body", open at
+    # the front: back, sides, top, floor, a shelf, a coat hook) and the door ("Door", built around its hinge, which
+    # sits on the body's +X front edge: Blender (0.285, -0.275, 0) = Godot (0.285, 0, 0.275); it opens with +yaw)
+    W, D, H, T = 0.57, 0.55, 2.0, 0.015
+    def locker_body(mb):
+        box(mb, (-W / 2, D / 2 - T, 0.0), (W / 2, D / 2, H), "paint", 0.5)                  # back
+        for sx in (-1, 1):
+            box(mb, (sx * W / 2 - T if sx > 0 else -W / 2, -D / 2, 0.0), (W / 2 if sx > 0 else -W / 2 + T, D / 2, H), "paint", 0.5)
+        box(mb, (-W / 2, -D / 2, H - T), (W / 2, D / 2, H), "paint", 0.5)                    # top
+        box(mb, (-W / 2, -D / 2, 0.0), (W / 2, D / 2, 0.08), "dark", 0.5)                    # plinth / floor
+        box(mb, (-W / 2 + T, -D / 2 + 0.02, 1.62), (W / 2 - T, D / 2 - T, 1.635), "paint", 0.5)   # hat shelf
+        mb.tube([Vector((0, D / 2 - T, 1.5)), Vector((0, D / 2 - 0.08, 1.5)), Vector((0, D / 2 - 0.1, 1.54))], [0.008] * 3, 6, "steel", [])
+        for z in (0.02, H - 0.02):                                                            # the frame lip round the door
+            box(mb, (-W / 2, -D / 2 - 0.004, z - 0.02), (W / 2, -D / 2, z + 0.02), "dark", 0.3)
+        box(mb, (-W / 2, -D / 2 - 0.004, 0.0), (-W / 2 + 0.02, -D / 2, H), "dark", 0.3)
+        box(mb, (W / 2 - 0.02, -D / 2 - 0.004, 0.0), (W / 2, -D / 2, H), "dark", 0.3)
+
+    def locker_door(mb):   # around the hinge: x from -0.55 to 0, y (thickness) -0.02 .. 0, z 0.09 .. 1.97
+        x0, x1 = -W + 0.02, -0.005
+        box(mb, (x0, -0.02, 0.09), (x1, 0.0, H - 0.03), "paint", 0.5)
+        for k in range(5):                                                                   # vent louvres
+            z = 1.62 + k * 0.05
+            box(mb, (x0 + 0.12, -0.026, z), (x1 - 0.12, -0.02, z + 0.018), "dark", 0.1)
+            box(mb, (x0 + 0.12, -0.026, z - 1.4), (x1 - 0.12, -0.02, z - 1.4 + 0.018), "dark", 0.1)
+        box(mb, (x0 + 0.03, -0.045, 1.0), (x0 + 0.06, -0.02, 1.18), "steel", 0.1)            # handle (free edge)
+        box(mb, (x0 + 0.03, -0.03, 0.9), (x0 + 0.07, -0.02, 0.97), "steel", 0.1)             # latch plate
+        cyl_ = mb.tube
+        cyl_([Vector((x0 + 0.05, -0.031, 0.935)), Vector((x0 + 0.05, -0.038, 0.935))], [0.012, 0.012], 10, "dark", [])
+        box(mb, ((x0 + x1) / 2 - 0.07, -0.024, 1.4), ((x0 + x1) / 2 + 0.07, -0.02, 1.5), "plate", 0.1)   # number plate
+        for z in (0.25, 1.75):                                                               # hinge knuckles
+            mb.tube([Vector((0.0, -0.01, z)), Vector((0.0, -0.01, z + 0.08))], [0.008, 0.008], 6, "steel", [])
+    scene.reset()
+    LM = {"paint": scene.material("locker_paint", base_color=(0.3, 0.45, 0.55), roughness=0.45, metallic=0.5),
+          "dark": scene.material("locker_dark", base_color=(0.12, 0.16, 0.19), roughness=0.5, metallic=0.4),
+          "steel": scene.material("locker_steel", base_color=(0.75, 0.76, 0.78), roughness=0.25, metallic=0.9),
+          "plate": scene.material("locker_plate", base_color=(0.85, 0.85, 0.8), roughness=0.5)}
+    lb, ld = MeshBuilder(), MeshBuilder()
+    locker_body(lb)
+    locker_door(ld)
+    _out(d + "/locker.glb", [(lb, lb.to_object("Body", LM, recalc_normals=True)), (ld, ld.to_object("Door", LM, recalc_normals=True))])
 
     def notebook(mb):
         rounded_box(mb, Vector((0, 0, 0.008)), (0.17, 0.23, 0.016), 0.004, "cover", 2)

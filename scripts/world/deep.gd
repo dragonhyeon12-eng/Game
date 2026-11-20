@@ -425,7 +425,8 @@ func _props() -> void:
 	box(lg + Vector3(0, 3.0, 0), Vector3(1.2, 0.05, 1.0), Color(0.85, 0.2, 0.15), false)
 	# lockers by the west wall
 	for i in 12:
-		box(Vector3(-31.55, 1.0, -9 + i * 0.6), Vector3(0.55, 2.0, 0.57), Color(0.3, 0.45, 0.55), true, 0.0, "metal")
+		if not furnish("locker", Vector3(-31.55, 0, -9 + i * 0.6), 90.0, Vector3(0.55, 2.0, 0.57).rotated(Vector3.UP, PI * 0.5).abs(), Vector3(0, 1.0, 0)):
+			box(Vector3(-31.55, 1.0, -9 + i * 0.6), Vector3(0.55, 2.0, 0.57), Color(0.3, 0.45, 0.55), true, 0.0, "metal")
 	# a forgotten towel, a pair of flip-flops
 	box(Vector3(-4, 0.02, 10.5), Vector3(1.2, 0.03, 0.6), Color(0.9, 0.85, 0.3), false, 15.0, "fabric")
 	box(Vector3(-3.0, 0.02, 10.6), Vector3(0.12, 0.03, 0.28), Color(0.2, 0.5, 0.9), false, 5.0)
@@ -712,12 +713,31 @@ func _objectives() -> void:
 
 	# locker 13 (there were twelve)
 	var lz := -9.0 + 12 * 0.6
-	box(Vector3(-31.7, 1.0, lz), Vector3(0.25, 2.0, 0.57), Color(0.22, 0.32, 0.38), true, 0.0, "metal")
-	_locker_door = group(Vector3(-31.42, 0.02, lz + 0.28))
-	part("box", Vector3(0, 0.98, -0.28), Vector3(0.03, 1.96, 0.55), Color(0.25, 0.37, 0.45), _locker_door, Vector3.ZERO, 0.0, "metal")
-	for k in 4:
-		part("box", Vector3(0.02, 1.6 + k * 0.05, -0.28), Vector3(0.01, 0.015, 0.35), Color(0.1, 0.12, 0.13), _locker_door)
-	label(Vector3(-31.39, 1.45, lz), 90, "13", 0.12, Color(0.85, 0.85, 0.8), false)
+	var l13 := prop("locker", Vector3(-31.55, 0, lz), 90.0)
+	if l13:
+		# the same locker as the other twelve: a shell you can see into, and its door on a hinge at the front edge
+		# (only the back and sides are solid, so the open locker can be looked into)
+		blocker(Vector3(-31.8, 1.0, lz), Vector3(0.05, 2.0, 0.57))
+		blocker(Vector3(-31.55, 1.0, lz - 0.28), Vector3(0.55, 2.0, 0.02))
+		blocker(Vector3(-31.55, 1.0, lz + 0.28), Vector3(0.55, 2.0, 0.02))
+		for mi in l13.find_children("Door*", "MeshInstance3D", true, false):
+			_locker_door = Node3D.new()
+			_locker_door.position = Vector3(0.285, 0, 0.275)
+			l13.add_child(_locker_door)
+			mi.get_parent().remove_child(mi)
+			mi.transform = Transform3D.IDENTITY
+			_locker_door.add_child(mi)
+			break
+		var num := label(Vector3(-31.245, 1.45, lz), 90, "13", 0.06, Color(0.15, 0.15, 0.15), false)
+		if _locker_door:
+			num.reparent(_locker_door)      # (the number is on the door: it swings with it)
+	if _locker_door == null:
+		box(Vector3(-31.7, 1.0, lz), Vector3(0.25, 2.0, 0.57), Color(0.22, 0.32, 0.38), true, 0.0, "metal")
+		_locker_door = group(Vector3(-31.42, 0.02, lz + 0.28))
+		part("box", Vector3(0, 0.98, -0.28), Vector3(0.03, 1.96, 0.55), Color(0.25, 0.37, 0.45), _locker_door, Vector3.ZERO, 0.0, "metal")
+		for k in 4:
+			part("box", Vector3(0.02, 1.6 + k * 0.05, -0.28), Vector3(0.01, 0.015, 0.35), Color(0.1, 0.12, 0.13), _locker_door)
+		label(Vector3(-31.39, 1.45, lz), 90, "13", 0.12, Color(0.85, 0.85, 0.8), false)
 	# what's inside: wet black hair hanging from the hook, and the key
 	for k in 9:
 		part("box", Vector3(-31.65 + randf_range(-0.06, 0.06), 1.35, lz + randf_range(-0.18, 0.18)), Vector3(0.012, randf_range(0.6, 1.1), 0.012),
@@ -799,10 +819,11 @@ func _open_locker(instant: bool) -> void:
 	var key := get_node_or_null("GateKey")
 	if key:
 		key.visible = false
+	var ang := 100.0 if _locker_door.get_parent() != self else -100.0     # (the model's hinge opens the other way)
 	if instant:
-		_locker_door.rotation_degrees.y = -100
+		_locker_door.rotation_degrees.y = ang
 	else:
-		create_tween().tween_property(_locker_door, "rotation_degrees:y", -100.0, 0.25).set_trans(Tween.TRANS_BACK)
+		create_tween().tween_property(_locker_door, "rotation_degrees:y", ang, 0.25).set_trans(Tween.TRANS_BACK)
 
 
 func _open_gate(instant: bool) -> void:
