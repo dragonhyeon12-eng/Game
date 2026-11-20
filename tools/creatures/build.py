@@ -34,6 +34,7 @@ import items      # noqa: E402
 import rooms      # noqa: E402
 import park       # noqa: E402
 import apartment  # noqa: E402
+import hospital   # noqa: E402
 
 CREATURES = {
     "leviathan": (leviathan.build, "models/creatures/leviathan.glb"),
@@ -52,6 +53,7 @@ CREATURES = {
     "rooms": (rooms.build, "models/props"),
     "park": (park.build, "models/props"),
     "apartment": (apartment.build, "models/props"),
+    "hospital": (hospital.build, "models/props"),
 }
 
 

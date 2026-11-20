@@ -126,7 +126,8 @@ func _wall_z(z: float, xa: float, xb: float, gaps: Array, col := WALL) -> void:
 
 
 func _panel(pos: Vector3, energy := 0.9, flicker := false) -> void:
-	part("box", pos + Vector3(0, H - 0.03, 0), Vector3(1.2, 0.04, 0.5), Color(0.95, 1.0, 0.98), null, Vector3.ZERO, 2.2).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if prop("ceiling_troffer", pos + Vector3(0, H, 0), 0.0) == null:
+		part("box", pos + Vector3(0, H - 0.03, 0), Vector3(1.2, 0.04, 0.5), Color(0.95, 1.0, 0.98), null, Vector3.ZERO, 2.2).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var l := omni(pos + Vector3(0, H - 0.4, 0), Color(0.88, 0.97, 1.0), energy, 8.0, false)
 	_lights.append([l, energy, flicker])
 
@@ -134,17 +135,21 @@ func _panel(pos: Vector3, energy := 0.9, flicker := false) -> void:
 ## A wall clock. normal: which way it faces. Shows h:m.
 func _clock(pos: Vector3, yaw: float, h: int, m: int) -> void:
 	var g := group(pos, yaw)
-	part("cylinder", Vector3.ZERO, Vector3(0.42, 0.05, 0.42), Color(0.95, 0.95, 0.92), g, Vector3(90, 0, 0))
-	part("cylinder", Vector3(0, 0, -0.01), Vector3(0.46, 0.04, 0.46), Color(0.15, 0.15, 0.15), g, Vector3(90, 0, 0))
-	for k in 12:
-		var a := deg_to_rad(k * 30.0)
-		part("box", Vector3(sin(a) * 0.17, cos(a) * 0.17, 0.03), Vector3(0.012, 0.04, 0.01), Color(0.1, 0.1, 0.1), g, Vector3(0, 0, -k * 30.0))
+	var front := 0.035
+	if prop("clock_face", Vector3(0, 0, -0.025), 0.0, 1.0, g) != null:
+		front = 0.04
+	else:
+		part("cylinder", Vector3.ZERO, Vector3(0.42, 0.05, 0.42), Color(0.95, 0.95, 0.92), g, Vector3(90, 0, 0))
+		part("cylinder", Vector3(0, 0, -0.01), Vector3(0.46, 0.04, 0.46), Color(0.15, 0.15, 0.15), g, Vector3(90, 0, 0))
+		for k in 12:
+			var a := deg_to_rad(k * 30.0)
+			part("box", Vector3(sin(a) * 0.17, cos(a) * 0.17, 0.03), Vector3(0.012, 0.04, 0.01), Color(0.1, 0.1, 0.1), g, Vector3(0, 0, -k * 30.0))
 	var hp := Node3D.new()
-	hp.position = Vector3(0, 0, 0.035)
+	hp.position = Vector3(0, 0, front)
 	g.add_child(hp)
 	part("box", Vector3(0, 0.06, 0), Vector3(0.02, 0.12, 0.01), Color(0.05, 0.05, 0.05), hp)
 	var mp := Node3D.new()
-	mp.position = Vector3(0, 0, 0.04)
+	mp.position = Vector3(0, 0, front + 0.005)
 	g.add_child(mp)
 	part("box", Vector3(0, 0.08, 0), Vector3(0.012, 0.17, 0.01), Color(0.05, 0.05, 0.05), mp)
 	_clocks.append([hp, mp])
@@ -167,20 +172,27 @@ func _waiting_room() -> void:
 	_wall_z(0.5, -8, 8, [])
 	_wall_z(CORR_Z0, -8, 8, [[0.0, CORR_X * 2.0]])
 	# the porthole door you came through, behind you: a ward door, now. WARD 6 on it.
-	part("box", Vector3(0, 1.1, 0.38), Vector3(1.1, 2.2, 0.05), Color(0.85, 0.88, 0.9), null, Vector3.ZERO, 0.0, "metal")
-	part("cylinder", Vector3(0, 1.55, 0.34), Vector3(0.4, 0.02, 0.4), Color(0.05, 0.06, 0.08), null, Vector3(90, 0, 0), 0.0, 0.1)
+	if prop("ward_door", Vector3(0, 0, 0.38), 180.0) == null:
+		part("box", Vector3(0, 1.1, 0.38), Vector3(1.1, 2.2, 0.05), Color(0.85, 0.88, 0.9), null, Vector3.ZERO, 0.0, "metal")
+		part("cylinder", Vector3(0, 1.55, 0.34), Vector3(0.4, 0.02, 0.4), Color(0.05, 0.06, 0.08), null, Vector3(90, 0, 0), 0.0, 0.1)
 	# rows of chairs, all facing a number display
 	for r in 3:
-		for c in 6:
-			var at := Vector3(-5.0 + c * 1.0 + (0.0 if c < 3 else 1.0), 0, -3.5 - r * 1.6)
-			box(at + Vector3(0, 0.42, 0), Vector3(0.5, 0.06, 0.5), Color(0.25, 0.45, 0.55), true, 0.0, "plaster")
-			box(at + Vector3(0, 0.7, 0.24), Vector3(0.5, 0.5, 0.05), Color(0.25, 0.45, 0.55), false, 0.0, "plaster")
+		for gx in [-4.0, 0.0]:
+			var row := Vector3(gx, 0, -3.5 - r * 1.6)
+			if furnish("waiting_chairs", row, 180.0, Vector3(1.75, 0.5, 0.5), Vector3(0, 0.25, 0), 1.0):
+				continue
+			for c in 3:
+				var at := row + Vector3(c - 1.0, 0, 0)
+				box(at + Vector3(0, 0.42, 0), Vector3(0.5, 0.06, 0.5), Color(0.25, 0.45, 0.55), true, 0.0, "plaster")
+				box(at + Vector3(0, 0.7, 0.24), Vector3(0.5, 0.5, 0.05), Color(0.25, 0.45, 0.55), false, 0.0, "plaster")
 	var disp := Vector3(5.5, 2.3, CORR_Z0 + 0.12)
-	part("box", disp, Vector3(1.4, 0.5, 0.06), Color(0.05, 0.05, 0.05))
+	if prop("number_display", disp, 0.0) == null:
+		part("box", disp, Vector3(1.4, 0.5, 0.06), Color(0.05, 0.05, 0.05))
 	label(disp + Vector3(0, 0.02, 0.04), 0, "NOW SERVING   12", 0.07, Color(1.0, 0.3, 0.2), true)
 	# the ticket machine
 	var tm := Vector3(-6.5, 0, -1.5)
-	box(tm + Vector3(0, 0.6, 0), Vector3(0.45, 1.2, 0.35), Color(0.8, 0.2, 0.18), true, 0.0, "metal")
+	if not furnish("ticket_machine", tm, 180.0, Vector3(0.45, 1.2, 0.35), Vector3(0, 0.6, 0)):
+		box(tm + Vector3(0, 0.6, 0), Vector3(0.45, 1.2, 0.35), Color(0.8, 0.2, 0.18), true, 0.0, "metal")
 	label(tm + Vector3(0.0, 1.05, -0.18), 180, "TAKE A\nNUMBER", 0.05, Color(1, 1, 1), false)
 	interactable(tm + Vector3(0, 0.9, -0.3), Vector3(0.6, 0.6, 0.6), func(): return "Take a number" if not Game.has_flag("q_number") else "",
 		func():
@@ -190,9 +202,11 @@ func _waiting_room() -> void:
 		func(): return not Game.has_flag("q_number"))
 	# reception, and the visitors' book
 	var rd := Vector3(-4.0, 0, -10.0)
-	box(rd + Vector3(0, 0.55, 0), Vector3(3.0, 1.1, 0.7), Color(0.6, 0.62, 0.6), true, 0.0, "plaster")
+	if not furnish("reception_desk", rd, 0.0, Vector3(3.0, 1.1, 0.7), Vector3(0, 0.55, 0)):
+		box(rd + Vector3(0, 0.55, 0), Vector3(3.0, 1.1, 0.7), Color(0.6, 0.62, 0.6), true, 0.0, "plaster")
 	label(rd + Vector3(0, 1.45, 0.36), 0, "RECEPTION", 0.08, Color(0.2, 0.25, 0.3), false)
-	part("box", rd + Vector3(0.5, 1.13, 0.1), Vector3(0.4, 0.04, 0.3), Color(0.25, 0.2, 0.35))
+	if prop("book_open", rd + Vector3(0.5, 1.14, -0.25), 0.0) == null:
+		part("box", rd + Vector3(0.5, 1.13, 0.1), Vector3(0.4, 0.04, 0.3), Color(0.25, 0.2, 0.35))
 	interactable(rd + Vector3(0.5, 1.2, 0.4), Vector3(0.6, 0.4, 0.5), func(): return "Read the visitors' book",
 		func():
 			Game.set_flag("q_book")
@@ -204,10 +218,21 @@ func _waiting_room() -> void:
 	_clock(Vector3(-2.5, 2.4, 0.38), 180, 6, 5)
 	_clock(Vector3(2.5, 2.4, CORR_Z0 + 0.12), 0, 11, 55)
 	# a pot plant, and in the corner, the ice cream cart, very old
-	shape_at("cylinder", Vector3(7.2, 0.3, -11.2), Vector3(0.5, 0.6, 0.5), Color(0.5, 0.3, 0.2), true)
-	shape_at("sphere", Vector3(7.2, 0.9, -11.2), Vector3(0.9, 0.9, 0.9), Color(0.2, 0.35, 0.15), false)
-	box(Vector3(6.8, 0.6, -0.5), Vector3(1.4, 0.9, 0.7), Color(0.9, 0.88, 0.82), true, 0.0, "plaster")
-	box(Vector3(6.8, 1.1, -0.5), Vector3(1.44, 0.1, 0.74), Color(0.9, 0.5, 0.6), false)
+	if not furnish("potted_plant", Vector3(7.2, 0, -11.2), 0.0, Vector3(0.5, 0.6, 0.5), Vector3(0, 0.3, 0), 1.5):
+		shape_at("cylinder", Vector3(7.2, 0.3, -11.2), Vector3(0.5, 0.6, 0.5), Color(0.5, 0.3, 0.2), true)
+		shape_at("sphere", Vector3(7.2, 0.9, -11.2), Vector3(0.9, 0.9, 0.9), Color(0.2, 0.35, 0.15), false)
+	if furnish("ice_cream_cart", Vector3(6.75, 0, -0.5), 180.0, Vector3(1.75, 1.0, 0.75), Vector3(0, 0.5, 0), 0.62):
+		prop("get_well_card", Vector3(6.6, 0.82, -0.62), 160.0)
+	else:
+		box(Vector3(6.8, 0.6, -0.5), Vector3(1.4, 0.9, 0.7), Color(0.9, 0.88, 0.82), true, 0.0, "plaster")
+		box(Vector3(6.8, 1.1, -0.5), Vector3(1.44, 0.1, 0.74), Color(0.9, 0.5, 0.6), false)
+	# the rest of a waiting room nobody waits in
+	furnish("vending_machine", Vector3(7.5, 0, -7.0), -90.0, Vector3(0.8, 1.84, 0.9), Vector3(0, 0.92, 0))
+	furnish("water_cooler", Vector3(7.65, 0, -8.6), -90.0, Vector3(0.34, 1.0, 0.34), Vector3(0, 0.5, 0))
+	prop("notice_board", Vector3(-7.9, 1.6, -8.0), 90.0)
+	prop("sanitizer", Vector3(-1.2, 1.3, CORR_Z0 + 0.1), 0.0)
+	prop("fire_extinguisher", Vector3(1.0, 0.0, CORR_Z0 + 0.22), 0.0)
+	prop("potted_plant", Vector3(-7.4, 0, -11.3), 30.0, 1.3)
 	interactable(Vector3(6.8, 1.0, -0.9), Vector3(1.4, 1.0, 0.5), func(): return "Ice cream cart",
 		func(): Game.hud.show_thought("Mina's cart. In a hospital. Someone's put a get-well card on it. It isn't signed.", 4.0))
 	for x in [-4.0, 4.0]:
@@ -236,6 +261,18 @@ func _corridor() -> void:
 	_clock(Vector3(-CORR_X + 0.12, 2.3, -24.0), 90, 4, 20)
 	_clock(Vector3(CORR_X - 0.12, 2.3, -29.0), -90, 12, 0)
 	label(Vector3(0, 2.6, CORR_Z0 - 0.15), 180, "WARDS 1 - 6", 0.08, Color(0.2, 0.3, 0.45), false)
+	# bumper rails along both walls (between the doors), and what's been left in the corridor
+	for z in [-14.0, -22.0, -28.0, -48.0]:
+		prop("hand_rail_hosp", Vector3(-CORR_X + 0.01, 0.9, z), 90.0)
+		prop("hand_rail_hosp", Vector3(CORR_X - 0.01, 0.9, z - 1.0), -90.0)
+	prop("wheelchair", Vector3(-1.05, 0, -26.5), 120.0)
+	prop("stretcher", Vector3(1.05, 0, -16.5), 2.0, 0.85)
+	blocker(Vector3(1.05, 0.5, -16.5), Vector3(0.5, 1.0, 1.7))
+	prop("wet_floor_sign", Vector3(0.4, 0, -28.4), 30.0)
+	prop("oxygen_tank", Vector3(-1.25, 0, -46.5), 0.0)
+	prop("xray_lightbox", Vector3(-CORR_X + 0.01, 1.6, -40.0), 90.0)
+	prop("privacy_screen", Vector3(1.0, 0, -36.8), -80.0, 0.8)
+	blocker(Vector3(1.0, 0.8, -36.8), Vector3(0.3, 1.6, 1.4))
 	# the flood: pool water over the floor, the tiles under it the pool's tiles
 	var fz := (FLOOD.x + FLOOD.y) * 0.5
 	var fl := FLOOD.x - FLOOD.y
@@ -303,8 +340,12 @@ func _records() -> void:
 	label(Vector3(-CORR_X - 0.12, 2.35, -18.0), 90, "RECORDS", 0.07, Color(0.2, 0.3, 0.45), false)
 	_panel(Vector3(-5.2, 0, -18.0), 0.7, true)
 	for k in 5:
-		box(Vector3(-8.5, 0.75, -15.0 - k * 1.5), Vector3(0.6, 1.5, 1.2), Color(0.55, 0.57, 0.58), true, 0.0, "metal")
-	box(Vector3(-5.0, 0.4, -18.0), Vector3(1.6, 0.8, 0.9), Color(0.5, 0.42, 0.32), true, 0.0, "wood")
+		if not furnish("records_shelf", Vector3(-8.5, 0, -15.0 - k * 1.5), 90.0, Vector3(1.2, 1.5, 0.6), Vector3(0, 0.75, 0)):
+			box(Vector3(-8.5, 0.75, -15.0 - k * 1.5), Vector3(0.6, 1.5, 1.2), Color(0.55, 0.57, 0.58), true, 0.0, "metal")
+	if not furnish("metal_desk", Vector3(-5.0, 0, -18.0), 0.0, Vector3(1.6, 0.8, 0.9), Vector3(0, 0.4, 0)):
+		box(Vector3(-5.0, 0.4, -18.0), Vector3(1.6, 0.8, 0.9), Color(0.5, 0.42, 0.32), true, 0.0, "wood")
+	furnish("office_chair", Vector3(-5.0, 0, -18.75), 180.0, Vector3(0.5, 0.9, 0.5), Vector3(0, 0.45, 0))
+	furnish("filing_cabinet", Vector3(-2.2, 0, -21.6), 0.0, Vector3(0.5, 1.3, 0.6), Vector3(0, 0.65, 0))
 	var files := [
 		["MINA (no surname)", "MINA - no surname given. Ice cream vendor. Admitted: never. Discharged: never. Notes: 'Keeps asking whether it's still summer.'"],
 		["HALVORSEN, ARNE", "HALVORSEN, ARNE. Pigeons. Admitted: never. Next of kin: the bench. Notes: 'Very polite. Asks for nothing.'"],
@@ -320,7 +361,8 @@ func _records() -> void:
 				Game.hud.show_thought(text, 6.0)
 				Game.counters["files"] = int(Game.counters.get("files", 0)) + 1)
 	# the one that matters, on the desk
-	part("box", Vector3(-5.0, 0.82, -18.0), Vector3(0.35, 0.03, 0.45), Color(0.85, 0.7, 0.4))
+	if prop("file_folder", Vector3(-5.0, 0.8, -18.0), 0.0) == null:
+		part("box", Vector3(-5.0, 0.82, -18.0), Vector3(0.35, 0.03, 0.45), Color(0.85, 0.7, 0.4))
 	label(Vector3(-5.0, 0.84, -18.0), 0, "WARD 6", 0.05, Color(0.2, 0.15, 0.1), false).rotation_degrees.x = -90
 	interactable(Vector3(-5.0, 1.0, -18.0), Vector3(0.6, 0.5, 0.7), func(): return "Read the Ward 6 file",
 		func():
@@ -340,9 +382,13 @@ func _nurses() -> void:
 	label(Vector3(2.88, 1.3, -25.0), -90, "NURSES", 0.07, Color(0.2, 0.3, 0.45), false)
 	_panel(Vector3(4.5, 0, -25.0), 0.7)
 	# a board of hooks; one key left
-	part("box", Vector3(6.38, 1.6, -25.0), Vector3(0.04, 0.6, 1.0), Color(0.5, 0.4, 0.3), null, Vector3.ZERO, 0.0, "wood")
-	for k in 6:
-		part("cylinder", Vector3(6.32, 1.75 - (k / 3) * 0.3, -25.3 + (k % 3) * 0.3), Vector3(0.015, 0.06, 0.015), Color(0.7, 0.7, 0.7), null, Vector3(0, 0, 90), 0.0, "metal")
+	if prop("hook_board", Vector3(6.4, 1.6, -25.0), -90.0) == null:
+		part("box", Vector3(6.38, 1.6, -25.0), Vector3(0.04, 0.6, 1.0), Color(0.5, 0.4, 0.3), null, Vector3.ZERO, 0.0, "wood")
+		for k in 6:
+			part("cylinder", Vector3(6.32, 1.75 - (k / 3) * 0.3, -25.3 + (k % 3) * 0.3), Vector3(0.015, 0.06, 0.015), Color(0.7, 0.7, 0.7), null, Vector3(0, 0, 90), 0.0, "metal")
+	prop("med_cabinet", Vector3(4.5, 1.2, -27.4), 0.0)
+	furnish("trolley", Vector3(5.6, 0, -23.2), 90.0, Vector3(0.5, 0.9, 0.8), Vector3(0, 0.45, 0))
+	prop("sharps_bin", Vector3(6.4, 1.1, -26.4), -90.0)
 	_key = group(Vector3(6.3, 1.68, -25.0))
 	var hung := prop("key", Vector3.ZERO, 90.0, 1.0, _key)
 	if hung:
@@ -387,26 +433,39 @@ func _ward6() -> void:
 			Game.set_flag("q_ward6"),
 		func(): return _ward_block != null)
 	# the bed, the monitor, the chart
-	box(Vector3(-2.0, 0.5, -55.5), Vector3(1.0, 0.5, 2.1), Color(0.9, 0.9, 0.92), true, 0.0, "fabric")
-	box(Vector3(-2.0, 0.85, -56.4), Vector3(0.8, 0.18, 0.4), Color(0.95, 0.95, 0.95), false, 0.0, "fabric")
-	part("box", Vector3(-2.0, 0.78, -55.2), Vector3(0.95, 0.06, 1.2), Color(0.75, 0.82, 0.88), null, Vector3(0, 0, 0), 0.0, "fabric")
-	box(Vector3(-3.3, 1.3, -56.5), Vector3(0.5, 0.4, 0.3), Color(0.2, 0.22, 0.25), false, 0.0, "metal")
+	if not furnish("hospital_bed", Vector3(-2.0, 0, -55.5), 0.0, Vector3(1.0, 0.75, 2.1), Vector3(0, 0.375, 0)):
+		box(Vector3(-2.0, 0.5, -55.5), Vector3(1.0, 0.5, 2.1), Color(0.9, 0.9, 0.92), true, 0.0, "fabric")
+		box(Vector3(-2.0, 0.85, -56.4), Vector3(0.8, 0.18, 0.4), Color(0.95, 0.95, 0.95), false, 0.0, "fabric")
+		part("box", Vector3(-2.0, 0.78, -55.2), Vector3(0.95, 0.06, 1.2), Color(0.75, 0.82, 0.88), null, Vector3(0, 0, 0), 0.0, "fabric")
+	if prop("heart_monitor", Vector3(-3.3, 0, -56.5), 0.0) == null:
+		box(Vector3(-3.3, 1.3, -56.5), Vector3(0.5, 0.4, 0.3), Color(0.2, 0.22, 0.25), false, 0.0, "metal")
+	prop("iv_stand", Vector3(-0.9, 0, -56.6), 0.0)
 	label(Vector3(-3.3, 1.3, -56.34), 0, "~^~~^~~", 0.05, Color(0.3, 1.0, 0.4), true)
-	part("box", Vector3(-2.0, 0.9, -54.35), Vector3(0.35, 0.45, 0.02), Color(0.9, 0.9, 0.85))
+	if prop("clipboard_chart", Vector3(-2.0, 0.72, -54.4), 0.0) == null:
+		part("box", Vector3(-2.0, 0.9, -54.35), Vector3(0.35, 0.45, 0.02), Color(0.9, 0.9, 0.85))
 	interactable(Vector3(-2.0, 0.9, -54.1), Vector3(0.6, 0.6, 0.5), func(): return "Read the chart",
 		func(): _chart())
 	# your desk, your computer, the video paused on its title; the mirror with the towel over it
-	box(Vector3(3.2, 0.75, -57.3), Vector3(2.0, 0.05, 0.9), Color(0.4, 0.3, 0.2), true, 0.0, "wood")
-	box(Vector3(3.2, 0.37, -57.3), Vector3(1.9, 0.74, 0.8), Color(0.35, 0.26, 0.18), true, 0.0, "wood")
-	part("box", Vector3(3.2, 1.15, -57.55), Vector3(0.9, 0.55, 0.05), Color(0.05, 0.05, 0.06))
+	if furnish("desk_long", Vector3(3.2, 0, -57.3), 0.0, Vector3(2.0, 0.775, 0.9), Vector3(0, 0.39, 0)):
+		prop("monitor_wide", Vector3(3.2, 0.775, -57.57), 0.0)
+		furnish("office_chair", Vector3(3.2, 0, -56.5), 170.0, Vector3(0.5, 0.9, 0.5), Vector3(0, 0.45, 0))
+		prop("mug", Vector3(2.5, 0.775, -57.2), 40.0)
+	else:
+		box(Vector3(3.2, 0.75, -57.3), Vector3(2.0, 0.05, 0.9), Color(0.4, 0.3, 0.2), true, 0.0, "wood")
+		box(Vector3(3.2, 0.37, -57.3), Vector3(1.9, 0.74, 0.8), Color(0.35, 0.26, 0.18), true, 0.0, "wood")
+		part("box", Vector3(3.2, 1.15, -57.55), Vector3(0.9, 0.55, 0.05), Color(0.05, 0.05, 0.06))
 	label(Vector3(3.2, 1.17, -57.52), 0, "HOW TO LUCID DREAM\nTONIGHT! (100% WORKING)\n|| PAUSED", 0.03, Color(0.9, 0.9, 0.95), true)
 	omni(Vector3(3.2, 1.3, -57.0), Color(0.6, 0.7, 1.0), 0.4, 3.0, false)
-	part("box", Vector3(4.88, 1.6, -54.0), Vector3(0.03, 1.1, 0.6), Color(0.6, 0.65, 0.7), null, Vector3.ZERO, 0.0, "glass")
-	part("box", Vector3(4.84, 1.7, -54.0), Vector3(0.03, 1.0, 0.65), Color(0.85, 0.3, 0.3), null, Vector3.ZERO, 0.0, "fabric")
+	if prop("mirror_towel", Vector3(4.9, 1.6, -54.0), -90.0) == null:
+		part("box", Vector3(4.88, 1.6, -54.0), Vector3(0.03, 1.1, 0.6), Color(0.6, 0.65, 0.7), null, Vector3.ZERO, 0.0, "glass")
+		part("box", Vector3(4.84, 1.7, -54.0), Vector3(0.03, 1.0, 0.65), Color(0.85, 0.3, 0.3), null, Vector3.ZERO, 0.0, "fabric")
 	interactable(Vector3(4.6, 1.6, -54.0), Vector3(0.4, 1.0, 0.8), func(): return "The towel over the mirror",
 		func(): Game.hud.show_thought("The towel's over the mirror. Like at home. ...I'm not lifting it. Rule one.", 3.5))
-	part("box", Vector3(-3.6, 0.6, -54.6), Vector3(0.5, 0.6, 0.5), Color(0.6, 0.5, 0.4), null, Vector3.ZERO, 0.0, "wood")
-	part("box", Vector3(-3.6, 0.93, -54.6), Vector3(0.18, 0.03, 0.24), Color(0.25, 0.2, 0.35))
+	if prop("bedside_locker", Vector3(-3.6, 0, -54.6), 90.0, 1.15) != null:
+		prop("notebook", Vector3(-3.6, 0.92, -54.6), 80.0)
+	else:
+		part("box", Vector3(-3.6, 0.6, -54.6), Vector3(0.5, 0.6, 0.5), Color(0.6, 0.5, 0.4), null, Vector3.ZERO, 0.0, "wood")
+		part("box", Vector3(-3.6, 0.93, -54.6), Vector3(0.18, 0.03, 0.24), Color(0.25, 0.2, 0.35))
 	interactable(Vector3(-3.6, 1.0, -54.6), Vector3(0.5, 0.4, 0.5), func(): return "Notebook",
 		func(): Game.hud.show_thought("My notebook. ...No. My notebook's in my pocket. It's the same one. Same cover, same coffee ring.", 4.0))
 	_panel(Vector3(0, 0, -54.0), 0.6)
@@ -473,8 +532,15 @@ func _garden() -> void:
 	box(Vector3(18.0, 0.01, -46.0), Vector3(24.0, 0.02, 1.4), Color(0.6, 0.58, 0.52), false, 0.0, "pavers")
 	prop("tree_oak", Vector3(18.0, 0, -51.5), 30.0, 1.2)
 	var kite := group(Vector3(19.0, 6.5, -50.5))
-	part("box", Vector3.ZERO, Vector3(0.9, 0.9, 0.03), Color(0.9, 0.2, 0.25), kite, Vector3(0, 0, 45))
+	if prop("kite", Vector3.ZERO, 0.0, 1.0, kite) == null:
+		part("box", Vector3.ZERO, Vector3(0.9, 0.9, 0.03), Color(0.9, 0.2, 0.25), kite, Vector3(0, 0, 45))
 	part("cylinder", Vector3(0, -1.2, 0), Vector3(0.01, 2.4, 0.01), Color(0.9, 0.9, 0.9), kite, Vector3(0, 0, 20))
+	# a quiet garden: planters, a bird bath, lamps along the path
+	for k in 3:
+		furnish("planter_box", Vector3(10.0 + k * 7.0, 0, -55.0), 0.0, Vector3(1.6, 0.5, 0.6), Vector3(0, 0.25, 0))
+	furnish("bird_bath", Vector3(23.0, 0, -50.0), 0.0, Vector3(0.4, 0.9, 0.4), Vector3(0, 0.45, 0))
+	for x in [9.0, 15.0, 21.0, 27.0]:
+		furnish("lantern_post", Vector3(x, 0, -47.2), 0.0, Vector3(0.16, 1.8, 0.16), Vector3(0, 0.9, 0))
 	if prop("bench", Vector3(14.0, 0, -42.5), 180.0) == null:
 		box(Vector3(14.0, 0.45, -42.5), Vector3(1.8, 0.08, 0.5), Color(0.5, 0.32, 0.18), true, 0.0, "wood")
 	_halvorsen = NPC.new()
@@ -494,16 +560,18 @@ func _garden() -> void:
 	var names := ["MINA", "ARNE HALVORSEN", "THEO", "THE MAN WHO FELL", "THE TALL ONE IN THE YELLOW ROOMS", ""]
 	for k in names.size():
 		var at := Vector3(9.0 + k * 3.6, 1.4, gz0 - 0.22)
-		part("box", at, Vector3(1.4, 0.5, 0.04), Color(0.55, 0.45, 0.25), null, Vector3.ZERO, 0.0, "metal")
+		if prop("memorial_plaque", Vector3(at.x, at.y, gz0 - 0.2), 180.0) == null:
+			part("box", at, Vector3(1.4, 0.5, 0.04), Color(0.55, 0.45, 0.25), null, Vector3.ZERO, 0.0, "metal")
 		if names[k] != "":
 			label(at + Vector3(0, 0, -0.03), 180, "IN MEMORY OF\n" + names[k], 0.045, Color(0.15, 0.12, 0.08), false)
 	interactable(Vector3(9.0 + 5 * 3.6, 1.4, gz0 - 0.5), Vector3(1.4, 0.8, 0.5), func(): return "The blank plaque",
 		func(): Game.hud.show_thought("Blank. Polished. Waiting. ...Not yet.", 3.0))
 	# the gate
 	_gate = group(GATE + Vector3(0, 0, -1.2))
-	for k in 8:
-		part("cylinder", Vector3(0, 1.3, k * 0.3 + 0.15), Vector3(0.05, 2.6, 0.05), Color(0.15, 0.15, 0.15), _gate, Vector3.ZERO, 0.0, "metal")
-	part("box", Vector3(0, 2.5, 1.2), Vector3(0.06, 0.08, 2.4), Color(0.15, 0.15, 0.15), _gate, Vector3.ZERO, 0.0, "metal")
+	if prop("iron_gate", Vector3.ZERO, 0.0, 1.0, _gate) == null:
+		for k in 8:
+			part("cylinder", Vector3(0, 1.3, k * 0.3 + 0.15), Vector3(0.05, 2.6, 0.05), Color(0.15, 0.15, 0.15), _gate, Vector3.ZERO, 0.0, "metal")
+		part("box", Vector3(0, 2.5, 1.2), Vector3(0.06, 0.08, 2.4), Color(0.15, 0.15, 0.15), _gate, Vector3.ZERO, 0.0, "metal")
 	_gate_block = solid_box(GATE + Vector3(0, 1.3, 0), Vector3(0.2, 2.6, 2.4), Color(0, 0, 0))
 	_gate_block.get_child(1).visible = false
 	omni(GATE + Vector3(2.0, 1.5, 0), Color(1.0, 0.95, 0.85), 2.5, 8.0, false)
