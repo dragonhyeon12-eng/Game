@@ -475,8 +475,8 @@ func _garden() -> void:
 		box(Vector3(14.0, 0.45, -42.5), Vector3(1.8, 0.08, 0.5), Color(0.5, 0.32, 0.18), true, 0.0, "wood")
 	_halvorsen = NPC.new()
 	add_child(_halvorsen)
-	_halvorsen.position = Vector3(14.0, 0, -42.45)
-	_halvorsen.rotation_degrees.y = 180
+	_halvorsen.position = Vector3(14.0, 0, -42.36)       # on the seat, facing out over the garden (the bench's back is to the north)
+	_halvorsen.rotation_degrees.y = 0
 	_halvorsen.setup("halvorsen", "Mr. Halvorsen", "the old man", {"skin": Color(0.84, 0.68, 0.58), "hair": Color(0.78, 0.78, 0.76),
 		"shirt": Color(0.42, 0.47, 0.34), "pants": Color(0.33, 0.29, 0.24), "seated": true, "cap": true,
 		"cap_color": Color(0.28, 0.28, 0.3), "sleeves": "long", "hair_style": "short", "build": 1.05, "shoes": Color(0.25, 0.15, 0.08)})

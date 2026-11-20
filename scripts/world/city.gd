@@ -416,7 +416,7 @@ func _characters() -> void:
 	# Mr. Halvorsen, on the bench, with the pigeons.
 	var arne := NPC.new()
 	add_child(arne)
-	arne.position = Vector3(-9, GRASS_Y, 2.05)
+	arne.position = Vector3(-9, GRASS_Y, 1.86)      # (on the seat, not in the backrest)
 	arne.rotation_degrees.y = 180
 	arne.setup("halvorsen", "Mr. Halvorsen", "the old man", {"skin": Color(0.84, 0.68, 0.58), "hair": Color(0.78, 0.78, 0.76),
 		"shirt": Color(0.42, 0.47, 0.34), "pants": Color(0.33, 0.29, 0.24), "seated": true, "cap": true,

@@ -8,6 +8,8 @@ const SETS := {
 		["blackout", Vector3(-3.0, 0.05, -62.0), 160.0, 6.0, "bo_poles"], ["blackout", Vector3(29.5, 0.05, -50.0), 0.0, -4.0, "bo_gate"]],
 	"openspace": [["openspace", Vector3(0, 0.05, -60.0), 0.0, 3.0, "os_road"], ["openspace", Vector3(0, 0.05, -150.0), 70.0, 4.0, "os_hills"],
 		["openspace", Vector3(-30, 0.05, -20.0), 120.0, 2.0, "os_carpark"], ["openspace", Vector3(5, 0.05, -230.0), 0.0, 3.0, "os_station"]],
+	"bench": [["city", Vector3(-9.0, 0.3, -0.6), 0.0, -12.0, "bench_city_front"], ["city", Vector3(-7.2, 0.3, 2.0), 90.0, -10.0, "bench_city_side"],
+		["quiet", Vector3(14.0, 0.05, -39.8), 0.0, -12.0, "bench_quiet_front"], ["quiet", Vector3(15.8, 0.05, -42.5), 90.0, -10.0, "bench_quiet_side"]],
 	"cave": [["seabed", Vector3(2, 0.05, -128.0), 0.0, 4.0, "cave_mouth"], ["seabed", Vector3(2.5, 0.05, -150.0), 0.0, 0.0, "cave_tunnel"],
 		["seabed", Vector3(2, 0.05, -172.0), 0.0, 3.0, "cave_chamber"]],
 }
