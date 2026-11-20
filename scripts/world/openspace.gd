@@ -185,7 +185,9 @@ func hill_height(x: float, z: float) -> float:
 		return -0.05
 	var k := smoothstep(0.0, 55.0, flat_d)
 	var n := _hill_noise.get_noise_2d(x, z)
-	return -0.05 + k * (44.0 * (n * 0.5 + 0.5) + 5.0 * sin(x * 0.03) * cos(z * 0.025) + 6.0)
+	# fields, not hills: a gentle lumpiness, a metre or two at most
+	var bumps := _hill_noise.get_noise_2d(x * 4.0, z * 4.0)
+	return -0.05 + k * (1.6 * (n * 0.5 + 0.5) + 0.35 * bumps + 0.3 * sin(x * 0.05) * cos(z * 0.04) + 0.15)
 
 
 func _hills() -> void:
@@ -238,8 +240,8 @@ func _hills() -> void:
 		var x := rng.randf_range(-180.0, 180.0)
 		var z := rng.randf_range(-650.0, 110.0)
 		var h := hill_height(x, z)
-		if h < 0.3 and rng.randf() < 0.85:
-			continue
+		if h < 0.0:
+			continue       # (not on the car park, the road or the station's apron)
 		var s := rng.randf_range(1.1, 2.0)
 		scatter("grass_tall", Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.9, 1.4), s)), Vector3(x, h - 0.05, z)), Color.WHITE, "", false, false)
 		placed += 1
