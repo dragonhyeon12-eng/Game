@@ -29,6 +29,7 @@ import hands      # noqa: E402
 import home       # noqa: E402
 import mannequin  # noqa: E402
 import cave       # noqa: E402
+import suburb     # noqa: E402
 
 CREATURES = {
     "leviathan": (leviathan.build, "models/creatures/leviathan.glb"),
@@ -42,6 +43,7 @@ CREATURES = {
     "home": (home.build, "models/props"),
     "mannequin": (mannequin.build, "models/creatures/mannequin.glb"),
     "cave": (cave.build, "models/props"),
+    "suburb": (suburb.build, "models/props"),
 }
 
 

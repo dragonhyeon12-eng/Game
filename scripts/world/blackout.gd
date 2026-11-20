@@ -116,12 +116,18 @@ func _ground() -> void:
 	var len_z := 6.0 - NORTH + 4.0
 	box(Vector3(0, -0.05, mid_z), Vector3(ROAD_W * 2.0, 0.1, len_z), ASPHALT, true, 0.0, "asphalt")
 	for s in [-1.0, 1.0]:
-		box(Vector3(s * (ROAD_W + 1.0), 0.06, mid_z), Vector3(2.0, 0.12, len_z), PAVEMENT, true, 0.0, "concrete")
+		box(Vector3(s * (ROAD_W + 1.0), 0.06, mid_z), Vector3(2.0, 0.12, len_z), PAVEMENT, true, 0.0, "pavers")
 		box(Vector3(s * 20.0, -0.05, mid_z), Vector3(28.0, 0.1, len_z), GRASS, true, 0.0, "grass")
 		# a dashed centre line, and kerbs
 		box(Vector3(s * ROAD_W, 0.08, mid_z), Vector3(0.15, 0.16, len_z), PAVEMENT.darkened(0.2), false, 0.0, "concrete")
 	for k in 22:
 		box(Vector3(0, 0.005, 3.0 - k * 5.6), Vector3(0.12, 0.01, 2.4), Color(0.75, 0.72, 0.6), false)
+	# manhole covers and drains down the road, poles and wires down the left side
+	for k in 6:
+		prop("manhole", Vector3(-1.2 + (k % 2) * 2.4, 0.004, -8.0 - k * 18.0), randf() * 360.0)
+		for s in [-1.0, 1.0]:
+			part("box", Vector3(s * (ROAD_W - 0.3), 0.004, -14.0 - k * 18.0), Vector3(0.4, 0.01, 0.9), Color(0.05, 0.05, 0.05), null, Vector3.ZERO, 0.0, "metal")
+	_poles()
 	# the cross street at the north end, and the turning circle at the south
 	box(Vector3(-15, -0.04, NORTH + 3.0), Vector3(30, 0.1, 8), ASPHALT, true, 0.0, "asphalt")
 	shape_at("cylinder", Vector3(0, -0.045, 3.0), Vector3(12, 0.1, 12), ASPHALT, true, Vector3.ZERO, "asphalt")
@@ -141,6 +147,15 @@ func _fence(a: Vector3, b: Vector3, col := Color(0.32, 0.27, 0.2)) -> void:
 	var c := (a + b) * 0.5
 	var along_x := absf(b.x - a.x) > absf(b.z - a.z)
 	var ln := (b - a).length()
+	if Props.has("fence_panel") and ln > 0.5:
+		# slatted panels between posts (one MultiMesh for all of them), and a wall you can't see to stop you
+		blocker(c + Vector3(0, 0.8, 0), Vector3(ln, 1.6, 0.12) if along_x else Vector3(0.12, 1.6, ln))
+		var n := maxi(1, roundi(ln / 2.4))
+		var yaw := 0.0 if along_x else PI * 0.5
+		for k in n:
+			var p := a.lerp(b, (k + 0.5) / n)
+			scatter("fence_panel", Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(ln / n / 2.4, 1.0, 1.0)), p), col.lightened(0.6))
+		return
 	box(c + Vector3(0, 0.8, 0), Vector3(ln, 1.6, 0.08) if along_x else Vector3(0.08, 1.6, ln), col, true, 0.0, "wood")
 	var posts := int(ln / 2.5)
 	for k in posts + 1:
@@ -150,6 +165,8 @@ func _fence(a: Vector3, b: Vector3, col := Color(0.32, 0.27, 0.2)) -> void:
 
 func _house(center: Vector3, face: float, col: Color, number: int, solid := true) -> void:
 	# face: +1 = front faces +x (left side of the road), -1 = faces -x
+	if solid and _house_model(center, face, col, number):
+		return
 	var w := 12.0
 	var d := 10.0
 	if solid:
@@ -173,6 +190,66 @@ func _house(center: Vector3, face: float, col: Color, number: int, solid := true
 	box(Vector3((xa + xb) * 0.5, 0.01, center.z), Vector3(absf(xa - xb), 0.02, 1.2), PAVEMENT.darkened(0.15), false, 0.0, "concrete")
 
 
+## A house from the models (tools/creatures/suburb.py): siding tinted, windows that can light up.
+func _house_model(center: Vector3, face: float, col: Color, number: int) -> bool:
+	var slot := "house_a" if number % 2 == 0 else "house_b"
+	var h := prop(slot, center, 0.0 if face > 0 else 180.0)
+	if h == null:
+		return false
+	for mi in h.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		if String(m.name).begins_with("Windows"):
+			_windows.append(m)
+			continue
+		for k in m.mesh.get_surface_count():
+			var mat := m.mesh.surface_get_material(k)
+			if mat and String(mat.resource_name).contains("wall") and mat is StandardMaterial3D:
+				var tinted := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+				tinted.albedo_color = col
+				m.set_surface_override_material(k, tinted)
+	blocker(center + Vector3(0, 2.6, 0), Vector3(10.0, 5.2, 12.0))
+	var fx := center.x + face * 5.0
+	label(Vector3(fx + face * 0.12, 2.9, center.z + 0.9), 90.0 * face, str(number), 0.12, Color(0.85, 0.8, 0.6), false)
+	var xa := fx + face * (2.6 if slot == "house_a" else 0.4)
+	var xb := signf(center.x) * (ROAD_W + 2.0)
+	box(Vector3((xa + xb) * 0.5, 0.01, center.z), Vector3(absf(xa - xb), 0.02, 1.4), PAVEMENT.darkened(0.15), false, 0.0, "pavers")
+	prop("mailbox", Vector3(xb + face * 0.6, 0.0, center.z + 1.2), 0.0 if face > 0 else 180.0)
+	if slot == "house_a":
+		blocker(Vector3(fx + face * 1.1, 0.25, center.z), Vector3(2.2, 0.5, 4.4))   # the porch deck
+	return true
+
+
+## Wooden utility poles down the left side of the road, and the wires sagging between them.
+func _poles() -> void:
+	var tops: Array = []
+	for k in 6:
+		var z := 0.0 - k * 22.0
+		if absf(z - TREE_Z) < 6.0:
+			continue
+		var at := Vector3(-ROAD_W - 1.7, 0, z)
+		if prop("utility_pole", at, 0.0) == null:
+			return
+		blocker(at + Vector3(0, 2.0, 0), Vector3(0.3, 4.0, 0.3))
+		tops.append(at)
+	# three wires from crossarm to crossarm, each a sagging curve of short segments
+	for k in tops.size() - 1:
+		var a: Vector3 = tops[k]
+		var b: Vector3 = tops[k + 1]
+		for off in [-1.0, 0.35, 1.0]:
+			var p0 := a + Vector3(0, 7.98, -off)
+			var p1 := b + Vector3(0, 7.98, -off)
+			var segs := 10
+			var prev := p0
+			for i in range(1, segs + 1):
+				var t := float(i) / segs
+				var p := p0.lerp(p1, t) + Vector3(0, -1.1 * 4.0 * t * (1.0 - t), 0)
+				var yv := p - prev
+				var xv := yv.normalized().cross(Vector3.UP).normalized()
+				var zv := xv.cross(yv.normalized())
+				add_shape("pipe", Transform3D(Basis(xv * 0.015, yv, zv * 0.015), (prev + p) * 0.5), Color(0.03, 0.03, 0.03))
+				prev = p
+
+
 func _houses() -> void:
 	# number 9 is built on its own (you go inside it); the others are solid blocks
 	var lots := [-10.0, -27.0, -44.0, -68.0, -86.0, -104.0]
@@ -193,7 +270,7 @@ func _houses() -> void:
 			prop("bin", Vector3(s * 6.4, 0.12, z + 2.5))
 	for z in [-18.0, -36.0, -76.0, -95.0]:
 		for s in [-1.0, 1.0]:
-			prop("tree_oak", Vector3(s * 7.5, 0, z), randf() * 360.0, 0.8)
+			prop(["tree_maple", "tree_elm", "tree_oak"][int(absf(z) + s) % 3], Vector3(s * 7.5, 0, z), randf() * 360.0, 0.8)
 	prop("hydrant", Vector3(4.8, 0.12, -20.0))
 
 
@@ -520,7 +597,10 @@ func _gardens() -> void:
 	_fence(Vector3(12, 0, -49), Vector3(12, 0, TREE_Z))
 	# a gate in the back fence, into the next garden
 	_gate = group(Vector3(28.6, 0, TREE_Z))
-	part("box", Vector3(1.4, 0.8, 0), Vector3(2.8, 1.6, 0.06), Color(0.3, 0.25, 0.18), _gate, Vector3.ZERO, 0.0, "wood")
+	if prop("gate_arch", Vector3.ZERO, 0.0, 1.0, _gate) == null:
+		part("box", Vector3(1.4, 0.8, 0), Vector3(2.8, 1.6, 0.06), Color(0.3, 0.25, 0.18), _gate, Vector3.ZERO, 0.0, "wood")
+	for x in [28.45, 31.55]:     # gateposts
+		box(Vector3(x, 0.95, TREE_Z), Vector3(0.22, 1.9, 0.22), Color(0.88, 0.88, 0.84), true, 0.0, "wood")
 	_gate_block = solid_box(Vector3(30, 0.8, TREE_Z), Vector3(2.8, 1.6, 0.1), Color(0, 0, 0))
 	_gate_block.get_child(1).visible = false
 	interactable(Vector3(30, 1.0, TREE_Z + 0.3), Vector3(2.8, 1.6, 0.6), func(): return "Open the gate",

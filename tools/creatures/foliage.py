@@ -226,5 +226,7 @@ def build(out_dir):
     _tree("tree_oak", out_dir, 3, 8.5, 5.2, 0.9, 0.85, 11)
     _tree("tree_lime", out_dir, 7, 10.5, 4.6, 0.55, 0.8, 12)
     _tree("tree_young", out_dir, 13, 6.0, 3.4, 0.7, 0.65, 13)
+    _tree("tree_maple", out_dir, 21, 9.0, 6.2, 1.05, 0.95, 14)      # broad and dense: the suburb's street trees
+    _tree("tree_elm", out_dir, 29, 12.5, 4.8, 0.45, 0.85, 15)       # tall, vase-shaped
     _bush(out_dir)
     _grass(out_dir)
