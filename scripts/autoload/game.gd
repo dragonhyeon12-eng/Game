@@ -447,10 +447,26 @@ func continue_game() -> void:
 	hud.fade_to(0.0, 2.0)
 
 
+## TERMINAL (Settings): start from any level, with a fresh dream behind you. The save starts there.
+func start_at(type: String) -> void:
+	_stop_title()
+	hud.close_menu()
+	get_tree().paused = false
+	Data.reload()
+	_reset_world()
+	maze_seed = randi_range(1, 1 << 30)
+	enter_zone(type)
+	save_checkpoint()
+	set_mode("game")
+	hud.set_fade(1.0)
+	hud.fade_to(0.0, 1.5)
+
+
 ## PROTOTYPE: the shifting-rooms test bed, straight from the title. Leaves your saved game alone.
 func start_prototype() -> void:
 	_stop_title()
 	hud.close_menu()
+	get_tree().paused = false
 	_reset_world()
 	enter_zone("shifting")
 	set_mode("game")

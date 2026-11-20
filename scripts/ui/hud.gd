@@ -688,8 +688,23 @@ func _settings(back: Callable) -> void:
 		var it: Dictionary = r[1]
 		it.label = r[0]
 		items.append(it)
+	items.append({"label": "TERMINAL", "action": func(): _terminal(func(): _settings(back))})
 	items.append({"label": "BACK", "action": back})
 	var m := DPMenu.create("SETTINGS", "Tap the arrows (or Left / Right) to change. Epilepsy-safe mode removes all flashing, strobing and flicker.", items)
+	m.on_back = back
+	_set_menu(m)
+
+
+## TERMINAL: start from any level. (It becomes your game: the save starts from there.)
+func _terminal(back: Callable) -> void:
+	var items := []
+	for entry in Game.TITLE_TOUR:
+		var zone_name: String = entry[0]
+		var title: String = Loc.t(entry[1])
+		items.append({"label": "> load " + title, "action": func(): Game.start_at(zone_name)})
+	items.append({"label": "> load THE SHIFT (prototype)", "action": Game.start_prototype})
+	items.append({"label": "BACK", "action": back})
+	var m := DPMenu.create("TERMINAL", "Start from any level. Your saved game will continue from the one you pick.", items)
 	m.on_back = back
 	_set_menu(m)
 
