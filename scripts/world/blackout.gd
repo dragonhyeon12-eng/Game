@@ -270,7 +270,7 @@ func _houses() -> void:
 			prop("bin", Vector3(s * 6.4, 0.12, z + 2.5))
 	for z in [-18.0, -36.0, -76.0, -95.0]:
 		for s in [-1.0, 1.0]:
-			prop(["tree_maple", "tree_elm", "tree_oak"][int(absf(z) + s) % 3], Vector3(s * 7.5, 0, z), randf() * 360.0, 0.8)
+			scatter_prop(["tree_maple", "tree_elm", "tree_oak"][int(absf(z) + s) % 3], Vector3(s * 7.5, 0, z), randf() * 360.0, 0.8)
 	prop("hydrant", Vector3(4.8, 0.12, -20.0))
 
 

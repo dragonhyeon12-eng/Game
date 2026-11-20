@@ -37,4 +37,23 @@ func _run() -> void:
 		print("== ", z, ": ", total / 1000, "k triangles in the scene")
 		for r in rows.slice(0, 10):
 			print("  %8dk  shadow=%s  %s" % [r[0] / 1000, r[2], r[1]])
+		# what the objects are: meshes counted by the zone child they belong to (a prop, a group, a part)
+		var kinds := {}
+		for n in Game.zone.find_children("*", "GeometryInstance3D", true, false):
+			var a: Node = n
+			while a.get_parent() != Game.zone:
+				a = a.get_parent()
+			var key := String(a.name).rstrip("0123456789@").trim_suffix("_")
+			if String(a.name).begins_with("@"):     # anonymous: name it by what's inside
+				var g := n as GeometryInstance3D
+				var what := String(g.get_parent().name) if g.get_parent() != a else g.get_class()
+				if g is MeshInstance3D and (g as MeshInstance3D).mesh:
+					what += "/" + (g as MeshInstance3D).mesh.resource_name
+				key = "%s(%s)" % [key, what.rstrip("0123456789@").left(30)]
+			if a is MeshInstance3D and (a as MeshInstance3D).mesh:
+				key = "part:" + String((a as MeshInstance3D).mesh.resource_name if (a as MeshInstance3D).mesh.resource_name != "" else (a as MeshInstance3D).mesh.get_class())
+			kinds[key] = int(kinds.get(key, 0)) + 1
+		var ks := kinds.keys()
+		ks.sort_custom(func(a, b): return kinds[a] > kinds[b])
+		print("  meshes by owner: ", ", ".join(ks.slice(0, 18).map(func(k): return "%s x%d" % [k, kinds[k]])))
 	get_tree().quit()

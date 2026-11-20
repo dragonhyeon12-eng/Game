@@ -126,7 +126,24 @@ func prop(slot: String, pos: Vector3, yaw_deg := 0.0, s := 1.0, parent: Node3D =
 	n.rotation_degrees.y = yaw_deg
 	n.scale = Vector3.ONE * s
 	(parent if parent else self).add_child(n)
+	tune_meshes(n, s)
 	return n
+
+
+## Performance, by size: small things cast no shadow (on LOW, nothing short of a building does), and every
+## mesh stops drawing past a distance that grows with its size: a mug at 15 m, a sofa at ~60 m, a house never.
+static func tune_meshes(root: Node, s := 1.0) -> void:
+	var low := Settings.quality < 1
+	for mi in root.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		if m.mesh == null:
+			continue
+		var size := m.get_aabb().size.length() * s
+		if size < (2.5 if low else 0.8):
+			m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		if size < 8.0 and m.visibility_range_end == 0.0:
+			m.visibility_range_end = clampf(size * (22.0 if low else 32.0), 12.0, 220.0)
+			m.visibility_range_end_margin = 2.0
 
 
 ## Many copies of one mesh in a single draw (grass, building modules). False if the model is missing.
@@ -138,6 +155,21 @@ func scatter(slot: String, xf: Transform3D, color := Color.WHITE, mesh_name := "
 			return false
 		_scatter[key] = [m, [], shadows]
 	_scatter[key][1].append([xf, color])
+	return true
+
+
+## A whole model batched with every other copy of it (one MultiMesh per mesh and area, instead of a node each):
+## for things placed by the hundred and never touched, like trees. False if the model is missing.
+func scatter_prop(slot: String, pos: Vector3, yaw_deg := 0.0, s := 1.0, shadows := true) -> bool:
+	var ps := Props.parts(slot)
+	if ps.is_empty():
+		return false
+	var xf := Transform3D(Basis(Vector3.UP, deg_to_rad(yaw_deg)).scaled(Vector3.ONE * s), pos)
+	for i in ps.size():
+		var key := "%s|#%d|false|%s" % [slot, i, shadows]
+		if not _scatter.has(key):
+			_scatter[key] = [ps[i][0], [], shadows]
+		_scatter[key][1].append([xf * (ps[i][1] as Transform3D), Color.WHITE])
 	return true
 
 
@@ -222,8 +254,11 @@ func _finish_scatter() -> void:
 		for cell in _cells(e[1], BATCH_CELL if small else 32.0).values():   # (big modules: smaller cells, culled and simplified sooner)
 			var mmi := _multimesh(mesh, cell)
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if e[2] and not small else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			if not small and Settings.quality < 1:
-				mmi.visibility_range_end = 150.0      # LOW: building modules etc. are left out far away
+			if String(key).begins_with("tree"):
+				mmi.visibility_range_end = 150.0 if Settings.quality >= 1 else 80.0     # trees: a stand of them per cell
+				mmi.visibility_range_end_margin = 10.0
+			elif not small and Settings.quality < 1:
+				mmi.visibility_range_end = 110.0      # LOW: building modules etc. are left out far away (the haze hides it)
 				mmi.visibility_range_end_margin = 10.0
 			if small:
 				mmi.visibility_range_end = 70.0 if Settings.quality >= 1 else 40.0

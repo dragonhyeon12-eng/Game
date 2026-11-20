@@ -265,7 +265,7 @@ func _hills() -> void:
 	for k in 10:
 		var x := (-1.0 if k % 2 else 1.0) * rng.randf_range(70.0, 300.0)
 		var z := rng.randf_range(-600.0, 40.0)
-		prop("tree_elm", Vector3(x, hill_height(x, z) - 0.2, z), rng.randf() * 360.0, rng.randf_range(0.8, 1.3))
+		scatter_prop("tree_elm", Vector3(x, hill_height(x, z) - 0.2, z), rng.randf() * 360.0, rng.randf_range(0.8, 1.3))
 
 
 ## When you aren't looking at them, the houses turn to face you.

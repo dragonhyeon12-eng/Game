@@ -19,7 +19,8 @@ func _ready() -> void:
 func _run() -> void:
 	await get_tree().create_timer(1.5).timeout
 	print("zone            draws  objects   tris(k)  omni  spot  shadowed  nodes   cpu ms")
-	for z in ZONES:
+	var only := Array(OS.get_cmdline_user_args()).filter(func(a): return not String(a).begins_with("--"))
+	for z in (only if not only.is_empty() else ZONES):
 		Game.hud.close_menu()
 		Game.enter_zone(z)
 		Game.set_mode("game")

@@ -193,7 +193,7 @@ func _far_building(base: Vector3, h: float, col: Color, _rng: RandomNumberGenera
 
 
 func _tree(base: Vector3, s: float, variant: int) -> void:
-	if prop(["tree_oak", "tree_lime", "tree_young"][variant], base, randf() * 360.0, s * 0.9):
+	if scatter_prop(["tree_oak", "tree_lime", "tree_young"][variant], base, randf() * 360.0, s * 0.9):
 		blocker(base + Vector3(0, 1.5, 0), Vector3(0.45, 3.0, 0.45))
 		return
 	var leaf: Color = LEAVES[variant]

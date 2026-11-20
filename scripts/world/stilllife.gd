@@ -217,7 +217,8 @@ func _shop(i: int) -> void:
 	# inside: a light, the window display, the stock
 	if kind != "shut":
 		omni(Vector3((fx + bx) * 0.5, SHOP_H - 0.4, zc), Color(1.0, 0.92, 0.82).lerp(neon, 0.25), 0.9, 9.0, false)
-		omni(Vector3(fx + s * 1.2, 2.8, (win0 + win1) * 0.5), Color(1.0, 0.97, 0.92), 1.1, 6.0, false)   # the window spot
+		if Settings.quality >= 1:      # (LOW: the shop light alone; every light is another pass over what it touches)
+			omni(Vector3(fx + s * 1.2, 2.8, (win0 + win1) * 0.5), Color(1.0, 0.97, 0.92), 1.1, 6.0, false)   # the window spot
 		box(Vector3(fx + s * 1.3, 0.15, (win0 + win1) * 0.5), Vector3(2.0, 0.3, win0 - win1 - 0.6), Color(0.95, 0.95, 0.95), true, 0.0, "plaster")   # the display podium
 		var n := 3 if kind in ["clothes", "lost", "kids"] else 2
 		for m_i in n:

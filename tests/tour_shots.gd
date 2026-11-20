@@ -19,12 +19,16 @@ const SETS := {
 	"apt": [["tenement", Vector3(-1.8, 0.05, -9.0), 80.0, -10.0, "apt_living"], ["tenement", Vector3(-6.5, 0.05, -10.5), -150.0, -8.0, "apt_living2"],
 		["tenement", Vector3(-31.8, 0.05, -9.0), 80.0, -12.0, "apt_kids"], ["tenement", Vector3(-34.5, 0.05, -10.5), -60.0, -8.0, "apt_kids2"],
 		["tenement", Vector3(-37.5, 0.05, -9.0), 90.0, -18.0, "apt_bath"], ["tenement", Vector3(-20.0, 0.05, -9.0), 90.0, 4.0, "apt_yellow"]],
+	"skyline": [["city", Vector3(0, 0.3, 7.0), 0.0, 4.0, "sky_park"], ["city", Vector3(68.5, 0.3, 0.0), 0.0, 2.0, "sky_street"]],
 	"cave": [["seabed", Vector3(2, 0.05, -128.0), 0.0, 4.0, "cave_mouth"], ["seabed", Vector3(2.5, 0.05, -150.0), 0.0, 0.0, "cave_tunnel"],
 		["seabed", Vector3(2, 0.05, -172.0), 0.0, 3.0, "cave_chamber"]],
 }
 
 
 func _ready() -> void:
+	if OS.get_cmdline_user_args().has("--low"):
+		Settings.quality = 0.0
+		Settings.apply()
 	Game.boot(self)
 	_run.call_deferred()
 

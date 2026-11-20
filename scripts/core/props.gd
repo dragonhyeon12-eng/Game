@@ -4,6 +4,7 @@ class_name Props
 
 static var _scenes := {}     # slot -> PackedScene (or null)
 static var _meshes := {}     # "slot|mesh|tint" -> Mesh
+static var _parts := {}      # slot -> [[Mesh, Transform3D relative to the root], ...]
 
 
 static func scene(slot: String) -> PackedScene:
@@ -46,3 +47,24 @@ static func mesh(slot: String, mesh_name := "", tint_walls := false) -> Mesh:
 				found.surface_set_material(i, t)
 	_meshes[key] = found
 	return found
+
+
+## Every mesh in a prop file, with where it sits in the model: [[Mesh, Transform3D], ...] (empty if missing).
+## For batching whole models (trees) into MultiMeshes, one per mesh.
+static func parts(slot: String) -> Array:
+	if _parts.has(slot):
+		return _parts[slot]
+	var out := []
+	var root := instance(slot)
+	if root:
+		for mi in root.find_children("*", "MeshInstance3D", true, false):
+			var xf := Transform3D.IDENTITY
+			var n: Node = mi
+			while n != root:
+				xf = (n as Node3D).transform * xf
+				n = n.get_parent()
+			if (mi as MeshInstance3D).mesh:
+				out.append([(mi as MeshInstance3D).mesh, xf])
+		root.free()
+	_parts[slot] = out
+	return out
