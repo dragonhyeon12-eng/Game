@@ -114,6 +114,13 @@ def _window(mb, gm, face_x, y, z, w=1.2, h=1.4, shutters=True):
 def _house(out_dir, name, kind):
     scene.reset()
     M = _mats(name + "_")
+    if kind == "w":
+        # OPEN SPACE's houses: all white - walls, roof, door, shutters - and the windows black
+        white = scene.material(name + "_white", base_color=(0.95, 0.95, 0.94), roughness=0.6)
+        for k in ("wall", "trim", "door", "shutter", "stone", "brick"):
+            M[k] = white
+        M["roof"] = scene.material(name + "_roof", base_color=(0.85, 0.86, 0.87), roughness=0.7)
+        M["glass"] = scene.material(name + "_glass", base_color=(0.0, 0.0, 0.0), roughness=0.9)
     mb = MeshBuilder()
     gm = MeshBuilder()
     W, D, E = 10.0, 12.0, 5.2       # Blender X = Godot X (the front faces +X); Blender Y = depth along the street
@@ -151,7 +158,9 @@ def _house(out_dir, name, kind):
                 w, h = 1.0, 1.3
                 box(mb, (x - w / 2 - 0.08, y - 0.06 * (1 - side) * 0.5 - 0.0, z - h / 2 - 0.08), (x + w / 2 + 0.08, y + 0.06 * (1 + side) * 0.5, z + h / 2 + 0.08), "trim", 0.5)
                 box(gm, (x - w / 2, y + side * 0.02 - 0.005, z - h / 2), (x + w / 2, y + side * 0.02 + 0.005, z + h / 2), "glass", 0.5)
-    if kind == "a":
+    if kind == "w":
+        pass
+    elif kind == "a":
         # a porch: a deck, two steps, four columns, a little hipped roof
         box(mb, (fx, -2.2, 0.0), (fx + 2.2, 2.2, 0.5), "trim", 1.0)
         for k in range(2):
@@ -269,5 +278,6 @@ def _street(out_dir):
 def build(out_dir):
     _house(out_dir, "house_a", "a")
     _house(out_dir, "house_b", "b")
+    _house(out_dir, "house_white", "w")
     _fence(out_dir)
     _street(out_dir)

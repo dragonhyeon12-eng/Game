@@ -6,6 +6,8 @@ const SETS := {
 		["stilllife", Vector3(0, 0.05, -70.0), 0.0, 4.0, "mall_escalators"], ["stilllife", Vector3(0, 5.05, -96.5), 0.0, -3.0, "mall_gallery"]],
 	"blackout": [["blackout", Vector3(0, 0.05, -6.0), 0.0, 2.0, "bo_street"], ["blackout", Vector3(4.0, 0.05, -30.0), -60.0, 6.0, "bo_houses"],
 		["blackout", Vector3(-3.0, 0.05, -62.0), 160.0, 6.0, "bo_poles"], ["blackout", Vector3(29.5, 0.05, -50.0), 0.0, -4.0, "bo_gate"]],
+	"openspace": [["openspace", Vector3(0, 0.05, -60.0), 0.0, 3.0, "os_road"], ["openspace", Vector3(0, 0.05, -150.0), 70.0, 4.0, "os_hills"],
+		["openspace", Vector3(-30, 0.05, -20.0), 120.0, 2.0, "os_carpark"], ["openspace", Vector3(5, 0.05, -230.0), 0.0, 3.0, "os_station"]],
 	"cave": [["seabed", Vector3(2, 0.05, -128.0), 0.0, 4.0, "cave_mouth"], ["seabed", Vector3(2.5, 0.05, -150.0), 0.0, 0.0, "cave_tunnel"],
 		["seabed", Vector3(2, 0.05, -172.0), 0.0, 3.0, "cave_chamber"]],
 }

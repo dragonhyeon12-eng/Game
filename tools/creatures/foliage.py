@@ -222,11 +222,35 @@ def _grass(out_dir):
     scene.export_glb(f"{out_dir}/grass_clump.glb", [obj])
 
 
+def _tall_grass(out_dir):
+    """Meadow grass up to the hip: four crossed cards, drier and paler than the lawn grass."""
+    scene.reset()
+    mb = MeshBuilder()
+    for k in range(4):
+        a = k / 4 * math.pi
+        d = Vector((math.cos(a), math.sin(a), 0)) * 0.45
+        quad = [-d, d, d * 1.15 + Vector((0, 0, 1.15)), -d * 1.15 + Vector((0, 0, 1.15))]
+        ids = [mb.add_vert(q, []) for q in quad]
+        mb.add_face(ids, [(0, 0), (1, 0), (1, 1), (0, 1)], "grass", True)
+    img = _grass_texture(77)
+    import bpy
+    px = np.array(img.pixels[:]).reshape(-1, 4)
+    px[:, 0] = np.clip(px[:, 0] * 1.35 + 0.05, 0, 1)        # toward straw
+    px[:, 1] = np.clip(px[:, 1] * 1.1 + 0.03, 0, 1)
+    img.pixels[:] = px.ravel()
+    _ = bpy
+    M = {"grass": _alpha_material("tall_grass_card", img, 0.95)}
+    obj = mb.to_object("grass_tall", M, recalc_normals=False)
+    obj.data.normals_split_custom_set([(0.0, 0.0, 1.0)] * len(obj.data.loops))
+    scene.export_glb(f"{out_dir}/grass_tall.glb", [obj])
+
+
 def build(out_dir):
     _tree("tree_oak", out_dir, 3, 8.5, 5.2, 0.9, 0.85, 11)
     _tree("tree_lime", out_dir, 7, 10.5, 4.6, 0.55, 0.8, 12)
     _tree("tree_young", out_dir, 13, 6.0, 3.4, 0.7, 0.65, 13)
     _tree("tree_maple", out_dir, 21, 9.0, 6.2, 1.05, 0.95, 14)      # broad and dense: the suburb's street trees
     _tree("tree_elm", out_dir, 29, 12.5, 4.8, 0.45, 0.85, 15)       # tall, vase-shaped
+    _tall_grass(out_dir)
     _bush(out_dir)
     _grass(out_dir)

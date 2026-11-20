@@ -53,8 +53,10 @@ func player_start() -> Transform3D:
 # ------------------------------------------------------------------ build
 
 func build() -> void:
-	# the ground: tarmac to the horizon
-	box(Vector3(0, -0.1, -400), Vector3(1600, 0.2, 1600), Color(0.3, 0.3, 0.31), true, 0.0, "asphalt")
+	# the ground: the car park's tarmac, then grass hills to the horizon
+	box(Vector3(0, -0.1, -20), Vector3(160, 0.2, 200), Color(0.3, 0.3, 0.31), true, 0.0, "asphalt")
+	box(Vector3(0, -0.1, -500), Vector3(70, 0.2, 800), Color(0.32, 0.4, 0.22), true, 0.0, "grass")    # (flat either side of the road)
+	_hills()
 	_car_park()
 	_road()
 	_station_build()
@@ -153,11 +155,128 @@ func _road() -> void:
 		part("cylinder", at + Vector3(0, 0.6, 0), Vector3(0.08, 1.2, 0.08), Color(0.9, 0.9, 0.9))
 		part("box", at + Vector3(0, 1.35, 0), Vector3(0.6, 0.35, 0.04), Color(0.1, 0.35, 0.15))
 		label(at + Vector3(0, 1.35, 0.03), 0, "GAS  %d m" % says[k], 0.06, Color(1, 1, 1), false)
-	# telephone poles, a fence, nothing else
+	# telephone poles down the road: some of them leaning, every one the same distance apart except the ones that aren't
 	for k in 30:
-		var at := Vector3(ROAD_X + 7.0, 0, -100 - k * 16.0)
-		part("cylinder", at + Vector3(0, 4.0, 0), Vector3(0.2, 8.0, 0.2), Color(0.3, 0.25, 0.2), null, Vector3.ZERO, 0.0, "wood")
-		part("box", at + Vector3(0, 7.5, 0), Vector3(1.6, 0.12, 0.12), Color(0.3, 0.25, 0.2), null, Vector3.ZERO, 0.0, "wood")
+		var at := Vector3(ROAD_X + 7.0, 0, -100 - k * (16.0 if k % 7 != 3 else 9.0))
+		var pole := prop("utility_pole", at, 0.0)
+		if pole == null:
+			part("cylinder", at + Vector3(0, 4.0, 0), Vector3(0.2, 8.0, 0.2), Color(0.3, 0.25, 0.2), null, Vector3.ZERO, 0.0, "wood")
+			part("box", at + Vector3(0, 7.5, 0), Vector3(1.6, 0.12, 0.12), Color(0.3, 0.25, 0.2), null, Vector3.ZERO, 0.0, "wood")
+		elif k % 5 == 2:
+			pole.rotation_degrees.z = 7.0 if k % 2 == 0 else -5.0
+
+
+# ------------------------------------------------------------------ the hills
+
+const HILL_CELL := 10.0
+const HILL_N := 160          # cells per side: 1600 m
+var _hill_noise: FastNoiseLite
+var _houses: Array[Node3D] = []
+var _house_t := 0.0
+
+
+## How high the land is here: flat where the car park, the road and the station are, rolling hills beyond.
+func hill_height(x: float, z: float) -> float:
+	var flat_d := 0.0
+	var in_park: float = maxf(absf(x) - 80.0, maxf(z - 80.0, -110.0 - z))
+	var in_road: float = absf(x - ROAD_X) - 35.0 if z < -60.0 and z > -900.0 else 1e9
+	flat_d = minf(in_park, in_road)
+	if flat_d <= 0.0:
+		return -0.05
+	var k := smoothstep(0.0, 55.0, flat_d)
+	var n := _hill_noise.get_noise_2d(x, z)
+	return -0.05 + k * (44.0 * (n * 0.5 + 0.5) + 5.0 * sin(x * 0.03) * cos(z * 0.025) + 6.0)
+
+
+func _hills() -> void:
+	_hill_noise = FastNoiseLite.new()
+	_hill_noise.seed = 7
+	_hill_noise.frequency = 0.0035
+	_hill_noise.fractal_octaves = 3
+	var c := Vector3(0, 0, -400)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var half := HILL_N * HILL_CELL * 0.5
+	var pts := []
+	for j in HILL_N + 1:
+		var row := []
+		for i in HILL_N + 1:
+			var x := c.x - half + i * HILL_CELL
+			var z := c.z - half + j * HILL_CELL
+			row.append(Vector3(x, hill_height(x, z), z))
+		pts.append(row)
+	for j in HILL_N:
+		for i in HILL_N:
+			var a: Vector3 = pts[j][i]
+			var b: Vector3 = pts[j][i + 1]
+			var d: Vector3 = pts[j + 1][i]
+			var e: Vector3 = pts[j + 1][i + 1]
+			if a.y < 0.0 and b.y < 0.0 and d.y < 0.0 and e.y < 0.0:
+				continue          # (flat ground: the boxes under the car park and the road)
+			for v in [a, b, e, a, e, d]:
+				st.add_vertex(v)
+	st.generate_normals()
+	var mesh := st.commit()
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = Shapes.surface("grass", Color(0.62, 0.7, 0.42))
+	add_child(mi)
+	var body := StaticBody3D.new()
+	body.collision_layer = 1
+	var cs := CollisionShape3D.new()
+	cs.shape = mesh.create_trimesh_shape()
+	body.add_child(cs)
+	add_child(body)
+	# tall grass over the hills near the road; it moves in the wind that isn't blowing
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 12
+	var count := 9000 if Settings.quality >= 1 else 2500
+	var placed := 0
+	var tries := 0
+	while placed < count and tries < count * 4:
+		tries += 1
+		var x := rng.randf_range(-180.0, 180.0)
+		var z := rng.randf_range(-650.0, 110.0)
+		var h := hill_height(x, z)
+		if h < 0.3 and rng.randf() < 0.85:
+			continue
+		var s := rng.randf_range(1.1, 2.0)
+		scatter("grass_tall", Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.9, 1.4), s)), Vector3(x, h - 0.05, z)), Color.WHITE, "", false, false)
+		placed += 1
+	# the white houses. All the same house. None of them quite where a house should be.
+	for k in 18:
+		var side := -1.0 if k % 2 == 0 else 1.0
+		var x := side * rng.randf_range(90.0, 380.0)
+		var z := rng.randf_range(-650.0, 60.0)
+		var h := hill_height(x, z)
+		var far := Vector2(x, z + 200.0).length()
+		var house := prop("house_white", Vector3(x, h - rng.randf_range(0.0, 1.2), z), 0.0, clampf(far / 220.0, 0.8, 2.6))   # (the far ones are bigger: they look the same size from the road)
+		if house == null:
+			break
+		house.rotation.y = 0.0 if x < ROAD_X else PI         # facing the road (the model's front is its +X)
+		house.rotation_degrees.x = rng.randf_range(-4.0, 4.0)
+		house.rotation_degrees.z = rng.randf_range(-5.0, 5.0)
+		if k == 7:
+			house.position.y += 2.5                        # this one isn't touching the ground at all
+		_houses.append(house)
+	# a few lone trees on the tops
+	for k in 10:
+		var x := (-1.0 if k % 2 else 1.0) * rng.randf_range(70.0, 300.0)
+		var z := rng.randf_range(-600.0, 40.0)
+		prop("tree_elm", Vector3(x, hill_height(x, z) - 0.2, z), rng.randf() * 360.0, rng.randf_range(0.8, 1.3))
+
+
+## When you aren't looking at them, the houses turn to face you.
+func _update_houses(delta: float, p: Vector3) -> void:
+	_house_t -= delta
+	if _house_t > 0.0:
+		return
+	_house_t = 0.5
+	for h in _houses:
+		if Observation.in_view(h.global_position + Vector3(0, 4, 0), 8.0 * h.scale.x):
+			continue
+		var to := p - h.global_position
+		h.rotation.y = atan2(-to.z, to.x)                  # (the model's front is its +X)
 
 
 # ------------------------------------------------------------------ the station
@@ -422,6 +541,8 @@ func on_player_entered(from_save: bool) -> void:
 
 
 func _process(delta: float) -> void:
+	if Game.player:
+		_update_houses(delta, Game.player.global_position)
 	_t += delta
 	var pl: Player = Game.player
 	if pl == null or Game.in_sequence:
