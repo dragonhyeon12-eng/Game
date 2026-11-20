@@ -15,6 +15,13 @@ extends Zone
 
 const CROSS := Vector3(0, 0, -100)
 const STATION_Z := -150.0
+## Checkpoints (see Zone.checkpoint_at): through the bulkhead, at the cross, the bridge, the station.
+const CHECKPOINTS := {
+	"bulkhead": [Vector3(0, 0.05, -33.5), 0.0, ["abyss_valves"]],
+	"cross": [Vector3(0, 0.05, -72.5), 0.0, ["abyss_valves", "abyss_room1", "abyss_room2", "abyss_room3", "abyss_cross"]],
+	"bridge": [Vector3(0, 0.05, -121.0), 0.0, ["abyss_valves", "abyss_room1", "abyss_room2", "abyss_room3", "abyss_cross", "abyss_beacons"]],
+	"station": [Vector3(0, 0.05, -156.0), 0.0, ["abyss_valves", "abyss_room1", "abyss_room2", "abyss_room3", "abyss_cross", "abyss_beacons", "abyss_station"]],
+}
 const EXIT_Z := -205.0
 
 var leviathan: Leviathan
@@ -22,6 +29,7 @@ var observer: Observer
 var _beacon_posts := {}
 var _valves := {}
 var _bulkhead: StaticBody3D
+var _room1_open: Array = []      # [door, block] of the one door that goes somewhere
 var _room3_block: StaticBody3D
 var _room3_door: Node3D
 var _beacons := {}
@@ -189,6 +197,7 @@ func _open_bulkhead() -> void:
 	Sfx.stinger("braam", -4.0)
 	Game.hud.show_thought("The bulkhead. It's opening.", 2.5)
 	create_tween().tween_property(_bulkhead, "position:y", 3.8, 3.0).set_trans(Tween.TRANS_SINE)
+	checkpoint_at("bulkhead")
 
 
 # ---- 5: the rooms ---------------------------------------------------------------
@@ -227,6 +236,8 @@ func _rooms(tile: Color) -> void:
 		var real := k == 2
 		var blk := solid_box(Vector3(x, 1.05, -44.0), Vector3(1.1, 2.1, 0.15), Color(0, 0, 0, 0))
 		blk.get_child(1).visible = false
+		if real:
+			_room1_open = [dg, blk]
 		interactable(Vector3(x, 1.0, -43.8), Vector3(1.1, 2.0, 0.4), func(): return "Open the door",
 			func():
 				if real:
@@ -317,6 +328,7 @@ func _cross(rock: Color) -> void:
 			Color(0.2, 0.6, 1.0), null, Vector3.ZERO, randf_range(1.0, 3.0))
 	trigger(Vector3(0, 1.0, -74), Vector3(6, 2.4, 3), func():
 		Game.set_flag("abyss_cross")
+		checkpoint_at("cross")
 		Sfx.stinger("sub_drop", -2.0)
 		Game.hud.show_thought("Trenches. Four of them, in a cross. And lights. Over there - a station. With its lights on.", 5.0))
 
@@ -332,6 +344,7 @@ func _light_beacon(id: String) -> void:
 	Game.player.dread.add_fear(4.0, "beacon")
 	if _beacons.size() >= 4:
 		Game.set_flag("abyss_beacons")
+		checkpoint_at("bridge")
 		_raise_bridge()
 	else:
 		Game.hud.show_thought("%d. Far below, something turned toward the light." % _beacons.size(), 3.0)
@@ -343,9 +356,10 @@ func _light_beacon(id: String) -> void:
 					break
 
 
-func _raise_bridge() -> void:
-	Game.hud.show_thought("All four. ...A bridge. Made of light. Toward the station.", 4.0)
-	Sfx.stinger("riser", -2.0)
+func _raise_bridge(instant := false) -> void:
+	if not instant:
+		Game.hud.show_thought("All four. ...A bridge. Made of light. Toward the station.", 4.0)
+		Sfx.stinger("riser", -2.0)
 	var start := CROSS + Vector3(0, 0, -25)
 	var end_z := STATION_Z + 1.0
 	var n := int((start.z - end_z) / 2.0) + 1     # (one more: the last tile overlaps the station floor - no gap)
@@ -363,6 +377,9 @@ func _raise_bridge() -> void:
 		cs.position = p
 		_bridge_body.add_child(cs)
 	for k in _bridge_parts.size():
+		if instant:
+			_bridge_parts[k].visible = true
+			continue
 		await get_tree().create_timer(0.08, false).timeout
 		if not is_inside_tree():
 			return
@@ -400,7 +417,10 @@ func _station() -> void:
 	label(c + Vector3(0, 2.8, 8.25), 0, "STATION DEEP-4", 0.2, Color(0.9, 0.9, 0.85), false)
 	box(c + Vector3(3.5, 0.5, -3), Vector3(2, 1.0, 1), Color(0.25, 0.3, 0.28), true, 0.0, "metal")
 	trigger(c + Vector3(0, 1.2, 4), Vector3(8, 2.4, 2), func():
+		if Game.has_flag("abyss_station"):
+			return        # (back from a checkpoint: it already happened)
 		Game.set_flag("abyss_station")
+		checkpoint_at("station")
 		for l in _station_lights:
 			create_tween().tween_property(l, "light_energy", 0.05, 0.8)
 		Sfx.play("metal_screech", 2.0, 0.5)
@@ -448,10 +468,30 @@ func _escape() -> void:
 
 # ------------------------------------------------------------------ runtime
 
-func on_player_entered(_from_save: bool) -> void:
+func on_player_entered(from_save: bool) -> void:
 	_t = 0.0
-	_hint = 0
+	_hint = 2 if from_save else 0
 	_chase = false
+	# back from a checkpoint: put the world the way you left it
+	if Game.has_flag("abyss_valves"):
+		_valves = {"v0": true, "v1": true}
+		Game.counters["valves"] = 2
+		_bulkhead.position.y = 3.8
+	if Game.has_flag("abyss_room1") and not _room1_open.is_empty():
+		open_door(_room1_open[0], 100.0, 0.01)
+		(_room1_open[1] as Node).queue_free()
+		_room1_open = []
+	if Game.has_flag("abyss_beacons"):
+		for id in _beacon_lights:
+			_beacons[id] = true
+			_beacon_lights[id][0].light_energy = 3.0
+			(_beacon_lights[id][1] as MeshInstance3D).material_override = Shapes.material(Color(0.4, 0.85, 1.0), 0.3, 6.0)
+		Game.counters["beacons"] = 4
+		if _bridge_parts.is_empty():
+			_raise_bridge(true)
+	if Game.has_flag("abyss_station"):
+		for l in _station_lights:
+			l.light_energy = 0.05
 
 
 func _process(delta: float) -> void:

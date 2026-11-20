@@ -22,6 +22,17 @@ const PRESS_OPEN := 1.95         # half-width of the press room
 const PRESS_SPEED := 0.38        # m/s per wall while unwatched
 const FIGURE_SPEED := 1.4
 
+## Checkpoints (see Zone.checkpoint_at): the hub, each time you come back to it with another fuse, and
+## with the power on.
+const HUB := Vector3(0.5, 0.05, -17.0)
+const CHECKPOINTS := {
+	"hub": [HUB, 0.0, ["comp_saw_box"]],
+	"hub1": [HUB, 0.0, ["comp_saw_box", "comp_fuse_vent"]],
+	"hub2": [HUB, 0.0, ["comp_saw_box", "comp_fuse_vent", "comp_fuse_press"]],
+	"hub3": [HUB, 0.0, ["comp_saw_box", "comp_fuse_vent", "comp_fuse_press", "comp_fuse_sheets", "comp_fuses"]],
+	"power": [HUB, 0.0, ["comp_saw_box", "comp_fuse_vent", "comp_fuse_press", "comp_fuse_sheets", "comp_fuses", "comp_power"]],
+}
+
 const CONCRETE := Color(0.42, 0.41, 0.38)
 const DIRTY := Color(0.33, 0.31, 0.27)
 const METAL := Color(0.38, 0.4, 0.42)
@@ -641,6 +652,9 @@ func _process(delta: float) -> void:
 	_update_drying(delta, p)
 	_update_tightness(delta, p)
 	_update_seal(delta, p)
+	# back in the hub: a checkpoint for every fuse you've brought back (and once the power's on)
+	if p.x > -4.0 and p.x < 5.0 and p.z > -22.0 and p.z < -14.0 and Game.has_flag("comp_saw_box"):
+		checkpoint_at("power" if Game.has_flag("comp_power") else ["hub", "hub1", "hub2", "hub3"][_fuses_found()])
 	if _elev_open and not _elev_riding and p.z < -22.4 and p.x > 0.0 and p.x < 2.0:
 		_ride()
 

@@ -684,6 +684,16 @@ func checkpoint_id() -> String:
 	return String(cp.get("id", "")) if cp is Dictionary else ""
 
 
+## A checkpoint from the zone's CHECKPOINTS table: {id: [spawn position, yaw (deg), [flags set by then]]},
+## in the order you reach them. Only ever moves forward (walking back past an earlier one doesn't count).
+func checkpoint_at(id: String) -> void:
+	var table: Dictionary = get("CHECKPOINTS")
+	var keys := table.keys()
+	if keys.find(checkpoint_id()) >= keys.find(id):
+		return
+	checkpoint(id, table[id][0], table[id][1])
+
+
 ## A checkpoint you walk into.
 func checkpoint_zone(id: String, center: Vector3, size: Vector3, spawn: Vector3, yaw_deg := 0.0) -> void:
 	trigger(center, size, func(): checkpoint(id, spawn, yaw_deg))

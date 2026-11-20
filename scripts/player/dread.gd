@@ -36,6 +36,9 @@ var stage := Stage.CALM
 
 var nightmare := false
 var gain := 1.0
+var _last_trickle := -100.0
+## Fear added so far, by reason (debugging the balance).
+var trickles := {}
 var floor_fear := 0.0
 var decay := 1.5
 
@@ -74,7 +77,14 @@ func stage_name() -> String:
 func add_fear(amount: float, reason := "") -> void:
 	if amount > 0.0:
 		amount *= gain
-		_last_fear = _t
+		# a jolt (a scare, a sound) holds off the calm-down; a steady trickle (per-frame sources like
+		# looking down a drop) doesn't - it just outpaces the decay while it lasts, and stops when you stop
+		if amount >= 0.5:
+			_last_fear = _t
+		else:
+			_last_trickle = _t
+		if reason != "":
+			trickles[reason] = float(trickles.get(reason, 0.0)) + amount
 	fear = clampf(fear + amount, 0.0, 100.0)
 
 
@@ -112,7 +122,7 @@ func _process(delta: float) -> void:
 	_t += delta
 	_track_look_behind()
 
-	if _t - _last_fear > CALM_DELAY and fear > floor_fear:
+	if _t - _last_fear > CALM_DELAY and _t - _last_trickle > 0.3 and fear > floor_fear:
 		fear = maxf(floor_fear, fear - decay * delta)
 	elif fear < floor_fear:
 		fear = minf(floor_fear, fear + 0.5 * delta)
@@ -121,7 +131,8 @@ func _process(delta: float) -> void:
 	if stability > target:
 		stability = maxf(target, stability - (STABILITY_PANIC_FALL if fear > 70.0 else STABILITY_FALL) * delta)
 	else:
-		stability = minf(target, stability + STABILITY_RECOVER * delta)
+		var calm := _t - _last_fear > CALM_DELAY
+		stability = minf(target, stability + STABILITY_RECOVER * (2.5 if calm else 1.0) * delta)
 
 	var v := value()
 	var s := stage_for(v)

@@ -27,6 +27,13 @@ const GAP := Vector3(19, 20, -116.5)   # where the girder has to go
 const MAST_H := 18.0
 const PLANK_END := -13.1
 const FALL_Y := -14.0
+## Checkpoints (see Zone.checkpoint_at): across the beam, off the sky lift, the construction site, the mast.
+const CHECKPOINTS := {
+	"roof_b": [Vector3(24, 0.05, 0), 0.0, ["above_cross"]],
+	"lift": [Vector3(24, 0.05, -66.5), 0.0, ["above_cross", "above_key", "above_bridge", "above_lift"]],
+	"site": [Vector3(24, 12.05, -100.5), 0.0, ["above_cross", "above_key", "above_bridge", "above_lift", "above_stairs"]],
+	"mast": [Vector3(19, 20.05, -154.0), 0.0, ["above_cross", "above_key", "above_bridge", "above_lift", "above_stairs", "above_crane", "above_skyway"]],
+}
 
 var _beam: StaticBody3D
 var _beam_gone := false
@@ -49,6 +56,7 @@ var _gusts := 0
 var _fallers: Array = []   # [node, velocity, spin]
 var _faller_t := 25.0
 var observer: Observer
+var _obs_seen_at := -100.0
 var _obs_t := 20.0
 var _roofs: Array = []     # distant rooftop spots for the Observer
 var _creak_t := 0.0
@@ -76,7 +84,7 @@ var _path_tiles: Array = []
 func zone_id() -> String: return "above"
 func is_nightmare() -> bool: return true
 func fear_floor() -> float: return 15.0
-func fear_decay() -> float: return 1.2
+func fear_decay() -> float: return 3.0     # (heights frighten in bursts: it should ease off when you step back)
 func floor_surface() -> String: return "concrete"
 func walk_speed() -> float: return 2.3
 func sprint_speed() -> float: return 3.8
@@ -130,7 +138,10 @@ func build() -> void:
 	add_child(observer)
 	observer.hide_now()
 	observer.seen_max_distance = 120.0
-	observer.seen.connect(func(): Game.player.dread.add_dread(observer.spot_dread))
+	# seen across the rooftops from far off, and often: a jolt, not a wall of dread each time
+	observer.seen.connect(func():
+		Game.player.dread.add_dread(10.0 if _t - _obs_seen_at > 40.0 else 5.0)
+		_obs_seen_at = _t)
 	observer.vanished.connect(func(): _obs_t = randf_range(35.0, 70.0))
 
 
@@ -515,6 +526,11 @@ func on_player_entered(from_save: bool) -> void:
 		_extend_bridge(true)
 	if Game.has_flag("above_crane"):
 		_swing_jib(true)
+	if Game.has_flag("above_cross"):     # (no way back across: the beam went)
+		_beam_gone = true
+		_beam_noticed = true
+		_beam.visible = false
+		_beam.get_child(0).disabled = true
 	_ground_y = Game.player.global_position.y if Game.player else 0.0
 
 
@@ -567,7 +583,8 @@ func _update_wind(delta: float, p: Vector3) -> void:
 				if _gusts == 1:
 					Game.hud.show_hint("WIND!  Crouch (C / Ctrl) to hold on.", 5.0)
 		2:
-			Game.player.dread.add_fear(3.0 * delta, "wind")
+			if Game.player.dread.fear < 65.0:
+				Game.player.dread.add_fear(3.0 * delta, "wind")
 			if _gust_t <= 0.0:
 				_gust_phase = 0
 				_gust_t = randf_range(6.0, 11.0)
@@ -580,15 +597,18 @@ func _update_height_fear(delta: float, pl: Player) -> void:
 	var q := PhysicsRayQueryParameters3D.create(pl.global_position + Vector3.UP * 0.2, pl.global_position + Vector3.DOWN * 6.0, 1)
 	q.exclude = [pl.get_rid()]
 	var over_void := space.intersect_ray(q).is_empty()
-	if over_void:
+	# heights alone frighten you, but never all the way (the scripted scares do the rest)
+	var cap := pl.dread.fear < 65.0
+	if over_void and cap:
 		pl.dread.add_fear(5.0 * delta, "over the drop")
 	if down > 0.0:
 		var look := PhysicsRayQueryParameters3D.create(cam, cam - pl.camera.global_transform.basis.z * 40.0, 1)
 		look.exclude = [pl.get_rid()]
 		var hit := space.intersect_ray(look)
 		if hit.is_empty() or hit.position.y < pl.global_position.y - 8.0:
-			pl.dread.add_fear(14.0 * down * delta, "looking down")
-			pl.dread.add_stability(-4.0 * down * delta)
+			if cap:
+				pl.dread.add_fear(14.0 * down * delta, "looking down")
+				pl.dread.add_stability(-4.0 * down * delta)
 
 
 func _update_beam(delta: float, p: Vector3) -> void:
@@ -596,6 +616,7 @@ func _update_beam(delta: float, p: Vector3) -> void:
 		if not Game.has_flag("above_cross"):
 			Game.set_flag("above_cross")
 			Game.hud.show_thought("Across. I'm across.", 2.5)
+			checkpoint_at("roof_b")
 		_on_b_t += delta
 		if not _beam_gone and _on_b_t > 3.0 and not Observation.is_observed(Vector3(13, 0, 0), 3.0, [_beam]):
 			_beam_gone = true
@@ -797,6 +818,7 @@ func _ride_lift() -> void:
 	Game.in_sequence = false
 	Game.set_mode("game")
 	Game.hud.show_thought("It stopped. The doors at the other end are open.", 3.0)
+	checkpoint_at("lift")
 
 
 # ------------------------------------------------------------------ 4: floating stairs
@@ -817,7 +839,10 @@ func _floating_stairs() -> void:
 	trigger(Vector3(24, 1.0, -71.0), Vector3(3, 2, 1.5), func():
 		Game.hud.show_thought("Stairs. Going up into nothing. ...There's nothing holding them up.", 3.5))
 	trigger(Vector3(24, 13.0, -99.5), Vector3(6, 2.4, 2), func():
+		if Game.has_flag("above_stairs"):
+			return
 		Game.set_flag("above_stairs")
+		checkpoint_at("site")
 		Game.hud.show_thought("Solid. Solid ground. ...An unfinished building, up here.", 3.0))
 
 
@@ -1046,7 +1071,10 @@ func _skyway() -> void:
 		Game.hud.show_thought("Glass. All of it glass.", 2.0)
 		observer.try_appear_at(Vector3(19, 20, -142)))
 	trigger(Vector3(19, 21, -153), Vector3(6, 2.4, 2), func():
+		if Game.has_flag("above_skyway"):
+			return
 		Game.set_flag("above_skyway")
+		checkpoint_at("mast")
 		Game.hud.show_thought("The mast. The light's at the top. A bench, up here, facing nothing.", 3.5))
 
 

@@ -19,7 +19,12 @@ const NORTH := -118.0
 const TREE_Z := -55.0
 const BOX := Vector3(-9.0, 0, -113.0)
 const BUS_DOOR := Vector3(-17.5, 0, -115.6)
-const DARK_LIMIT := 7.0          # seconds of unbroken dark before it has you
+const DARK_LIMIT := 7.0
+## Checkpoints (see Zone.checkpoint_at): number 9's lamp, the back garden.
+const CHECKPOINTS := {
+	"house": [Vector3(14.6, 0.05, -41.5), -90.0, ["bo_tree", "bo_inside", "bo_lamp"]],
+	"garden": [Vector3(28.5, 0.05, -48.0), 0.0, ["bo_tree", "bo_inside", "bo_lamp", "bo_key", "bo_backyard"]],
+}          # seconds of unbroken dark before it has you
 
 const ASPHALT := Color(0.16, 0.16, 0.17)
 const PAVEMENT := Color(0.42, 0.41, 0.4)
@@ -403,6 +408,8 @@ func _house9() -> void:
 	interactable(Vector3(12.6, 1.2, -39.6), Vector3(0.6, 1.0, 0.6), func(): return "Switch on the lamp" if not _living_light.on else "",
 		func():
 			_set_fixed(_living_light, true)
+			Game.set_flag("bo_lamp")
+			checkpoint_at("house")
 			Sfx.play("switch", -4.0)
 			Game.hud.show_thought("The lamp works. The photos... they've all got their faces scratched out.", 3.5),
 		func(): return not _living_light.on)
@@ -494,6 +501,7 @@ func _try_back_door() -> void:
 	open_door(_back_door, -100.0, 1.0)
 	Sfx.play("door_creak", -4.0)
 	Game.set_flag("bo_backyard")
+	checkpoint_at("garden")
 	Game.hud.show_thought("Out the back. The gardens run along behind the houses. Keep to the lights.", 3.5)
 
 
@@ -519,6 +527,7 @@ func _gardens() -> void:
 		func():
 			_gate_block.queue_free()
 			_gate_block = null
+			Game.set_flag("bo_gate")
 			create_tween().tween_property(_gate, "rotation_degrees:y", -95.0, 1.0)
 			Sfx.play("creak", -4.0, 1.2),
 		func(): return _gate_block != null)
@@ -696,6 +705,20 @@ func on_player_entered(from_save: bool) -> void:
 	_t = 0.0
 	_hint = 2 if from_save else 0
 	_dark_t = 0.0
+	# back from a checkpoint: the lamp you switched on, the door you unlocked, the gate you opened
+	if Game.has_flag("bo_lamp"):
+		_set_fixed(_living_light, true)
+	if Game.has_flag("bo_key"):
+		_key.visible = false
+		_red_only.erase(_key)
+	if Game.has_flag("bo_backyard") and _back_block != null:
+		_back_block.queue_free()
+		_back_block = null
+		open_door(_back_door, -100.0, 0.01)
+	if Game.has_flag("bo_gate") and _gate_block != null:
+		_gate_block.queue_free()
+		_gate_block = null
+		_gate.rotation_degrees.y = -95.0
 
 
 func _process(delta: float) -> void:

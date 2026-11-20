@@ -22,6 +22,13 @@ const SHAFT := Vector3(-8.8, 0, -24.8)
 const SHAFT_H := 14.0
 const EXIT_FLOOR := 7
 
+## Checkpoints (see Zone.checkpoint_at): out of the duct, floor 7, the shaft.
+const CHECKPOINTS := {
+	"stairs": [Vector3(-51.0, 0.05, -24.9), 180.0, ["ten_apartment", "ten_vent", "ten_stairs"]],
+	"floor7": [Vector3(-48.9, 0.05, -24.8), -90.0, ["ten_apartment", "ten_vent", "ten_stairs", "ten_floor7"]],
+	"shaft": [Vector3(-8.8, 0.05, -24.8), -90.0, ["ten_apartment", "ten_vent", "ten_stairs", "ten_floor7", "ten_collapse", "ten_shaft"]],
+}
+
 const PAPER := Color(0.52, 0.55, 0.46)
 const PLASTER := Color(0.78, 0.76, 0.7)
 const CONCRETE := Color(0.45, 0.44, 0.41)
@@ -426,6 +433,7 @@ func _stairwell() -> void:
 	trigger(Vector3(O.x - 1.0, 0.8, O.z - 0.6), Vector3(1.0, 1.6, 1.0), func():
 		Game.set_flag("ten_stairs")
 		Game.counters["floor"] = _floor_num
+		checkpoint_at("stairs")
 		Sfx.stinger("braam", -8.0)
 		Game.hud.show_thought("Stairs. Floor 4. The roof's from 7. ...Up, then.", 3.5))
 
@@ -474,6 +482,7 @@ func _stair_loop() -> void:
 
 func _open_exit() -> void:
 	Game.set_flag("ten_floor7")
+	checkpoint_at("floor7")
 	Sfx.play("door_creak", -2.0, 0.8)
 	Sfx.stinger("braam", -6.0)
 	_exit_block.queue_free()
@@ -530,6 +539,8 @@ func _corridor() -> void:
 
 
 func _begin_collapse() -> void:
+	if Game.has_flag("ten_shaft"):
+		return        # (it already came down, and you made it)
 	_collapse = true
 	_front = CORR_X0 - 1.0
 	_front_speed = 2.7
@@ -574,6 +585,7 @@ func _update_collapse(delta: float) -> void:
 		_collapse = false
 		_dust.emitting = false
 		Game.set_flag("ten_shaft")
+		checkpoint_at("shaft")
 		Sfx.play("thud", 4.0, 0.4)
 		Game.hud.show_thought("It stopped. ...It stopped at the door. Up. Go UP.", 3.0)
 
@@ -684,10 +696,21 @@ func _update_observer() -> void:
 
 # ------------------------------------------------------------------ runtime
 
-func on_player_entered(_from_save: bool) -> void:
+func on_player_entered(from_save: bool) -> void:
 	_t = 0.0
-	_hint = 0
+	_hint = 1 if from_save else 0
 	_collapse = false
+	# back from a checkpoint: the vent cover's off, the floor count, floor 7's door
+	if from_save:
+		_floor_num = int(Game.counters.get("floor", _floor_num))
+		_update_labels()
+	if Game.has_flag("ten_vent") and is_instance_valid(_grille_block):
+		_grille_block.queue_free()
+		_grille.position = Vector3(-39.4, 0.05, -8.3)
+		_grille.rotation_degrees = Vector3(80, 30, 0)
+	if Game.has_flag("ten_floor7") and is_instance_valid(_exit_block):
+		_exit_block.queue_free()
+		open_door(_exit_door, 100.0, 0.01)
 	Game.counters["floor"] = _floor_num
 
 
