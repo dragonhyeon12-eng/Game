@@ -159,19 +159,21 @@ func _furnish() -> void:
 	# the shelf, against the south wall: the pills on the middle shelf, by their bottle
 	var shelf_at := Vector3(-1.6, 0, D * 0.5 - 0.2)
 	prop("shelf_white", shelf_at, 180.0)
-	blocker(shelf_at + Vector3(0, 0.8, 0.02), Vector3(1.2, 1.6, 0.32))
+	# (the back and the base only: a box over the whole shelf would hide the pills from your hand)
+	blocker(shelf_at + Vector3(0, 0.8, 0.13), Vector3(1.2, 1.6, 0.14))
+	blocker(shelf_at + Vector3(0, 0.27, 0.02), Vector3(1.2, 0.54, 0.32))
 	prop("pill_bottle", shelf_at + Vector3(0.35, 0.58, 0.0), 30.0)
 	prop("flower_vase", shelf_at + Vector3(-0.35, 1.075, 0.0), 0.0)
 	shape_at("cylinder", shelf_at + Vector3(-0.08, 0.59, 0), Vector3(0.24, 0.012, 0.24), Color(0.55, 0.75, 0.9), false, Vector3.ZERO, 0.2)   # a little dish
 	var n := rng.randi_range(3, 4)
 	for k in n:
-		var p := shelf_at + Vector3(-0.15 + k * 0.05, 0.6, -0.03 + (k % 2) * 0.05)
+		var p := shelf_at + Vector3(-0.2 + k * 0.075, 0.6, -0.02 + (k % 2) * 0.03)
 		var pill := prop("pill", p, rng.randf() * 360.0, 2.6)
 		if pill == null:
 			pill = part("capsule", p, Vector3(0.012, 0.016, 0.012), Color(0.4, 0.65, 0.9), null, Vector3(0, 0, 90))
 		_pills.append(pill)
 		var me := pill
-		interactable(p + Vector3(0, 0.03, 0), Vector3(0.12, 0.12, 0.14), func(): return "Take a pill" if me.visible else "",
+		interactable(p + Vector3(0, 0.03, 0), Vector3(0.065, 0.12, 0.12), func(): return "Take a pill" if me.visible else "",
 			func():
 				me.visible = false
 				Game.items.add("pills")

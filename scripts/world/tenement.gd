@@ -140,8 +140,9 @@ func _ramp(center: Vector3, size: Vector3, rot_x_deg: float) -> void:
 
 
 func _bulb(pos: Vector3, energy: float, rng: float, col := Color(1.0, 0.8, 0.55)) -> OmniLight3D:
-	part("sphere", pos, Vector3(0.09, 0.12, 0.09), col, null, Vector3.ZERO, 5.0)
-	part("cylinder", pos + Vector3(0, 0.12, 0), Vector3(0.03, 0.18, 0.03), Color(0.1, 0.1, 0.1), null, Vector3.ZERO, 0.0, "plain")
+	if prop("ceiling_bulb", pos + Vector3(0, 0.56, 0), 0.0) == null:
+		part("sphere", pos, Vector3(0.09, 0.12, 0.09), col, null, Vector3.ZERO, 5.0)
+		part("cylinder", pos + Vector3(0, 0.12, 0), Vector3(0.03, 0.18, 0.03), Color(0.1, 0.1, 0.1), null, Vector3.ZERO, 0.0, "plain")
 	return omni(pos + Vector3(0, -0.05, 0), col, energy, rng, false)
 
 
@@ -201,7 +202,8 @@ func _hallway() -> void:
 				else:
 					Game.hud.show_thought("Locked.", 1.5))
 	label(Vector3(-1.04, 1.75, -9.0 - 0.75), 90, "3B", 0.07, Color(0.75, 0.62, 0.35), false)
-	part("box", Vector3(-1.1, 2.15, -9.0), Vector3(0.14, 0.06, 1.1), Color(0.3, 0.22, 0.16), null, Vector3.ZERO, 0.0, "wood")
+	if prop("curtain_rail", Vector3(-1.1, 2.15, -9.0), 90.0, 0.9) == null:
+		part("box", Vector3(-1.1, 2.15, -9.0), Vector3(0.14, 0.06, 1.1), Color(0.3, 0.22, 0.16), null, Vector3.ZERO, 0.0, "wood")
 	# the stairwell door at the end: bricked up behind its wired glass
 	door(Vector3(0, 0, -19.94), 0, Color(0.35, 0.36, 0.33), 1.0, 2.1, "metal")
 	label(Vector3(0, 2.3, -19.92), 0, "STAIRS", 0.09, Color(0.85, 0.85, 0.8), false)
@@ -230,20 +232,38 @@ func _apartment() -> void:
 		Game.set_flag("ten_apartment")
 		Game.hud.show_thought("Hello? ...The TV's on.", 2.5))
 	# sofa facing a television full of static
-	part("box", Vector3(-4.6, 0.25, -7.2), Vector3(2.2, 0.5, 0.9), Color(0.32, 0.36, 0.3), null, Vector3.ZERO, 0.0, "fabric")
-	part("box", Vector3(-4.6, 0.65, -6.8), Vector3(2.2, 0.8, 0.2), Color(0.3, 0.34, 0.28), null, Vector3.ZERO, 0.0, "fabric")
+	if prop("sofa", Vector3(-4.6, 0, -7.2), 180.0, 1.1) == null:
+		part("box", Vector3(-4.6, 0.25, -7.2), Vector3(2.2, 0.5, 0.9), Color(0.32, 0.36, 0.3), null, Vector3.ZERO, 0.0, "fabric")
+		part("box", Vector3(-4.6, 0.65, -6.8), Vector3(2.2, 0.8, 0.2), Color(0.3, 0.34, 0.28), null, Vector3.ZERO, 0.0, "fabric")
 	blocker(Vector3(-4.6, 0.5, -7.1), Vector3(2.2, 1.0, 1.0))
-	box(Vector3(-4.6, 0.3, -11.9), Vector3(1.6, 0.6, 0.5), wood.darkened(0.2), true, 0.0, "wood")
-	part("box", Vector3(-4.6, 0.85, -11.9), Vector3(0.8, 0.55, 0.5), Color(0.08, 0.08, 0.08), null, Vector3.ZERO, 0.0, "plain")
-	_tv = part("box", Vector3(-4.6, 0.86, -11.64), Vector3(0.62, 0.42, 0.01), Color(0.7, 0.75, 0.8), null, Vector3.ZERO, 2.0)
+	if not furnish("tv_stand", Vector3(-4.6, 0, -11.9), 0.0, Vector3(1.6, 0.6, 0.5), Vector3(0, 0.3, 0)):
+		box(Vector3(-4.6, 0.3, -11.9), Vector3(1.6, 0.6, 0.5), wood.darkened(0.2), true, 0.0, "wood")
+	if prop("tv_crt", Vector3(-4.6, 0.6, -11.85), 0.0) != null:
+		_tv = part("box", Vector3(-4.6, 0.9, -11.64), Vector3(0.5, 0.36, 0.01), Color(0.7, 0.75, 0.8), null, Vector3.ZERO, 2.0)
+	else:
+		part("box", Vector3(-4.6, 0.85, -11.9), Vector3(0.8, 0.55, 0.5), Color(0.08, 0.08, 0.08), null, Vector3.ZERO, 0.0, "plain")
+		_tv = part("box", Vector3(-4.6, 0.86, -11.64), Vector3(0.62, 0.42, 0.01), Color(0.7, 0.75, 0.8), null, Vector3.ZERO, 2.0)
 	_tv.material_override = _tv.material_override.duplicate()
 	omni(Vector3(-4.6, 0.9, -11.2), Color(0.6, 0.7, 0.85), 0.5, 4.0, false)
 	ambient("static", Vector3(-4.6, 0.9, -11.6), true, -14.0, 8.0)
-	part("box", Vector3(-4.6, 0.22, -9.4), Vector3(1.0, 0.04, 0.6), wood, null, Vector3.ZERO, 0.0, "wood")
+	if prop("coffee_table", Vector3(-4.6, 0, -9.4), 0.0) == null:
+		part("box", Vector3(-4.6, 0.22, -9.4), Vector3(1.0, 0.04, 0.6), wood, null, Vector3.ZERO, 0.0, "wood")
 	blocker(Vector3(-4.6, 0.2, -9.4), Vector3(1.0, 0.4, 0.6))
+	prop("rug_rect", Vector3(-4.6, 0.0, -9.3), 0.0, 1.2)
 	# a standing lamp
-	part("cylinder", Vector3(-8.3, 0.75, -6.0), Vector3(0.03, 1.5, 0.03), Color(0.2, 0.18, 0.15), null, Vector3.ZERO, 0.0, "metal")
-	part("cone", Vector3(-8.3, 1.55, -6.0), Vector3(0.4, 0.3, 0.4), Color(0.9, 0.8, 0.6), null, Vector3.ZERO, 0.6)
+	if prop("floor_lamp", Vector3(-8.3, 0, -6.0), 0.0) == null:
+		part("cylinder", Vector3(-8.3, 0.75, -6.0), Vector3(0.03, 1.5, 0.03), Color(0.2, 0.18, 0.15), null, Vector3.ZERO, 0.0, "metal")
+		part("cone", Vector3(-8.3, 1.55, -6.0), Vector3(0.4, 0.3, 0.4), Color(0.9, 0.8, 0.6), null, Vector3.ZERO, 0.6)
+	# someone lives here: an armchair, a shelf of books, pictures, a clock that has stopped
+	furnish("armchair_old", Vector3(-2.3, 0, -7.4), 200.0, Vector3(0.85, 0.9, 0.8), Vector3(0, 0.45, 0))
+	furnish("bookshelf_low", Vector3(-6.9, 0, -5.2), 180.0, Vector3(1.1, 0.9, 0.32), Vector3(0, 0.45, 0))
+	prop("radio_old", Vector3(-6.7, 0.9, -5.22), 170.0)
+	prop("picture_frame", Vector3(-3.0, 1.6, -5.0), 180.0)
+	prop("picture_frame", Vector3(-1.3, 1.55, -11.8), -90.0, 0.8)
+	prop("wall_clock", Vector3(-8.98, 1.95, -7.4), 90.0)
+	prop("pendant_lamp", Vector3(-4.6, 2.7, -9.2), 0.0)
+	prop("plant_hanging", Vector3(-1.8, 2.7, -12.4), 0.0)
+	prop("light_switch", Vector3(-1.27, 1.2, -10.0), -90.0)
 	omni(Vector3(-8.3, 1.4, -6.0), Color(1.0, 0.8, 0.55), 0.9, 7.0, true)
 	# the park bench. here.
 	if prop("bench", Vector3(-7.6, 0, -10.6), 90.0 + 180.0) == null:
@@ -259,7 +279,8 @@ func _apartment() -> void:
 		"w": [[1.0, 1.4, 2.3]],
 	})
 	for x in range(-12, -30, -4):
-		part("box", Vector3(x, 2.47, -9.0), Vector3(1.2, 0.04, 0.25), Color(1.0, 0.98, 0.85), null, Vector3.ZERO, 3.0)
+		if prop("fluorescent_panel", Vector3(x, 2.5, -9.0), 0.0) == null:
+			part("box", Vector3(x, 2.47, -9.0), Vector3(1.2, 0.04, 0.25), Color(1.0, 0.98, 0.85), null, Vector3.ZERO, 3.0)
 		omni(Vector3(x, 2.3, -9.0), Color(1.0, 0.96, 0.8), 0.45, 5.0, false)
 	ambient("buzz", Vector3(-20, 2.3, -9.0), true, -12.0, 14.0)
 	trigger(Vector3(-11.0, 1.2, -9.0), Vector3(1.0, 2.4, 2), func():
@@ -272,16 +293,27 @@ func _apartment() -> void:
 		"e": [[4.0, 1.0, 2.1]],
 		"w": [[4.0, 0.9, 2.1]],
 	})
-	part("box", Vector3(-35.8, 0.25, -6.0), Vector3(1.6, 0.5, 0.8), Color(0.75, 0.75, 0.82), null, Vector3.ZERO, 0.0, "fabric")
+	if prop("kids_bed", Vector3(-35.8, 0, -6.0), 90.0) == null:
+		part("box", Vector3(-35.8, 0.25, -6.0), Vector3(1.6, 0.5, 0.8), Color(0.75, 0.75, 0.82), null, Vector3.ZERO, 0.0, "fabric")
 	blocker(Vector3(-35.8, 0.3, -6.0), Vector3(1.6, 0.6, 0.8))
-	part("box", Vector3(-32.0, 0.3, -12.4), Vector3(0.9, 0.6, 0.5), Color(0.7, 0.35, 0.25), null, Vector3.ZERO, 0.0, "wood")
+	prop("teddy_bear", Vector3(-36.3, 0.42, -5.95), 90.0)
+	if prop("toy_box", Vector3(-32.0, 0, -12.4), 0.0) == null:
+		part("box", Vector3(-32.0, 0.3, -12.4), Vector3(0.9, 0.6, 0.5), Color(0.7, 0.35, 0.25), null, Vector3.ZERO, 0.0, "wood")
 	blocker(Vector3(-32.0, 0.3, -12.4), Vector3(0.9, 0.6, 0.5))
 	for i in 6:
-		part("box", Vector3(-31.25, 1.2 + (i % 2) * 0.45, -6.5 - i * 0.9), Vector3(0.01, 0.35, 0.45), Color(0.95, 0.93, 0.85), null, Vector3.ZERO, 0.0, "plain")
+		var dp := Vector3(-31.24, 1.2 + (i % 2) * 0.45, -6.5 - i * 0.9)
+		if prop("drawing_%d" % (i % 3), dp, -90.0) == null:
+			part("box", dp + Vector3(-0.08, 0, 0), Vector3(0.01, 0.35, 0.45), Color(0.95, 0.93, 0.85), null, Vector3.ZERO, 0.0, "plain")
 	omni(Vector3(-34.0, 0.4, -12.6), Color(0.6, 0.65, 1.0), 0.35, 5.0, false)   # nightlight
-	part("sphere", Vector3(-34.0, 0.35, -12.95), Vector3.ONE * 0.08, Color(0.6, 0.65, 1.0), null, Vector3.ZERO, 3.0)
+	if prop("nightlight", Vector3(-34.0, 0.35, -13.0), 0.0) == null:
+		part("sphere", Vector3(-34.0, 0.35, -12.95), Vector3.ONE * 0.08, Color(0.6, 0.65, 1.0), null, Vector3.ZERO, 3.0)
+	furnish("rocking_horse", Vector3(-33.6, 0, -6.6), 35.0, Vector3(0.4, 0.8, 1.0), Vector3(0, 0.4, 0))
+	prop("toy_blocks", Vector3(-33.2, 0, -10.2), 20.0)
+	prop("rug_round", Vector3(-34.0, 0, -9.0), 0.0, 0.8)
+	prop("ceiling_bulb", Vector3(-34.0, 2.6, -9.0), 0.0)
 	# a cassette player on the toy box (optional)
-	part("box", Vector3(-32.0, 0.66, -12.4), Vector3(0.28, 0.1, 0.16), Color(0.15, 0.15, 0.15), null, Vector3.ZERO, 0.0, "metal")
+	if prop("cassette_player", Vector3(-32.0, 0.58, -12.4), 0.0) == null:
+		part("box", Vector3(-32.0, 0.66, -12.4), Vector3(0.28, 0.1, 0.16), Color(0.15, 0.15, 0.15), null, Vector3.ZERO, 0.0, "metal")
 	interactable(Vector3(-32.0, 0.7, -12.3), Vector3(0.5, 0.4, 0.4), func(): return "Press play" if not Game.has_flag("ten_tape") else "",
 		func(): _tape(), func(): return not Game.has_flag("ten_tape"))
 	trigger(Vector3(-32.0, 1.2, -9.0), Vector3(1.0, 2.4, 2), func(): _obs_stage = 1)
@@ -290,14 +322,24 @@ func _apartment() -> void:
 		"e": [[1.5, 0.9, 2.1]],
 		"w": [[1.5, 0.9, 1.25]],
 	})
-	part("box", Vector3(-38.6, 0.3, -10.05), Vector3(2.0, 0.6, 0.7), Color(0.9, 0.9, 0.88), null, Vector3.ZERO, 0.0, "tiles_pool")
+	if prop("bathtub", Vector3(-38.6, 0, -10.05), 90.0, 1.12) != null:
+		part("box", Vector3(-38.6, 0.46, -10.05), Vector3(1.3, 0.02, 0.42), Color(0.25, 0.3, 0.28), null, Vector3.ZERO, 0.0, "water")
+		prop("shower_head", Vector3(-39.98, 1.9, -10.1), 90.0)
+	else:
+		part("box", Vector3(-38.6, 0.3, -10.05), Vector3(2.0, 0.6, 0.7), Color(0.9, 0.9, 0.88), null, Vector3.ZERO, 0.0, "tiles_pool")
+		part("box", Vector3(-38.6, 0.5, -10.05), Vector3(1.8, 0.02, 0.5), Color(0.25, 0.3, 0.28), null, Vector3.ZERO, 0.0, "water")
 	blocker(Vector3(-38.6, 0.3, -10.05), Vector3(2.0, 0.6, 0.7))
-	part("box", Vector3(-38.6, 0.5, -10.05), Vector3(1.8, 0.02, 0.5), Color(0.25, 0.3, 0.28), null, Vector3.ZERO, 0.0, "water")
+	furnish("toilet", Vector3(-38.0, 0, -7.78), 180.0, Vector3(0.45, 0.8, 0.6), Vector3(0, 0.4, 0))
+	furnish("sink_basin", Vector3(-39.2, 0, -7.75), 180.0, Vector3(0.55, 0.9, 0.45), Vector3(0, 0.45, 0))
+	prop("bath_mirror", Vector3(-39.2, 1.55, -7.5), 180.0)
+	prop("towel_rail", Vector3(-37.17, 1.1, -8.0), -90.0)
+	prop("laundry_basket", Vector3(-37.5, 0, -10.1), 0.0)
 	_bulb(Vector3(-38.6, 2.25, -9.0), 0.5, 4.0, Color(0.9, 0.95, 1.0))
 	ambient("drip", Vector3(-38.6, 0.5, -10.0), true, -10.0, 6.0)
 	_grille = group(Vector3(-39.96, 0.65, -9.0))
-	for i in 7:
-		part("box", Vector3(0, -0.5 + i * 0.16, 0), Vector3(0.03, 0.04, 0.88), Color(0.6, 0.6, 0.58), _grille, Vector3.ZERO, 0.0, "metal")
+	if prop("vent_grille", Vector3.ZERO, 90.0, 1.0, _grille) == null:
+		for i in 7:
+			part("box", Vector3(0, -0.5 + i * 0.16, 0), Vector3(0.03, 0.04, 0.88), Color(0.6, 0.6, 0.58), _grille, Vector3.ZERO, 0.0, "metal")
 	_grille_block = solid_box(Vector3(-40.0, 0.65, -9.0), Vector3(0.1, 1.2, 0.9), Color(0, 0, 0))
 	_grille_block.get_child(1).visible = false
 	interactable(Vector3(-39.8, 0.65, -9.0), Vector3(0.4, 1.2, 0.9), func(): return "Pull the vent cover off",
@@ -418,7 +460,8 @@ func _stairwell() -> void:
 			_exit_door = d
 		var bl := _bulb(Vector3(O.x - 1.4, y + 3.0, O.z - 0.6), 0.6 if k != 1 else 0.25, 6.0)
 		bl.shadow_enabled = k == 0
-		box(Vector3(O.x - 1.0, y + 1.5, O.z - 6.25), Vector3(1.0, 0.8, 0.02), Color(0.15, 0.15, 0.15), false)   # a dead window
+		if prop("window_frame", Vector3(O.x - 1.0, y + 1.5, O.z - 6.24), 0.0) == null:
+			box(Vector3(O.x - 1.0, y + 1.5, O.z - 6.25), Vector3(1.0, 0.8, 0.02), Color(0.15, 0.15, 0.15), false)   # a dead window
 	# capping slab and pit
 	box(Vector3(O.x, 3 * STOREY + 0.1, O.z - 3.15), Vector3(4.4, 0.2, 6.5), CONCRETE, true, 0.0, "concrete")
 	box(Vector3(O.x, -2 * STOREY - 0.3, O.z - 3.15), Vector3(4.4, 0.2, 6.5), CONCRETE, true, 0.0, "concrete")
@@ -510,7 +553,8 @@ func _corridor() -> void:
 			door(Vector3(x, 0, CORR_Z - 1.02), 0, Color(0.42, 0.3, 0.22), 0.92, 2.05, "wood")
 		_segs.append([x, ceil, wl, wr, light, false])
 	# at the far end, the way out: an exit sign that you can see from the door
-	part("box", Vector3(CORR_X1 - 0.3, 2.2, CORR_Z), Vector3(0.05, 0.22, 0.6), Color(0.2, 1.0, 0.4), null, Vector3.ZERO, 6.0)
+	if prop("exit_sign", Vector3(CORR_X1 - 0.27, 2.45, CORR_Z), -90.0, 1.6) == null:
+		part("box", Vector3(CORR_X1 - 0.3, 2.2, CORR_Z), Vector3(0.05, 0.22, 0.6), Color(0.2, 1.0, 0.4), null, Vector3.ZERO, 6.0)
 	label(Vector3(CORR_X1 - 0.33, 2.2, CORR_Z), -90, "EXIT ↑", 0.12, Color(0.85, 1.0, 0.9), true)
 	omni(Vector3(CORR_X1 - 0.6, 2.0, CORR_Z), Color(0.3, 1.0, 0.5), 0.8, 8.0, false)
 	_dust = CPUParticles3D.new()
@@ -611,10 +655,14 @@ func _shaft() -> void:
 			box(c + Vector3(side * (w * 0.5 + 0.06), y + 1.0, 0), Vector3(0.12, 2.0, w + 0.24), CONCRETE.darkened(0.1 + k * 0.03), true, 0.0, "concrete")
 			box(c + Vector3(0, y + 1.0, side * (w * 0.5 + 0.06)), Vector3(w, 2.0, 0.12), CONCRETE.darkened(0.1 + k * 0.03), true, 0.0, "concrete")
 	# the ladder
-	for side in [-0.22, 0.22]:
-		part("box", c + Vector3(side, SHAFT_H * 0.5, -0.6), Vector3(0.04, SHAFT_H + 0.4, 0.05), Color(0.35, 0.3, 0.25), null, Vector3.ZERO, 0.0, "metal")
-	for i in int(SHAFT_H / 0.3):
-		part("cylinder", c + Vector3(0, 0.3 + i * 0.3, -0.6), Vector3(0.025, 0.44, 0.025), Color(0.4, 0.33, 0.25), null, Vector3(0, 0, 90), 0.0, "metal")
+	if Models.find("props/wall_ladder") != "":
+		for i in int(ceil(SHAFT_H / 1.2)):
+			prop("wall_ladder", c + Vector3(0, i * 1.2, -0.68), 0.0, 0.9)
+	else:
+		for side in [-0.22, 0.22]:
+			part("box", c + Vector3(side, SHAFT_H * 0.5, -0.6), Vector3(0.04, SHAFT_H + 0.4, 0.05), Color(0.35, 0.3, 0.25), null, Vector3.ZERO, 0.0, "metal")
+		for i in int(SHAFT_H / 0.3):
+			part("cylinder", c + Vector3(0, 0.3 + i * 0.3, -0.6), Vector3(0.025, 0.44, 0.025), Color(0.4, 0.33, 0.25), null, Vector3(0, 0, 90), 0.0, "metal")
 	# the top: a little landing, a door, light all round its edges
 	box(c + Vector3(0, SHAFT_H - 0.1, 0.15), Vector3(1.3, 0.2, 1.0), CONCRETE, true, 0.0, "concrete")
 	box(c + Vector3(0, SHAFT_H + 2.6, 0), Vector3(1.6, 0.2, 1.6), CONCRETE, true, 0.0, "concrete")

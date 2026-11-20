@@ -16,6 +16,9 @@ const SETS := {
 	"rooms": [["bedroom", Vector3(0.3, 0.05, 1.8), 0.0, -12.0, "rm_bedroom"], ["bedroom", Vector3(0.6, 0.05, 0.2), 90.0, -16.0, "rm_desk"],
 		["bedroom", Vector3(-0.4, 0.05, 0.2), -90.0, -14.0, "rm_bed"], ["city", Vector3(0, 0.3, 7.0), 0.0, -6.0, "pk_fountain"],
 		["city", Vector3(2.4, 0.3, -4.5), 0.0, -8.0, "pk_cart"], ["city", Vector3(66.0, 0.3, -31.5), -90.0, -2.0, "pk_shelter"]],
+	"apt": [["tenement", Vector3(-1.8, 0.05, -9.0), 80.0, -10.0, "apt_living"], ["tenement", Vector3(-6.5, 0.05, -10.5), -150.0, -8.0, "apt_living2"],
+		["tenement", Vector3(-31.8, 0.05, -9.0), 80.0, -12.0, "apt_kids"], ["tenement", Vector3(-34.5, 0.05, -10.5), -60.0, -8.0, "apt_kids2"],
+		["tenement", Vector3(-37.5, 0.05, -9.0), 90.0, -18.0, "apt_bath"], ["tenement", Vector3(-20.0, 0.05, -9.0), 90.0, 4.0, "apt_yellow"]],
 	"cave": [["seabed", Vector3(2, 0.05, -128.0), 0.0, 4.0, "cave_mouth"], ["seabed", Vector3(2.5, 0.05, -150.0), 0.0, 0.0, "cave_tunnel"],
 		["seabed", Vector3(2, 0.05, -172.0), 0.0, 3.0, "cave_chamber"]],
 }
