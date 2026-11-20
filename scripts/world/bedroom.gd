@@ -8,6 +8,7 @@ extends Zone
 ##   -X wall: desk + computer   +X wall: bed and wardrobe   -Z wall: window   +Z wall: door
 
 var waking := false
+var egg_chance := 0.1        # (the monitor after you die: one time in ten...)
 ## The dream copy of the room (THE CITY's first stage): morning, the street outside in sunshine,
 ## and a clock that can't keep its story straight. The reality check happens here.
 var dreaming := false
@@ -102,7 +103,11 @@ func _furniture() -> void:
 	shape_at("cylinder", Vector3(-2.42, 0.77, -0.8), Vector3(0.18, 0.02, 0.18), PLASTIC)
 	box(Vector3(-2.44, 0.86, -0.8), Vector3(0.04, 0.16, 0.04), PLASTIC, false)
 	box(Vector3(-2.43, 1.13, -0.8), Vector3(0.05, 0.38, 0.64), PLASTIC)
-	if waking:
+	if waking and randf() < egg_chance:
+		# ...one time in ten, the monitor isn't showing nothing.
+		part("box", Vector3(-2.398, 1.13, -0.8), Vector3(0.01, 0.33, 0.58), Color(0.02, 0.02, 0.02), null, Vector3.ZERO, 0.0)
+		_egg_screen()
+	elif waking:
 		# the monitor is on, showing nothing
 		part("box", Vector3(-2.398, 1.13, -0.8), Vector3(0.01, 0.33, 0.58), Color(0.25, 0.3, 0.4), null, Vector3.ZERO, 1.0)
 		label(Vector3(-2.388, 1.13, -0.8), 90, "NO SIGNAL", 0.03, Color(0.85, 0.9, 1.0))
@@ -244,6 +249,7 @@ func _dream_interactables() -> void:
 
 
 func _process(delta: float) -> void:
+	_egg_frame(delta)
 	if not dreaming or _clock_label == null:
 		return
 	# the clock only changes while nobody is reading it
@@ -258,3 +264,39 @@ func _process(delta: float) -> void:
 	elif _clock_read == 2 and Game.has_flag("city_realitycheck"):
 		if not Observation.is_observed(_clock_label.global_position, 0.15) and randf() < delta * 0.5:
 			_clock_label.text = "%d:%02d" % [randi_range(1, 99), randi_range(0, 99)]
+
+
+# ---- the easter egg: a 40-frame clip, 8 x 5 frames to a sheet, 20 frames a second
+
+const EGG_FRAMES := 40
+const EGG_COLS := 8
+const EGG_ROWS := 5
+var _egg_mat: StandardMaterial3D
+var _egg_t := 0.0
+
+
+func _egg_screen() -> void:
+	var tex: Texture2D = load("res://assets/textures/no_signal_egg.jpg")
+	if tex == null:
+		return
+	_egg_mat = StandardMaterial3D.new()
+	_egg_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_egg_mat.albedo_texture = tex
+	_egg_mat.uv1_scale = Vector3(1.0 / EGG_COLS, 1.0 / EGG_ROWS, 1.0)
+	var q := MeshInstance3D.new()
+	var qm := QuadMesh.new()
+	qm.size = Vector2(0.33, 0.33)
+	q.mesh = qm
+	q.material_override = _egg_mat
+	q.position = Vector3(-2.391, 1.13, -0.8)
+	q.rotation_degrees.y = 90.0           # facing into the room
+	add_child(q)
+	set_process(true)
+
+
+func _egg_frame(delta: float) -> void:
+	if _egg_mat == null:
+		return
+	_egg_t += delta
+	var f := int(_egg_t * 20.0) % EGG_FRAMES
+	_egg_mat.uv1_offset = Vector3(float(f % EGG_COLS) / EGG_COLS, float(f / EGG_COLS) / EGG_ROWS, 0.0)
