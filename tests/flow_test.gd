@@ -430,11 +430,23 @@ func _run() -> void:
 	await wait(2.5)
 	await _abyss()
 	await wait(12.5)
+	var rests = load("res://tests/realms_test.gd").new()
+	add_child(rests)
+	check(Game.zone_type == "rest1", "a resting place after THE DEEP")
+	await rests.through_rest()
+	for f in rests.failures:
+		failures.append(f)
+	rests.failures.clear()
 	check(Game.zone_type == "compression" and Game.mode == "game", "arrived in COMPRESSION")
 	check(Journal.is_unlocked("deep"), "journal entry THE DEEP unlocked")
 	await _compression()
 	await _above()
-	# through the door in the sky: BLACKOUT, STILL LIFE, OPEN SPACE, PATTERN, THE QUIET (tests/realms_test.gd)
+	# through the door in the sky: a resting place, then BLACKOUT, STILL LIFE, OPEN SPACE, PATTERN, THE QUIET
+	await rests.settle()
+	check(Game.zone_type == "rest2", "a resting place after ABOVE")
+	await rests.through_rest()
+	for f in rests.failures:
+		failures.append(f)
 	for k in 30:
 		await wait(0.5)
 		if Game.zone_type == "blackout" and Game.mode == "game" and not Game.in_sequence:

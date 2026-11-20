@@ -172,6 +172,23 @@ func _build() -> void:
 	_meter_box.add_child(_meter_bar)
 	root.add_child(_meter_box)
 
+	# what you're carrying: tap / click to use (or press its number)
+	_item_bar = HBoxContainer.new()
+	_item_bar.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_item_bar.offset_left = 240
+	_item_bar.offset_top = -86
+	_item_bar.offset_bottom = -40
+	_item_bar.add_theme_constant_override("separation", 10)
+	root.add_child(_item_bar)
+	for id in ["pills", "music_box"]:
+		var b := UIStyle.flat_button("", 15)
+		b.focus_mode = Control.FOCUS_NONE
+		b.pressed.connect(func(): Game.items.use(id))
+		_item_buttons[id] = b
+		_item_bar.add_child(b)
+	_calm_label = UIStyle.label("", 13, Color(0.6, 0.85, 1.0))
+	_item_bar.add_child(_calm_label)
+
 	_dialogue = PanelContainer.new()
 	_dialogue.add_theme_stylebox_override("panel", UIStyle.panel_style(UIStyle.PANEL, 26))
 	_dialogue.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
@@ -243,6 +260,7 @@ func _rebuild_text_sizes() -> void:
 func _process(delta: float) -> void:
 	var player = Game.player
 	var gameplay := _gameplay_visible and not menu_open() and not _overlay_open
+	_update_items(gameplay and Game.mode == "game")
 	var prompt: String = player.prompt() if player and not player.controls_locked else ""
 	_crosshair.visible = gameplay and not _dialogue.visible
 	_crosshair.color = Color(1, 1, 1, 0.9 if prompt != "" else 0.35)
@@ -290,6 +308,29 @@ func set_post(vignette: float, grain: float, desat: float, fringe: float) -> voi
 	_post_mat.set_shader_parameter("grain", grain)
 	_post_mat.set_shader_parameter("desat", desat)
 	_post_mat.set_shader_parameter("fringe", fringe)
+
+
+var _item_bar: HBoxContainer
+var _item_buttons := {}
+var _calm_label: Label
+
+
+func _update_items(show: bool) -> void:
+	if Game.items == null:
+		return
+	var any := false
+	for id in _item_buttons:
+		var n := Game.items.count(id)
+		var b: Button = _item_buttons[id]
+		b.visible = show and n > 0
+		any = any or b.visible
+		var key := "" if TouchControls.wanted() else "  [%s]" % Items.KEYS[id]
+		b.text = "%s  x%d%s" % [Loc.t(Items.NAMES[id]), n, key]
+		b.disabled = Game.items.busy
+	var calm: float = Game.player.dread.calm_left() if Game.player else 0.0
+	_calm_label.visible = show and calm > 0.0
+	_calm_label.text = Loc.t("CALM") + " %d" % ceili(calm)
+	_item_bar.visible = any or _calm_label.visible
 
 
 func set_gameplay_visible(v: bool) -> void:

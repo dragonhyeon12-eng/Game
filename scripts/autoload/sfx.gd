@@ -123,6 +123,7 @@ func _build_music_stepwise() -> void:
 			"maze": data = _track_maze()
 			"chase": data = _track_chase()
 			"muzak": data = _track_muzak()
+			"home": data = _track_home()
 			_: data = _track_deep()
 		_music_ready(track, _to_wav(data, true))
 
@@ -185,6 +186,36 @@ func _track_city() -> PackedFloat32Array:
 	# a soft root bass on each chord
 	for c in 4:
 		_bell(buf, c * 8.0, chords[c][0] - 12, 0.12, 6.0)
+	return buf
+
+
+## The music box you carry: a little lullaby on a comb, high and slightly out of true, slowing at the end
+## as the spring runs down.
+func _musicbox() -> PackedFloat32Array:
+	var buf := PackedFloat32Array()
+	buf.resize(int(8.0 * RATE))
+	var notes := [[0.0, 84], [0.4, 88], [0.8, 91], [1.2, 88], [1.6, 86], [2.2, 84], [2.6, 83], [3.0, 84], [3.4, 88],
+		[3.8, 86], [4.3, 84], [4.9, 79], [5.6, 81], [6.4, 84]]
+	for n in notes:
+		_bell(buf, n[0], n[1] + 0.07, 0.16, 1.6)
+		_bell(buf, n[0] + 0.003, n[1] + 12.0, 0.03, 0.6)       # the comb's bright overtone
+	for i in buf.size():     # a soft mechanical tick under it
+		var t := float(i) / RATE
+		if fmod(t, 0.2) < 0.002 and t < 6.8:
+			buf[i] += 0.04 * (randf() - 0.5)
+	return buf
+
+
+## The resting places: warm and slow, a few bells over a soft pad. Home.
+func _track_home() -> PackedFloat32Array:
+	var length := 32.0
+	var buf := PackedFloat32Array()
+	buf.resize(int(length * RATE))
+	_pad(buf, [[60, 64, 67, 71], [57, 60, 64, 67], [53, 57, 60, 64], [55, 59, 62, 67]], 8.0, 0.010)
+	var melody := [[0, 72], [2, 76], [4, 74], [6.5, 71], [8, 69], [10, 72], [12, 71], [14.5, 67], [16, 65], [18, 69],
+		[20, 72], [22.5, 69], [24, 67], [26, 71], [28, 74], [30, 72]]
+	for m in melody:
+		_bell(buf, m[0], m[1], 0.05, 4.0)
 	return buf
 
 
@@ -388,6 +419,7 @@ func _build_all() -> void:
 	streams["glitch"] = _to_wav(_glitch(), false)
 	streams["switch"] = _to_wav(_switch(), false)
 	streams["ding"] = _to_wav(_ding(), false)
+	streams["musicbox"] = _to_wav(_musicbox(), false)
 	streams["splash_big"] = _to_wav(_splash_big(), false)
 	streams["underwater"] = _to_wav(_underwater(6.0), true)
 	streams["buzz"] = _to_wav(_buzz(2.0), true)

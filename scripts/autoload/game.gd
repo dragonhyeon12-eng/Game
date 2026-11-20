@@ -39,12 +39,18 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
 
+var items: Items
+
+
 func boot(main_node: Node3D) -> void:
 	main = main_node
 	player = Player.new()
 	player.name = "Player"
 	main.add_child(player)
 	player.dread.overwhelmed.connect(_on_overwhelmed)
+	items = Items.new()
+	items.name = "Items"
+	main.add_child(items)
 	hud = HUD.new()
 	main.add_child(hud)
 	main.add_child(TouchControls.new())
@@ -144,6 +150,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif mode == "game" and event.is_action_pressed("notebook"):
 		open_notebook()
 		get_viewport().set_input_as_handled()
+	elif mode == "game" and (event.is_action_pressed("choice_1") or event.is_action_pressed("choice_2")):
+		items.use("pills" if event.is_action_pressed("choice_1") else "music_box")     # 1: pills, 2: the music box
+		get_viewport().set_input_as_handled()
 	elif mode == "dialogue":
 		for i in 5:
 			if event.is_action_pressed("choice_%d" % (i + 1)):
@@ -174,7 +183,13 @@ func _cancel_sequences() -> void:
 # ------------------------------------------------------------------ zones
 
 const ZONES := ["bedroom", "bedroom_dream", "city", "maze", "deep", "seabed", "abyss", "compression", "tenement", "above",
-	"blackout", "stilllife", "openspace", "pattern", "quiet"]
+	"blackout", "stilllife", "openspace", "pattern", "quiet", "rest1", "rest2", "rest3"]
+## The resting places, and where each one's doorway leads: [zone, title card, subtitle].
+const RESTS := {
+	"rest1": ["compression", "COMPRESSION", ""],
+	"rest2": ["blackout", "BLACKOUT", "Larkspur Lane. After midnight. The power's out."],
+	"rest3": ["pattern", "PATTERN", "Mind the gaps."],
+}
 
 
 func enter_zone(type: String, from_save := false, waking := false) -> void:
@@ -222,6 +237,10 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 			zone = PatternZone.new()
 		"quiet":
 			zone = QuietZone.new()
+		"rest1", "rest2", "rest3":
+			var rz := RestZone.new()
+			rz.index = int(type.right(1))
+			zone = rz
 		"shifting":
 			zone = ShiftZone.new()       # (prototype: not part of the story, never saved)
 		_:
@@ -275,6 +294,9 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 		"quiet":
 			Sfx.play_music("title", 6.0)
 			Sfx.music_gain = 0.35
+		"rest1", "rest2", "rest3":
+			Sfx.play_music("home", 3.0)
+			Sfx.music_gain = 0.8
 		_: Sfx.stop_music(1.5)   # the real bedroom, the dark street, the open sky: quiet   # the real bedroom stays quiet
 	print("Entered zone: ", type, " (waking)" if waking else "")
 
@@ -359,9 +381,9 @@ func _restore_checkpoint(fear_override := -1.0, stability_override := -1.0) -> b
 
 ## The title screen: behind the menu, a slow tour of where each realm begins.
 const TITLE_TOUR := [["bedroom", "3:12 AM"], ["city", "THE CITY"], ["maze", "THE BACKROOMS"], ["deep", "THE DEEP"],
-	["seabed", "THE DEEP  -  THE SEABED"], ["abyss", "THE DEEP  -  THE ABYSS"], ["compression", "COMPRESSION"],
-	["tenement", "COMPRESSION  -  THE TENEMENT"], ["above", "ABOVE"], ["blackout", "BLACKOUT"], ["stilllife", "STILL LIFE"],
-	["openspace", "OPEN SPACE"], ["pattern", "PATTERN"], ["quiet", "THE QUIET"]]
+	["seabed", "THE DEEP  -  THE SEABED"], ["abyss", "THE DEEP  -  THE ABYSS"], ["rest1", "SOMEWHERE QUIET"], ["compression", "COMPRESSION"],
+	["tenement", "COMPRESSION  -  THE TENEMENT"], ["above", "ABOVE"], ["rest2", "SOMEWHERE QUIET  -  II"], ["blackout", "BLACKOUT"], ["stilllife", "STILL LIFE"],
+	["openspace", "OPEN SPACE"], ["rest3", "SOMEWHERE QUIET  -  III"], ["pattern", "PATTERN"], ["quiet", "THE QUIET"]]
 const TITLE_SHOT_SECONDS := 7.0
 var title_preview := false
 var _title_token := 0
@@ -692,7 +714,13 @@ func enter_tenement() -> void:
 
 
 func on_deep_exit() -> void:
-	_realm_transition("deep_escaped", "compression", "COMPRESSION", "")
+	_realm_transition("deep_escaped", "rest1", "SOMEWHERE QUIET", "A room above the clouds. Rest a while.")
+
+
+## Through a resting place's glowing doorway, on to the realm it leads to.
+func on_rest_exit(rest: String) -> void:
+	var to: Array = RESTS[rest]
+	_realm_transition(rest + "_done", to[0], to[1], to[2])
 
 
 func on_compression_exit() -> void:
@@ -730,7 +758,7 @@ func _realm_transition(flag: String, next: String, title: String, subtitle: Stri
 
 
 func on_above_exit() -> void:
-	_realm_transition("above_escaped", "blackout", "BLACKOUT", "Larkspur Lane. After midnight. The power's out.")
+	_realm_transition("above_escaped", "rest2", "SOMEWHERE QUIET", "The same room. Or one just like it.")
 
 
 func on_blackout_exit() -> void:
@@ -742,7 +770,7 @@ func on_stilllife_exit() -> void:
 
 
 func on_openspace_exit() -> void:
-	_realm_transition("os_escaped", "pattern", "PATTERN", "Mind the gaps.")
+	_realm_transition("os_escaped", "rest3", "SOMEWHERE QUIET", "Home, for a little while.")
 
 
 func on_pattern_exit() -> void:

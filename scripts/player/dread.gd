@@ -36,6 +36,7 @@ var stage := Stage.CALM
 
 var nightmare := false
 var gain := 1.0
+var _calm_until := -100.0
 var _last_trickle := -100.0
 ## Fear added so far, by reason (debugging the balance).
 var trickles := {}
@@ -74,7 +75,18 @@ func stage_name() -> String:
 	return STAGE_NAMES[stage]
 
 
+## A pill: for `seconds`, nothing adds fear (it can still go down).
+func calm_for(seconds: float) -> void:
+	_calm_until = _t + seconds
+
+
+func calm_left() -> float:
+	return maxf(0.0, _calm_until - _t)
+
+
 func add_fear(amount: float, reason := "") -> void:
+	if amount > 0.0 and _t < _calm_until:
+		return
 	if amount > 0.0:
 		amount *= gain
 		# a jolt (a scare, a sound) holds off the calm-down; a steady trickle (per-frame sources like
@@ -90,6 +102,8 @@ func add_fear(amount: float, reason := "") -> void:
 
 ## Raise the DREAD meter itself by `amount` points (fear up, stability down; not scaled by the zone).
 func add_dread(amount: float) -> void:
+	if amount > 0.0 and _t < _calm_until:
+		return
 	fear = clampf(fear + amount, 0.0, 100.0)
 	stability = clampf(stability - amount, 0.0, 100.0)
 	_last_fear = _t

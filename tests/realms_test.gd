@@ -51,10 +51,29 @@ func run_from(realm: String, just_one := false) -> void:
 		if just_one:
 			return
 		# the transition to the next realm (a title card) takes a while
-		for k in 30:
-			await wait(0.5)
-			if Game.mode == "game" and not Game.in_sequence:
-				break
+		await settle()
+		await through_rest()
+
+
+func settle() -> void:
+	for k in 30:
+		await wait(0.5)
+		if Game.mode == "game" and not Game.in_sequence:
+			break
+
+
+## A resting place on the way: take what's there, and on through the glowing doorway.
+func through_rest() -> void:
+	if not Game.zone_type.begins_with("rest"):
+		return
+	var r := Game.zone_type
+	check(Game.player.dread.value() < 20.0, "%s: a resting place, and you're calm" % r)
+	var pills := 0
+	while use("Take a pill"):
+		pills += 1
+	check(pills >= 3 and use("Take the music box"), "%s: %d pills and the music box" % [r, pills])
+	check(use("Go on"), "%s: the glowing doorway" % r)
+	await settle()
 
 
 func check(cond: bool, what: String) -> void:

@@ -26,6 +26,7 @@ import player     # noqa: E402
 import foliage    # noqa: E402
 import kit        # noqa: E402
 import hands      # noqa: E402
+import home       # noqa: E402
 
 CREATURES = {
     "leviathan": (leviathan.build, "models/creatures/leviathan.glb"),
@@ -36,6 +37,7 @@ CREATURES = {
     "foliage": (foliage.build, "models/props"),
     "kit": (kit.build, "models/props"),
     "hands": (hands.build_all, "models"),
+    "home": (home.build, "models/props"),
 }
 
 
@@ -45,6 +47,7 @@ PREVIEWS = {   # label, camera, target, lens (Blender coords: +Y forward, +Z up)
     "observer": [("front", (0, -6, 1.2), (0, 0, 1.1), 50), ("side", (6, 0, 1.2), (0, 0, 1.1), 50)],
     "draped": [("front", (0, -5, 1.1), (0, 0, 0.95), 50), ("side34", (3.5, -3.5, 1.3), (0, 0, 0.95), 50)],
     "foliage": [("tree", (14, -14, 5), (0, 0, 4), 35)],
+    "home": [("room", (3.2, -3.2, 1.6), (0, 0, 0.5), 30)],
     "stalker": [("front", (0, 6, 1.3), (0, 0, 1.2), 45), ("side34", (4, 4, 1.5), (0, 0, 1.2), 45)],
     "player": [("front", (0, 5, 1.0), (0, 0, 0.9), 45), ("side34", (3.2, 3.2, 1.3), (0, 0, 0.9), 45),
                ("back", (0, -5, 1.0), (0, 0, 0.9), 45)],
