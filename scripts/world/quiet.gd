@@ -344,8 +344,12 @@ func _nurses() -> void:
 	for k in 6:
 		part("cylinder", Vector3(6.32, 1.75 - (k / 3) * 0.3, -25.3 + (k % 3) * 0.3), Vector3(0.015, 0.06, 0.015), Color(0.7, 0.7, 0.7), null, Vector3(0, 0, 90), 0.0, "metal")
 	_key = group(Vector3(6.3, 1.68, -25.0))
-	part("box", Vector3.ZERO, Vector3(0.02, 0.08, 0.03), Color(0.75, 0.68, 0.4), _key, Vector3.ZERO, 0.0, "metal")
-	part("box", Vector3(0, -0.07, 0), Vector3(0.02, 0.05, 0.05), Color(0.9, 0.9, 0.85), _key)
+	var hung := prop("key", Vector3.ZERO, 90.0, 1.0, _key)
+	if hung:
+		hung.rotation_degrees.x = 90.0
+	else:
+		part("box", Vector3.ZERO, Vector3(0.02, 0.08, 0.03), Color(0.75, 0.68, 0.4), _key, Vector3.ZERO, 0.0, "metal")
+		part("box", Vector3(0, -0.07, 0), Vector3(0.02, 0.05, 0.05), Color(0.9, 0.9, 0.85), _key)
 	interactable(Vector3(6.1, 1.6, -25.0), Vector3(0.6, 0.6, 1.0), func(): return "Take the key to Ward 6",
 		func():
 			_key.visible = false
@@ -483,8 +487,9 @@ func _garden() -> void:
 	_halvorsen.dialogue_id = "halvorsen_quiet"
 	for k in 5:
 		var pg := group(Vector3(13.0 + k * 0.5, 0, -43.6 - (k % 2) * 0.4), randf() * 360.0)
-		part("sphere", Vector3(0, 0.12, 0), Vector3(0.16, 0.14, 0.24), Color(0.5, 0.52, 0.56), pg)
-		part("sphere", Vector3(0, 0.2, 0.1), Vector3.ONE * 0.08, Color(0.4, 0.42, 0.46), pg)
+		if prop("pigeon", Vector3.ZERO, 0.0, 1.0, pg) == null:
+			part("sphere", Vector3(0, 0.12, 0), Vector3(0.16, 0.14, 0.24), Color(0.5, 0.52, 0.56), pg)
+			part("sphere", Vector3(0, 0.2, 0.1), Vector3.ONE * 0.08, Color(0.4, 0.42, 0.46), pg)
 	# plaques on the north wall
 	var names := ["MINA", "ARNE HALVORSEN", "THEO", "THE MAN WHO FELL", "THE TALL ONE IN THE YELLOW ROOMS", ""]
 	for k in names.size():

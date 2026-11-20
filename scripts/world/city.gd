@@ -425,8 +425,9 @@ func _characters() -> void:
 	for i in 7:
 		var p := Vector3(-9 + randf_range(-1.7, 1.7), GRASS_Y + 0.06, randf_range(-0.9, 0.6))
 		var bird := group(p, randf_range(0, 360))
-		part("sphere", Vector3(0, 0.06, 0), Vector3(0.09, 0.09, 0.14), Color(0.42, 0.43, 0.47), bird)
-		part("sphere", Vector3(0, 0.12, 0.07), Vector3.ONE * 0.055, Color(0.25, 0.3, 0.32), bird)
+		if prop("pigeon", Vector3(0, -0.06, 0), 0.0, 0.8, bird) == null:
+			part("sphere", Vector3(0, 0.06, 0), Vector3(0.09, 0.09, 0.14), Color(0.42, 0.43, 0.47), bird)
+			part("sphere", Vector3(0, 0.12, 0.07), Vector3.ONE * 0.055, Color(0.25, 0.3, 0.32), bird)
 		_pigeons.append(bird)
 		_pigeon_home.append(p)
 

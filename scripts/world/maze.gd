@@ -741,7 +741,9 @@ func _wing(door_center: Vector3, out: Vector3, along: Vector3) -> void:
 		var letter: String = ["A", "B", "C", "D"][k]
 		var zc := -0.75 + k * 0.5
 		var g := group(_wing_xf * Vector3(21.78, 1.5, zc))
-		part("box", Vector3(0, 0.12, 0), Vector3(0.05, 0.25, 0.05), Color(0.1, 0.1, 0.1), g)
+		var lever := prop("breaker", Vector3(0, 0.0, 0), rad_to_deg(atan2(-out.x, -out.z)), 0.8, g)
+		if lever == null:
+			part("box", Vector3(0, 0.12, 0), Vector3(0.05, 0.25, 0.05), Color(0.1, 0.1, 0.1), g)
 		g.rotation_degrees.z = 0.0
 		label(_wing_xf * Vector3(21.78, 1.15, zc), rad_to_deg(atan2(-out.x, -out.z)), letter, 0.08, Color(0.95, 0.95, 0.9), false)
 		var b := {"group": g, "letter": letter, "up": false}

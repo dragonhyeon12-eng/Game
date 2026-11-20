@@ -12,7 +12,7 @@ var egg_chance := 0.1        # (the monitor after you die: one time in ten...)
 ## The dream copy of the room (THE CITY's first stage): morning, the street outside in sunshine,
 ## and a clock that can't keep its story straight. The reality check happens here.
 var dreaming := false
-var _desk_notebook: MeshInstance3D
+var _desk_notebook: Node3D
 var _clock_label: Label3D
 var _clock_read := 0          # 0 not read, 1 read once (3:12), 2 changed while unwatched
 var _clock_unseen := 0.0
@@ -99,10 +99,15 @@ func _furniture() -> void:
 	box(Vector3(-2.25, 0.74, -0.8), Vector3(0.7, 0.04, 1.5), WOOD, true, 0.0, "wood")
 	for p in [Vector2(-2.55, -1.5), Vector2(-1.95, -1.5), Vector2(-2.55, -0.1), Vector2(-1.95, -0.1)]:
 		box(Vector3(p.x, 0.36, p.y), Vector3(0.04, 0.72, 0.04), DARK_WOOD, true, 0.0, "wood")
-	# monitor
-	shape_at("cylinder", Vector3(-2.42, 0.77, -0.8), Vector3(0.18, 0.02, 0.18), PLASTIC)
-	box(Vector3(-2.44, 0.86, -0.8), Vector3(0.04, 0.16, 0.04), PLASTIC, false)
-	box(Vector3(-2.43, 1.13, -0.8), Vector3(0.05, 0.38, 0.64), PLASTIC)
+	# monitor, keyboard and mouse
+	var pc := prop("pc_set", Vector3(-2.43, 0.76, -0.8), 90.0)
+	if pc == null:
+		shape_at("cylinder", Vector3(-2.42, 0.77, -0.8), Vector3(0.18, 0.02, 0.18), PLASTIC)
+		box(Vector3(-2.44, 0.86, -0.8), Vector3(0.04, 0.16, 0.04), PLASTIC, false)
+	if pc == null:
+		box(Vector3(-2.43, 1.13, -0.8), Vector3(0.05, 0.38, 0.64), PLASTIC)
+	else:
+		blocker(Vector3(-2.43, 1.13, -0.8), Vector3(0.05, 0.38, 0.64))
 	if waking and randf() < egg_chance:
 		# ...one time in ten, the monitor isn't showing nothing.
 		part("box", Vector3(-2.398, 1.13, -0.8), Vector3(0.01, 0.33, 0.58), Color(0.02, 0.02, 0.02), null, Vector3.ZERO, 0.0)
@@ -116,11 +121,14 @@ func _furniture() -> void:
 		label(Vector3(-2.388, 1.17, -0.8), 90, "HOW TO LUCID DREAM TONIGHT!\n(100% WORKING)", 0.03, Color(1, 1, 1))
 		label(Vector3(-2.388, 1.03, -0.8), 90, "LucidLarry  -  2.1M views", 0.016, Color(0.8, 0.85, 1.0))
 	# keyboard, mouse, mug
-	box(Vector3(-2.13, 0.77, -0.8), Vector3(0.16, 0.02, 0.44), PLASTIC, false)
-	box(Vector3(-2.12, 0.77, -0.4), Vector3(0.1, 0.025, 0.06), PLASTIC, false)
+	if pc == null:
+		box(Vector3(-2.13, 0.77, -0.8), Vector3(0.16, 0.02, 0.44), PLASTIC, false)
+		box(Vector3(-2.12, 0.77, -0.4), Vector3(0.1, 0.025, 0.06), PLASTIC, false)
 	shape_at("cylinder", Vector3(-2.3, 0.81, -1.38), Vector3(0.08, 0.1, 0.08), Color(0.7, 0.25, 0.2))
 	# the notebook (dark red cover)
-	_desk_notebook = part("box", Vector3(-2.13, 0.768, -0.2), Vector3(0.17, 0.016, 0.23), Color(0.42, 0.06, 0.06))
+	_desk_notebook = prop("notebook", Vector3(-2.13, 0.76, -0.2), 90.0)
+	if _desk_notebook == null:
+		_desk_notebook = part("box", Vector3(-2.13, 0.768, -0.2), Vector3(0.17, 0.016, 0.23), Color(0.42, 0.06, 0.06))
 	# desk lamp
 	shape_at("cylinder", Vector3(-2.4, 0.77, -1.42), Vector3(0.12, 0.02, 0.12), PLASTIC)
 	box(Vector3(-2.4, 0.98, -1.42), Vector3(0.02, 0.42, 0.02), PLASTIC, false)

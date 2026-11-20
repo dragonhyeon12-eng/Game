@@ -214,10 +214,11 @@ func _plank_and_key() -> void:
 	# bricks weighing down the near end
 	box(Vector3(-6.3, 0.12, -3.0), Vector3(0.4, 0.2, 0.3), Color(0.5, 0.25, 0.2), false, 8.0, "concrete")
 	_key = group(Vector3(PLANK_END, 0.04, -3.0))
-	part("box", Vector3(0, 0.01, 0), Vector3(0.12, 0.012, 0.04), Color(0.85, 0.7, 0.3), _key, Vector3.ZERO, 0.6, "metal")
-	part("cylinder", Vector3(-0.07, 0.01, 0), Vector3(0.06, 0.012, 0.06), Color(0.85, 0.7, 0.3), _key, Vector3.ZERO, 0.6, "metal")
-	var tag := part("box", Vector3(0.02, 0.01, 0.06), Vector3(0.08, 0.01, 0.06), Color(0.9, 0.2, 0.15), _key, Vector3(0, 20, 0), 0.5)
-	tag.name = "Tag"
+	if prop("key", Vector3(0, 0.006, 0), 90.0, 1.2, _key) == null:
+		part("box", Vector3(0, 0.01, 0), Vector3(0.12, 0.012, 0.04), Color(0.85, 0.7, 0.3), _key, Vector3.ZERO, 0.6, "metal")
+		part("cylinder", Vector3(-0.07, 0.01, 0), Vector3(0.06, 0.012, 0.06), Color(0.85, 0.7, 0.3), _key, Vector3.ZERO, 0.6, "metal")
+		var tag := part("box", Vector3(0.02, 0.01, 0.06), Vector3(0.08, 0.01, 0.06), Color(0.9, 0.2, 0.15), _key, Vector3(0, 20, 0), 0.5)
+		tag.name = "Tag"
 	var glow := OmniLight3D.new()
 	glow.light_color = Color(1.0, 0.8, 0.4)
 	glow.light_energy = 0.5

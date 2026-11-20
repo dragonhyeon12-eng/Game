@@ -340,6 +340,8 @@ func solid_box(pos: Vector3, size: Vector3, color: Color, parent: Node3D = null,
 ## child, hinged at the -X edge of the frame (see open_door).
 func door(pos: Vector3, yaw_deg: float, color: Color, width := 0.92, height := 2.05, surface := "wood") -> Node3D:
 	var d := group(pos, yaw_deg)
+	if _door_model(d, color, width, height):
+		return d
 	var frame := color.darkened(0.25)
 	part("box", Vector3(-width * 0.5 - 0.04, height * 0.5, 0), Vector3(0.08, height + 0.04, 0.14), frame, d, Vector3.ZERO, 0.0, surface)
 	part("box", Vector3(width * 0.5 + 0.04, height * 0.5, 0), Vector3(0.08, height + 0.04, 0.14), frame, d, Vector3.ZERO, 0.0, surface)
@@ -363,6 +365,58 @@ func door(pos: Vector3, yaw_deg: float, color: Color, width := 0.92, height := 2
 		part("box", Vector3(c + width * 0.38 - 0.05, 1.0, 0.07 * side), Vector3(0.12, 0.022, 0.022), brass, leaf, Vector3.ZERO, 0.0, "metal")
 		part("box", Vector3(c, 0.12, 0.027 * side), Vector3(width * 0.9, 0.2, 0.006), brass.darkened(0.3), leaf, Vector3.ZERO, 0.0, "metal")
 	return d
+
+
+static var _door_scene: PackedScene
+static var _door_checked := false
+
+
+## The door from tools/creatures/items.py: its frame, and its leaf hung on a "Leaf" pivot at the hinge
+## (so open_door works the same). Painted the door's colour; the frame a shade darker.
+func _door_model(d: Node3D, color: Color, width: float, height: float) -> bool:
+	if not _door_checked:
+		_door_checked = true
+		var path := Models.find("props/door_panel")
+		_door_scene = load(path) as PackedScene if path != "" else null
+	if _door_scene == null:
+		return false
+	var src := _door_scene.instantiate()
+	var frame_mesh: Mesh = null
+	var leaf_mesh: Mesh = null
+	for mi in src.find_children("*", "MeshInstance3D", true, false):
+		if String(mi.name).begins_with("Frame"):
+			frame_mesh = mi.mesh
+		elif String(mi.name).begins_with("Leaf"):
+			leaf_mesh = mi.mesh
+	src.free()
+	if frame_mesh == null or leaf_mesh == null:
+		return false
+	var sc := Vector3(width / 0.92, height / 2.05, 1.0)
+	var paint := StandardMaterial3D.new()
+	paint.albedo_color = color
+	paint.roughness = 0.45
+	var frame_paint := StandardMaterial3D.new()
+	frame_paint.albedo_color = color.darkened(0.25)
+	frame_paint.roughness = 0.5
+	var fm := MeshInstance3D.new()
+	fm.mesh = frame_mesh
+	fm.scale = sc
+	d.add_child(fm)
+	var leaf := Node3D.new()
+	leaf.name = "Leaf"
+	leaf.position = Vector3(-width * 0.5, 0, 0)
+	d.add_child(leaf)
+	var lm := MeshInstance3D.new()
+	lm.mesh = leaf_mesh
+	lm.scale = sc
+	leaf.add_child(lm)
+	for pair in [[fm, frame_paint], [lm, paint]]:
+		var m: MeshInstance3D = pair[0]
+		for k in m.mesh.get_surface_count():
+			var mat := m.mesh.surface_get_material(k)
+			if mat and String(mat.resource_name).contains("paint"):
+				m.set_surface_override_material(k, pair[1])
+	return true
 
 
 ## Swing a door() open on its hinge. Positive degrees swing it away from the side it faces (its -Z).

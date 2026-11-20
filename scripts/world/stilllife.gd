@@ -346,9 +346,10 @@ func _family_table() -> void:
 	label(SEAT + Vector3(-0.55, 0.82, 0), -90, "~ YOU ~", 0.06, Color(0.2, 0.15, 0.1), false)
 	# the keys, at your place
 	_keys = group(t + Vector3(0.3, 0.79, 0.6))
-	part("box", Vector3.ZERO, Vector3(0.06, 0.01, 0.06), Color(0.7, 0.68, 0.6), _keys, Vector3.ZERO, 0.0, "metal")
-	for k in 3:
-		part("box", Vector3(0.04 + k * 0.012, 0.004, 0.02 * k), Vector3(0.07, 0.006, 0.018), Color(0.85, 0.75, 0.4), _keys, Vector3(0, 15 * k, 0), 0.0, "metal")
+	if prop("key", Vector3(0, 0.006, 0), 30.0, 1.0, _keys) == null:
+		part("box", Vector3.ZERO, Vector3(0.06, 0.01, 0.06), Color(0.7, 0.68, 0.6), _keys, Vector3.ZERO, 0.0, "metal")
+	else:
+		prop("key", Vector3(0.03, 0.012, 0.02), 75.0, 1.0, _keys)
 	interactable(SEAT + Vector3(0, 0.7, 0), Vector3(0.9, 1.0, 0.9), func(): return "Sit down" if not Game.has_flag("sl_family") else "",
 		func(): _sit(), func(): return not Game.has_flag("sl_family"))
 	trigger(Vector3(-HALF - 1.5, 1.2, FAMILY.z), Vector3(2, 2.4, 3), func():

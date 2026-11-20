@@ -512,8 +512,12 @@ func _house9() -> void:
 	words.visible = false
 	_red_only.append(words)
 	_key = group(Vector3(14.2, 1.5, -48.85))
-	part("box", Vector3.ZERO, Vector3(0.03, 0.08, 0.02), Color(0.7, 0.6, 0.3), _key, Vector3.ZERO, 0.0, "metal")
-	part("sphere", Vector3(0, 0.06, 0), Vector3(0.05, 0.05, 0.01), Color(0.7, 0.6, 0.3), _key, Vector3.ZERO, 0.0, "metal")
+	var hung := prop("key", Vector3.ZERO, 0.0, 1.0, _key)
+	if hung:
+		hung.rotation_degrees.x = 90.0        # hanging from its ring on the hook
+	else:
+		part("box", Vector3.ZERO, Vector3(0.03, 0.08, 0.02), Color(0.7, 0.6, 0.3), _key, Vector3.ZERO, 0.0, "metal")
+		part("sphere", Vector3(0, 0.06, 0), Vector3(0.05, 0.05, 0.01), Color(0.7, 0.6, 0.3), _key, Vector3.ZERO, 0.0, "metal")
 	_key.visible = false
 	_red_only.append(_key)
 	interactable(Vector3(14.2, 1.5, -48.7), Vector3(0.5, 0.5, 0.4), func(): return "Take the key",

@@ -271,6 +271,9 @@ var _elev_block: StaticBody3D
 
 
 func _fuse_mesh(parent: Node3D) -> void:
+	var f := prop("fuse", Vector3.ZERO, 0.0, 1.0, parent)
+	if f:
+		return
 	part("cylinder", Vector3.ZERO, Vector3(0.05, 0.14, 0.05), Color(0.9, 0.88, 0.8), parent, Vector3.ZERO, 0.0, 0.3)
 	part("cylinder", Vector3(0, 0.08, 0), Vector3(0.055, 0.03, 0.055), Color(0.8, 0.65, 0.3), parent, Vector3.ZERO, 0.0, "metal")
 	part("cylinder", Vector3(0, -0.08, 0), Vector3(0.055, 0.03, 0.055), Color(0.8, 0.65, 0.3), parent, Vector3.ZERO, 0.0, "metal")

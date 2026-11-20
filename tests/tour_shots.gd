@@ -10,6 +10,9 @@ const SETS := {
 		["openspace", Vector3(-30, 0.05, -20.0), 120.0, 2.0, "os_carpark"], ["openspace", Vector3(5, 0.05, -230.0), 0.0, 3.0, "os_station"]],
 	"bench": [["city", Vector3(-9.0, 0.3, -0.6), 0.0, -12.0, "bench_city_front"], ["city", Vector3(-7.2, 0.3, 2.0), 90.0, -10.0, "bench_city_side"],
 		["quiet", Vector3(14.0, 0.05, -39.8), 0.0, -12.0, "bench_quiet_front"], ["quiet", Vector3(15.8, 0.05, -42.5), 90.0, -10.0, "bench_quiet_side"]],
+	"items": [["bedroom", Vector3(-1.2, 0.05, -0.6), 90.0, -22.0, "it_desk"], ["tenement", Vector3(0, 0.05, -6.0), 0.0, -4.0, "it_doors"],
+		["abyss", Vector3(-5.0, 0.05, -23.6), 0.0, 6.0, "it_valves"], ["openspace", Vector3(17.0, 0.05, -270.6), 0.0, 4.0, "it_phone"],
+		["city", Vector3(-9.0, 0.6, -1.2), 0.0, -30.0, "it_pigeons"]],
 	"cave": [["seabed", Vector3(2, 0.05, -128.0), 0.0, 4.0, "cave_mouth"], ["seabed", Vector3(2.5, 0.05, -150.0), 0.0, 0.0, "cave_tunnel"],
 		["seabed", Vector3(2, 0.05, -172.0), 0.0, 3.0, "cave_chamber"]],
 }

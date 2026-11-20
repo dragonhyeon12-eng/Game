@@ -327,8 +327,9 @@ func _station_build() -> void:
 	solid_box(shop + Vector3(-2.8, 0.5, -1.0), Vector3(1.2, 1.0, 3.0), Color(0.5, 0.45, 0.4), st, "wood")
 	# the payphone, on the wall by the back door
 	var phone := shop + Vector3(3.0, 1.4, -2.85)
-	part("box", phone, Vector3(0.35, 0.55, 0.15), Color(0.2, 0.2, 0.22), st, Vector3.ZERO, 0.0, "metal")
-	part("box", phone + Vector3(-0.08, 0.05, 0.1), Vector3(0.08, 0.3, 0.07), Color(0.05, 0.05, 0.05), st)
+	if prop("payphone", phone + Vector3(0, -1.4, 0.05), 0.0, 1.0, st) == null:
+		part("box", phone, Vector3(0.35, 0.55, 0.15), Color(0.2, 0.2, 0.22), st, Vector3.ZERO, 0.0, "metal")
+		part("box", phone + Vector3(-0.08, 0.05, 0.1), Vector3(0.08, 0.3, 0.07), Color(0.05, 0.05, 0.05), st)
 	var it := interactable(Vector3.ZERO, Vector3(0.6, 0.8, 0.6), func(): return "Answer the phone" if _phone_ringing else "",
 		func(): _answer(), func(): return _phone_ringing)
 	it.reparent(st, false)

@@ -169,9 +169,10 @@ func _maze(rock: Color) -> void:
 		var cell: Vector2i = spots[k]
 		var c := origin + Vector3((cell.x + 0.5) * 2.0, 0, (cell.y + 0.5) * 2.0)
 		var wheel := group(c + Vector3(0, 1.2, -0.9))
-		for a in 4:
-			part("box", Vector3.ZERO, Vector3(0.6, 0.04, 0.04), Color(0.55, 0.12, 0.08), wheel, Vector3(0, 0, a * 45.0), 0.0, "metal")
-		part("cylinder", Vector3.ZERO, Vector3(0.62, 0.04, 0.62), Color(0.5, 0.1, 0.07), wheel, Vector3(90, 0, 0), 0.0, "metal")
+		if prop("valve_wheel", Vector3.ZERO, 0.0, 1.0, wheel) == null:
+			for a in 4:
+				part("box", Vector3.ZERO, Vector3(0.6, 0.04, 0.04), Color(0.55, 0.12, 0.08), wheel, Vector3(0, 0, a * 45.0), 0.0, "metal")
+			part("cylinder", Vector3.ZERO, Vector3(0.62, 0.04, 0.62), Color(0.5, 0.1, 0.07), wheel, Vector3(90, 0, 0), 0.0, "metal")
 		omni(c + Vector3(0, 2.0, 0), Color(1.0, 0.45, 0.2), 0.6, 4.0, false)
 		var id := "v%d" % k
 		interactable(c + Vector3(0, 1.2, -0.7), Vector3(0.9, 0.9, 0.5), func(): return "Turn the valve" if not _valves.has(id) else "",
