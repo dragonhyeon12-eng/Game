@@ -194,7 +194,7 @@ func _build() -> void:
 	root.add_child(_dialogue)
 
 	_overlay = _full(Control.new())
-	_overlay.mouse_filter = Control.MOUSE_FILTER_PASS
+	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE     # (its children take their own clicks; it mustn't eat the dialogue's)
 	root.add_child(_overlay)
 
 	_fade = _full(ColorRect.new())
@@ -227,7 +227,7 @@ func _build() -> void:
 	root.add_child(_skip_label)
 
 	_menu_layer = _full(Control.new())
-	_menu_layer.mouse_filter = Control.MOUSE_FILTER_PASS
+	_menu_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(_menu_layer)
 
 
