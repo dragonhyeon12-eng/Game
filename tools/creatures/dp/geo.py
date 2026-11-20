@@ -42,6 +42,15 @@ class MeshBuilder:
         self.face_mat.append(self.mat(mat))
         self.face_smooth.append(smooth)
 
+    def merge(self, other, offset=None):
+        """Append another builder's geometry (moved by `offset`)."""
+        base = len(self.verts)
+        off = offset if offset is not None else Vector((0, 0, 0))
+        for v, w in zip(other.verts, other.weights):
+            self.add_vert(v + off, w)
+        for f, uv, mi, sm in zip(other.faces, other.face_uvs, other.face_mat, other.face_smooth):
+            self.add_face([i + base for i in f], uv, other.materials[mi], sm)
+
     # ---------------------------------------------------------------- lofts
 
     def loft(self, rings, mat, weight_fn, uv_v=None, closed=True, cap_start=False, cap_end=False,

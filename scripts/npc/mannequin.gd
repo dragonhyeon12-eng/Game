@@ -35,6 +35,79 @@ var face: Node3D          # painted features, a wig... (the realistic ones)
 ## realism 0: blank plastic. 1: painted eyes and mouth. 2: and a wig and lips.
 func build(col := Color(0.9, 0.86, 0.8), realism := 0, h := 1.0) -> void:
 	_plastic = Shapes.material(col, 0.28)
+	if _build_model(col, realism, h):
+		return
+	_build_shapes(col, realism, h)
+
+
+static var _model: PackedScene
+static var _model_checked := false
+
+
+## The sculpted mannequin (tools/creatures/mannequin.py): its parts hung on the same pivots the poses turn.
+func _build_model(col: Color, realism: int, h: float) -> bool:
+	if not _model_checked:
+		_model_checked = true
+		var path := Models.find("creatures/mannequin")
+		_model = load(path) as PackedScene if path != "" else null
+	if _model == null:
+		return false
+	var src := _model.instantiate()
+	var parts := {}
+	for mi in src.find_children("*", "MeshInstance3D", true, false):
+		parts[String(mi.name)] = (mi as MeshInstance3D).mesh
+	src.free()
+	if not parts.has("Torso"):
+		return false
+	var gloss := StandardMaterial3D.new()     # glossy fibreglass, tinted per figure
+	gloss.albedo_color = col
+	gloss.roughness = 0.2
+	gloss.metallic_specular = 0.7
+	gloss.clearcoat_enabled = Settings.quality >= 1
+	gloss.clearcoat = 0.6
+	_plastic = gloss
+	var hang := func(parent: Node3D, part: String, own_material := false) -> void:
+		if not parts.has(part):
+			return
+		var m := MeshInstance3D.new()
+		m.mesh = parts[part]
+		if not own_material:
+			for i in m.mesh.get_surface_count():
+				var nm := String(m.mesh.surface_get_material(i).resource_name) if m.mesh.surface_get_material(i) else ""
+				if not nm.contains("seam"):
+					m.set_surface_override_material(i, gloss)
+		parent.add_child(m)
+	scale = Vector3.ONE * h
+	_pelvis = _pivot(self, Vector3(0, 0.95, 0))
+	var chest := _pivot(_pelvis, Vector3(0, 0.05, 0))
+	hang.call(chest, "Torso")
+	_neck = _pivot(chest, Vector3(0, 0.56, 0))
+	hang.call(_neck, "Head")
+	face = Node3D.new()
+	_neck.add_child(face)
+	if realism >= 1:
+		hang.call(face, "Eyes", true)
+	if realism >= 2:
+		hang.call(face, "Lips", true)
+		hang.call(face, "Hair", true)
+	for side in [-1.0, 1.0]:
+		var sh := _pivot(chest, Vector3(0.2 * side, 0.44, 0))
+		hang.call(sh, "UpperArm")
+		var el := _pivot(sh, Vector3(0, -0.3, 0))
+		hang.call(el, "Forearm_L" if side > 0 else "Forearm_R")
+		_sh.append(sh)
+		_el.append(el)
+		var hip := _pivot(_pelvis, Vector3(0.1 * side, -0.05, 0))
+		hang.call(hip, "Thigh")
+		var kn := _pivot(hip, Vector3(0, -0.45, 0))
+		hang.call(kn, "Shin")
+		_hip.append(hip)
+		_kn.append(kn)
+	set_pose(pose)
+	return true
+
+
+func _build_shapes(col: Color, realism: int, h: float) -> void:
 	var joints := Settings.quality >= 1      # LOW graphics: no separate ball joints (a third fewer parts)
 	scale = Vector3.ONE * h
 	_pelvis = _pivot(self, Vector3(0, 0.95, 0))

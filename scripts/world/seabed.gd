@@ -112,20 +112,22 @@ func build() -> void:
 	for k in 6:
 		shape_at("sphere", MOUTH + Vector3(rng.randf_range(-7, 7), rng.randf_range(6.0, 11.0), -0.5), Vector3(rng.randf_range(3, 6), rng.randf_range(2, 4), 3),
 			rock.lightened(0.04), false, Vector3.ZERO, "concrete")
-	# the tunnel and the chamber at its end
-	var tlen := 28.0
-	var tz := cz - 6.0 - tlen * 0.5
-	box(Vector3(MOUTH.x, MOUTH_H + 0.5, tz), Vector3(MOUTH_W + 2.0, 1.0, tlen), rock, true, 0.0, "concrete")
-	box(Vector3(MOUTH.x - MOUTH_W * 0.5 - 0.5, MOUTH_H * 0.5, tz), Vector3(1.0, MOUTH_H, tlen), rock, true, 0.0, "concrete")
-	box(Vector3(MOUTH.x + MOUTH_W * 0.5 + 0.5, MOUTH_H * 0.5, tz), Vector3(1.0, MOUTH_H, tlen), rock, true, 0.0, "concrete")
-	var ch := Vector3(MOUTH.x, 0, cz - 6.0 - tlen - 5.0)
-	box(ch + Vector3(0, 5.5, 0), Vector3(12, 1, 10), rock, true, 0.0, "concrete")
-	box(ch + Vector3(-6, 2.5, 0), Vector3(1, 6, 10), rock, true, 0.0, "concrete")
-	box(ch + Vector3(6, 2.5, 0), Vector3(1, 6, 10), rock, true, 0.0, "concrete")
-	box(ch + Vector3(0, 2.5, -5), Vector3(12, 6, 1), rock, true, 0.0, "concrete")
-	box(ch + Vector3(-3.6, 2.5, 5), Vector3(4.8, 6, 1), rock, true, 0.0, "concrete")
-	box(ch + Vector3(3.6, 2.5, 5), Vector3(4.8, 6, 1), rock, true, 0.0, "concrete")
-	box(ch + Vector3(0, 4.25, 5), Vector3(2.4, 2.5, 1), rock, true, 0.0, "concrete")
+	# the tunnel and the chamber at its end: a natural cave (tools/creatures/cave.py), lit by glowing growths
+	var ch := Vector3(MOUTH.x, 0, cz - 6.0 - 28.0 - 5.0)
+	if not _natural_cave(rng):
+		var tlen := 28.0
+		var tz := cz - 6.0 - tlen * 0.5
+		box(Vector3(MOUTH.x, MOUTH_H + 0.5, tz), Vector3(MOUTH_W + 2.0, 1.0, tlen), rock, true, 0.0, "concrete")
+		box(Vector3(MOUTH.x - MOUTH_W * 0.5 - 0.5, MOUTH_H * 0.5, tz), Vector3(1.0, MOUTH_H, tlen), rock, true, 0.0, "concrete")
+		box(Vector3(MOUTH.x + MOUTH_W * 0.5 + 0.5, MOUTH_H * 0.5, tz), Vector3(1.0, MOUTH_H, tlen), rock, true, 0.0, "concrete")
+		box(ch + Vector3(0, 5.5, 0), Vector3(12, 1, 10), rock, true, 0.0, "concrete")
+		box(ch + Vector3(-6, 2.5, 0), Vector3(1, 6, 10), rock, true, 0.0, "concrete")
+		box(ch + Vector3(6, 2.5, 0), Vector3(1, 6, 10), rock, true, 0.0, "concrete")
+		box(ch + Vector3(0, 2.5, -5), Vector3(12, 6, 1), rock, true, 0.0, "concrete")
+		box(ch + Vector3(-3.6, 2.5, 5), Vector3(4.8, 6, 1), rock, true, 0.0, "concrete")
+		box(ch + Vector3(3.6, 2.5, 5), Vector3(4.8, 6, 1), rock, true, 0.0, "concrete")
+		box(ch + Vector3(0, 4.25, 5), Vector3(2.4, 2.5, 1), rock, true, 0.0, "concrete")
+
 	# the glowing doorway
 	var door := ch + Vector3(0, 0, -4.4)
 	part("box", door + Vector3(-0.65, 1.15, 0), Vector3(0.14, 2.3, 0.2), Color(0.8, 0.95, 1.0), null, Vector3.ZERO, 6.0)
@@ -256,3 +258,45 @@ func _sea_life() -> void:
 			if fish:
 				add_child(fish)
 				fish.orbit(p + Vector3(1.6, 0.9 + k * 0.4, 0), 1.2 + k * 0.5, 0.6 * (1 if k == 0 else -1), 0.2)
+
+
+## The sea cave, from its model: rock you can walk on and can't walk through (the mesh is its own collision),
+## and along the walls clusters of glowing fungus and crystals - the only light in there.
+func _natural_cave(rng: RandomNumberGenerator) -> bool:
+	var cave := prop("cave", Vector3.ZERO)
+	if cave == null:
+		return false
+	var body := StaticBody3D.new()
+	body.collision_layer = 1
+	add_child(body)
+	for mi in cave.find_children("*", "MeshInstance3D", true, false):
+		var cs := CollisionShape3D.new()
+		cs.shape = (mi as MeshInstance3D).mesh.create_trimesh_shape()
+		cs.transform = (mi as MeshInstance3D).global_transform if mi.is_inside_tree() else mi.transform
+		body.add_child(cs)
+	box(Vector3(MOUTH.x, -0.15, CLIFF_Z - 23.0), Vector3(14.0, 0.2, 48.0), Color(0.08, 0.09, 0.09), true, 0.0, "concrete")   # (a floor under it all)
+	var cols := [Color(0.15, 0.95, 0.8), Color(0.3, 0.6, 1.0), Color(0.6, 0.4, 1.0)]
+	for k in 11:
+		var t := (k + 0.5) / 11.0
+		var z := CLIFF_Z - 2.0 - t * 41.0
+		var side := -1.0 if k % 2 == 0 else 1.0
+		var x := 2.0 + math_sin(t) * (1.0 - t) + side * (1.5 if t < 0.7 else 4.0)
+		var at := Vector3(x, 0.05, z)
+		var col: Color = cols[k % 3]
+		for f in rng.randi_range(4, 7):
+			var p := at + Vector3(rng.randf_range(-0.4, 0.4), rng.randf_range(0.0, 1.6), rng.randf_range(-0.6, 0.6))
+			if k % 3 == 2:
+				part("cone", p, Vector3(0.08, rng.randf_range(0.2, 0.45), 0.08), col, null, Vector3(rng.randf_range(-25, 25), 0, rng.randf_range(-25, 25)), 3.0)   # crystals
+			else:
+				part("sphere", p, Vector3(rng.randf_range(0.08, 0.2), 0.05, rng.randf_range(0.08, 0.2)), col, null, Vector3.ZERO, 2.5)   # fungus caps
+		omni(at + Vector3(-side * 0.6, 1.0, 0), col, 0.9, 5.5, false)
+	# glow-worms on the roof of the chamber
+	for k in 40:
+		part("sphere", Vector3(2.0 + rng.randf_range(-4.5, 4.5), rng.randf_range(4.5, 6.0), CLIFF_Z - 38.0 + rng.randf_range(-4.0, 4.0)),
+			Vector3.ONE * 0.035, Color(0.5, 0.9, 1.0), null, Vector3.ZERO, 4.0)
+	omni(Vector3(2.0, 4.0, CLIFF_Z - 38.0), Color(0.45, 0.8, 1.0), 0.7, 9.0, false)
+	return true
+
+
+static func math_sin(t: float) -> float:
+	return sin(t * 5.0) * 1.3

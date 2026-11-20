@@ -310,27 +310,27 @@
 	"stilllife": [
 		{
 			"flag": "sl_directory",
-			"text": "Find a way out of the store"
+			"text": "Find a way out of the arcade"
 		},
 		{
-			"flag": "sl_key",
-			"text": "The escalator's locked. Find the security office",
+			"flag": "sl_note",
+			"text": "The escalator's locked. Find security",
 			"after": "sl_directory"
 		},
 		{
-			"flag": "sl_level2",
-			"text": "Unlock the escalator. Up to Level 2",
+			"flag": "sl_key",
+			"text": "The guard's at dinner. Home & Family",
+			"after": "sl_note"
+		},
+		{
+			"flag": "sl_escalator",
+			"text": "Unlock the escalator grille",
 			"after": "sl_key"
 		},
 		{
-			"flag": "sl_family",
-			"text": "The way up is shut. Look around Level 2",
-			"after": "sl_level2"
-		},
-		{
 			"flag": "sl_level3",
-			"text": "Up to Level 3",
-			"after": "sl_family"
+			"text": "Up to the gallery",
+			"after": "sl_escalator"
 		},
 		{
 			"flag": "sl_escaped",
