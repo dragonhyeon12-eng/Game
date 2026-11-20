@@ -81,7 +81,9 @@ def _gable_roof(mb, w, d, eave_z, pitch, over=0.45):
         if side > 0:
             pts = pts[::-1]
         ids = [mb.add_vert(p, []) for p in pts]
-        mb.add_face(ids, [(0, 0), (d / 2.0, 0), (d / 2.0, (w * 0.5 + over) / 2.0), (0, (w * 0.5 + over) / 2.0)], "roof", False)
+        uv = [(0, 0), (d / 2.0, 0), (d / 2.0, (w * 0.5 + over) / 2.0), (0, (w * 0.5 + over) / 2.0)]
+        mb.add_face(ids, uv, "roof", False)
+        mb.add_face(ids[::-1], uv[::-1], "roof", False)     # (both sides: seen from the street and from under the eaves)
         # fascia boards along the eave
         box(mb, (xe - (t if side < 0 else 0), y0, eave_z - 0.25), (xe + (t if side > 0 else 0), y1, eave_z), "trim", 0.5)
     # the gable ends: triangles of siding
@@ -91,6 +93,7 @@ def _gable_roof(mb, w, d, eave_z, pitch, over=0.45):
             pts = pts[::-1]
         ids = [mb.add_vert(p, []) for p in pts]
         mb.add_face(ids, [(0, 0), (w / 3.0, 0), (w / 6.0, rise / 3.0)], "wall", False)
+        mb.add_face(ids[::-1], [(w / 6.0, rise / 3.0), (w / 3.0, 0), (0, 0)], "wall", False)
     return zr
 
 
@@ -169,7 +172,9 @@ def _house(out_dir, name, kind):
             lathe(mb, [(0.11, 0.5), (0.09, 0.6), (0.085, 2.75), (0.11, 2.85)], 12, "trim", center=Vector((fx + 2.0, y, 0)))
         box(mb, (fx, -2.4, 2.85), (fx + 2.4, 2.4, 3.0), "trim", 0.5)
         pts = [Vector((fx + 2.5, -2.5, 3.0)), Vector((fx + 2.5, 2.5, 3.0)), Vector((fx, 2.5, 3.6)), Vector((fx, -2.5, 3.6))]
-        mb.add_face([mb.add_vert(p, []) for p in pts], [(0, 0), (2.5, 0), (2.5, 1), (0, 1)], "roof", False)
+        pr = [mb.add_vert(p, []) for p in pts]
+        mb.add_face(pr, [(0, 0), (2.5, 0), (2.5, 1), (0, 1)], "roof", False)
+        mb.add_face(pr[::-1], [(0, 1), (2.5, 1), (2.5, 0), (0, 0)], "roof", False)
         for y in (-2.0, 2.0):     # a rail between the outer columns
             box(mb, (fx + 1.95, min(y, y * 0.4), 1.15), (fx + 2.05, max(y, y * 0.4), 1.22), "trim", 0.5)
     else:
