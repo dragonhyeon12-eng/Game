@@ -3,7 +3,8 @@ extends Node3D
 ## where it said, standing on something, the world the way you left it, and still alive 10 s later.
 ##   godot --headless --path . res://tests/checkpoint_test.tscn
 
-const ZONES := {"abyss": AbyssZone, "above": AboveZone, "compression": CompressionZone, "tenement": TenementZone, "blackout": BlackoutZone}
+var ZONES := {"abyss": AbyssZone.CHECKPOINTS, "above": AboveZone.CHECKPOINTS, "compression": CompressionZone.CHECKPOINTS,
+	"tenement": TenementZone.CHECKPOINTS, "blackout": BlackoutZone.CHECKPOINTS}
 var failures := 0
 
 
@@ -21,7 +22,7 @@ func _ready() -> void:
 func _run() -> void:
 	await get_tree().create_timer(0.5).timeout
 	for z in ZONES:
-		var table: Dictionary = ZONES[z].CHECKPOINTS
+		var table: Dictionary = ZONES[z]
 		for id in table:
 			var cp: Array = table[id]
 			print("== %s: %s" % [z, id])
@@ -40,7 +41,11 @@ func _run() -> void:
 			Game.entity_death("fall")
 			await get_tree().create_timer(0.5).timeout
 			Game.skip_death()
-			await get_tree().create_timer(1.5).timeout
+			var w := 0.0
+			while (Game.mode != "game" or Game.in_sequence) and w < 25.0:
+				await get_tree().create_timer(0.25).timeout
+				w += 0.25
+			await get_tree().create_timer(1.0).timeout
 			var pl: Player = Game.player
 			var spawn: Vector3 = cp[0]
 			check(Game.zone_type == z and Game.mode == "game" and not Game.in_sequence, "back in %s, playing" % z)
@@ -51,7 +56,6 @@ func _run() -> void:
 					check(false, "flag %s kept" % f)
 			_world_checks(z, id)
 			# still alive, still there, 10 s on (the dark, the drop, whatever's about)
-			var deaths := Game.counters.get("_deaths_seen_test", 0)
 			await get_tree().create_timer(10.0).timeout
 			check(Game.zone_type == z and Game.mode == "game" and not Game.in_sequence and pl.global_position.distance_to(spawn) < 2.0,
 				"still alive and on the spot 10 s later (%s)" % pl.global_position.snapped(Vector3.ONE * 0.01))
