@@ -316,6 +316,25 @@ func part(kind: String, pos: Vector3, scale: Vector3, color: Color, parent: Node
 	return mi
 
 
+## A model in place of built shapes: `slot` at pos/yaw (scale s); with a `solid` size, an invisible box of that
+## size (centred `solid_at` above pos) keeps it solid. False if the model is missing: the caller builds shapes.
+func furnish(slot: String, pos: Vector3, yaw_deg := 0.0, solid := Vector3.ZERO, solid_at := Vector3.ZERO, s := 1.0) -> bool:
+	if prop(slot, pos, yaw_deg, s) == null:
+		return false
+	if solid != Vector3.ZERO:
+		var b := StaticBody3D.new()
+		b.collision_layer = 1
+		b.position = pos + solid_at
+		b.rotation_degrees.y = yaw_deg
+		var cs := CollisionShape3D.new()
+		var bs := BoxShape3D.new()
+		bs.size = solid
+		cs.shape = bs
+		b.add_child(cs)
+		add_child(b)
+	return true
+
+
 ## A movable solid box (own body) - for walls that come and go.
 func solid_box(pos: Vector3, size: Vector3, color: Color, parent: Node3D = null, surface := "plain") -> StaticBody3D:
 	var body := StaticBody3D.new()

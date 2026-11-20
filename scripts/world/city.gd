@@ -260,11 +260,15 @@ func _streets() -> void:
 		_car(s[0], s[1], (FACADES[rng.randi() % FACADES.size()] as Color).darkened(rng.randf_range(0.0, 0.4)))
 	# the bus stop at the far end of the avenue
 	var stop := Vector3(69.75, CURB, -31.5)
-	box(stop + Vector3(0.6, 2.5, 0), Vector3(1.8, 0.1, 4.2), METAL)
-	box(stop + Vector3(1.4, 1.25, 0), Vector3(0.06, 2.4, 4.0), Color(0.5, 0.62, 0.7), false, 0.0, 0.2)
-	box(stop + Vector3(-0.2, 1.25, -2.05), Vector3(0.08, 2.5, 0.08), METAL)
-	box(stop + Vector3(-0.2, 1.25, 2.05), Vector3(0.08, 2.5, 0.08), METAL)
-	box(stop + Vector3(1.0, 0.45, 0), Vector3(0.45, 0.08, 3.0), METAL)
+	if furnish("bus_shelter", stop, 0.0):
+		blocker(stop + Vector3(1.39, 1.25, 0), Vector3(0.06, 2.4, 4.0))
+		blocker(stop + Vector3(1.0, 0.24, 0), Vector3(0.45, 0.48, 3.0))
+	else:
+		box(stop + Vector3(0.6, 2.5, 0), Vector3(1.8, 0.1, 4.2), METAL)
+		box(stop + Vector3(1.4, 1.25, 0), Vector3(0.06, 2.4, 4.0), Color(0.5, 0.62, 0.7), false, 0.0, 0.2)
+		box(stop + Vector3(-0.2, 1.25, -2.05), Vector3(0.08, 2.5, 0.08), METAL)
+		box(stop + Vector3(-0.2, 1.25, 2.05), Vector3(0.08, 2.5, 0.08), METAL)
+		box(stop + Vector3(1.0, 0.45, 0), Vector3(0.45, 0.08, 3.0), METAL)
 
 
 func _park() -> void:
@@ -303,12 +307,28 @@ func _park() -> void:
 			if not scatter("grass_clump", Transform3D(gb, gp), Color.WHITE, "", false, false):
 				break
 	# fountain
-	shape_at("cylinder", Vector3(0, GRASS_Y + 0.25, 0), Vector3(5.2, 0.5, 5.2), STONE, true, Vector3.ZERO, "concrete")
-	_fountain_water(Vector3(0, GRASS_Y + 0.47, 0), 2.4)
-	shape_at("cylinder", Vector3(0, GRASS_Y + 1.0, 0), Vector3(0.6, 1.6, 0.6), STONE, true)
-	shape_at("cylinder", Vector3(0, GRASS_Y + 1.75, 0), Vector3(2.0, 0.2, 2.0), STONE)
-	_fountain_water(Vector3(0, GRASS_Y + 1.855, 0), 0.9)
-	shape_at("sphere", Vector3(0, GRASS_Y + 2.15, 0), Vector3(0.35, 0.5, 0.35), WATER.lightened(0.3), false, Vector3.ZERO, 0.05)
+	if prop("fountain", Vector3(0, GRASS_Y, 0), 0.0) != null:
+		# (solid as before: a drum you can't walk into, a column)
+		var fb := StaticBody3D.new()
+		fb.collision_layer = 1
+		add_child(fb)
+		for spec in [[Vector3(0, GRASS_Y + 0.25, 0), 2.62, 0.5], [Vector3(0, GRASS_Y + 1.0, 0), 0.3, 1.6]]:
+			var cs := CollisionShape3D.new()
+			var cy := CylinderShape3D.new()
+			cy.radius = spec[1]
+			cy.height = spec[2]
+			cs.shape = cy
+			cs.position = spec[0]
+			fb.add_child(cs)
+		_fountain_water(Vector3(0, GRASS_Y + 0.47, 0), 2.4)
+		_fountain_water(Vector3(0, GRASS_Y + 1.855, 0), 0.9)
+	else:
+		shape_at("cylinder", Vector3(0, GRASS_Y + 0.25, 0), Vector3(5.2, 0.5, 5.2), STONE, true, Vector3.ZERO, "concrete")
+		_fountain_water(Vector3(0, GRASS_Y + 0.47, 0), 2.4)
+		shape_at("cylinder", Vector3(0, GRASS_Y + 1.0, 0), Vector3(0.6, 1.6, 0.6), STONE, true)
+		shape_at("cylinder", Vector3(0, GRASS_Y + 1.75, 0), Vector3(2.0, 0.2, 2.0), STONE)
+		_fountain_water(Vector3(0, GRASS_Y + 1.855, 0), 0.9)
+		shape_at("sphere", Vector3(0, GRASS_Y + 2.15, 0), Vector3(0.35, 0.5, 0.35), WATER.lightened(0.3), false, Vector3.ZERO, 0.05)
 	# trees
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 31337
@@ -329,12 +349,13 @@ func _park() -> void:
 		_lamp(l)
 	# the ice cream cart (out of ice cream)
 	var cart := Vector3(2.4, GRASS_Y, -9.0)
-	box(cart + Vector3(0, 0.7, 0), Vector3(2.8, 0.9, 1.2), Color(0.98, 0.95, 0.88))
-	box(cart + Vector3(0, 1.08, 0), Vector3(2.84, 0.14, 1.24), Color(0.95, 0.5, 0.6), false)
-	box(cart + Vector3(0, 1.19, 0), Vector3(2.0, 0.06, 1.0), Color(0.75, 0.85, 0.9), false, 0.0, 0.3)
-	shape_at("cylinder", cart + Vector3(-1.0, 0.22, 0), Vector3(0.44, 1.3, 0.44), Color(0.1, 0.1, 0.1), false, Vector3(90, 0, 0))
-	shape_at("cylinder", cart + Vector3(1.1, 2.0, -0.3), Vector3(0.05, 2.2, 0.05), TRIM)
-	shape_at("cone", cart + Vector3(1.1, 3.3, -0.3), Vector3(2.8, 0.55, 2.8), Color(0.98, 0.62, 0.7))
+	if not furnish("ice_cream_cart", cart, 0.0, Vector3(2.8, 1.2, 1.2), Vector3(0, 0.6, 0)):
+		box(cart + Vector3(0, 0.7, 0), Vector3(2.8, 0.9, 1.2), Color(0.98, 0.95, 0.88))
+		box(cart + Vector3(0, 1.08, 0), Vector3(2.84, 0.14, 1.24), Color(0.95, 0.5, 0.6), false)
+		box(cart + Vector3(0, 1.19, 0), Vector3(2.0, 0.06, 1.0), Color(0.75, 0.85, 0.9), false, 0.0, 0.3)
+		shape_at("cylinder", cart + Vector3(-1.0, 0.22, 0), Vector3(0.44, 1.3, 0.44), Color(0.1, 0.1, 0.1), false, Vector3(90, 0, 0))
+		shape_at("cylinder", cart + Vector3(1.1, 2.0, -0.3), Vector3(0.05, 2.2, 0.05), TRIM)
+		shape_at("cone", cart + Vector3(1.1, 3.3, -0.3), Vector3(2.8, 0.55, 2.8), Color(0.98, 0.62, 0.7))
 	label(cart + Vector3(0, 0.75, 0.62), 0, "ICE CREAM", 0.22, Color(0.86, 0.35, 0.47), false)
 
 
@@ -440,11 +461,12 @@ func _characters() -> void:
 		"shirt": Color(0.96, 0.8, 0.2), "pants": Color(0.25, 0.4, 0.62), "height": 0.68, "cap": true,
 		"cap_color": Color(0.85, 0.15, 0.12), "hair_style": "curly", "build": 0.9, "shoes": Color(0.9, 0.9, 0.92)})
 	_kite = group(Vector3(14, 15, 17))
-	part("box", Vector3.ZERO, Vector3(0.9, 0.9, 0.03), Color(0.9, 0.2, 0.25), _kite, Vector3(0, 0, 45))
-	part("box", Vector3(0, 0, 0.01), Vector3(0.5, 0.5, 0.02), Color(0.98, 0.85, 0.3), _kite, Vector3(0, 0, 45))
-	for t in range(1, 6):
-		part("box", Vector3(0, -0.6 - t * 0.3, 0), Vector3(0.12, 0.12, 0.02),
-			Color(0.2, 0.5, 0.9) if t % 2 else Color(0.98, 0.98, 0.95), _kite, Vector3(0, 0, 45))
+	if prop("kite", Vector3.ZERO, 0.0, 1.0, _kite) == null:
+		part("box", Vector3.ZERO, Vector3(0.9, 0.9, 0.03), Color(0.9, 0.2, 0.25), _kite, Vector3(0, 0, 45))
+		part("box", Vector3(0, 0, 0.01), Vector3(0.5, 0.5, 0.02), Color(0.98, 0.85, 0.3), _kite, Vector3(0, 0, 45))
+		for t in range(1, 6):
+			part("box", Vector3(0, -0.6 - t * 0.3, 0), Vector3(0.12, 0.12, 0.02),
+				Color(0.2, 0.5, 0.9) if t % 2 else Color(0.98, 0.98, 0.95), _kite, Vector3(0, 0, 45))
 	_kite_line = part("cylinder", Vector3.ZERO, Vector3.ONE, Color(0.95, 0.95, 0.95))
 
 	# The jogger, looping the park.
@@ -672,13 +694,22 @@ func _quest() -> void:
 			break
 	# hammock between the trunk and a post
 	var post := top + Vector3(3.2, 0, 1.0)
-	shape_at("cylinder", post + Vector3(0, 0.9, 0), Vector3(0.12, 1.8, 0.12), BARK, true, Vector3.ZERO, "wood")
+	if not furnish("wood_post", post, 0.0, Vector3(0.14, 1.8, 0.14), Vector3(0, 0.9, 0)):
+		shape_at("cylinder", post + Vector3(0, 0.9, 0), Vector3(0.12, 1.8, 0.12), BARK, true, Vector3.ZERO, "wood")
 	var a0 := top + Vector3(0.6, 1.35, 0.2)
 	var a1 := post + Vector3(0, 1.5, 0)
-	for k in 9:
-		var f := float(k) / 8.0
-		var p := a0.lerp(a1, f) + Vector3(0, -0.55 * sin(PI * f), 0)
-		box(p, Vector3(0.42, 0.04, 0.95), Color(0.85, 0.45, 0.35), false, rad_to_deg(atan2(a1.x - a0.x, a1.z - a0.z)) + 90.0, "fabric")
+	var sling := prop("hammock", (a0 + a1) * 0.5, 0.0)
+	if sling:
+		# stretched to the gap and turned along it (the model runs 2.8 m along its X)
+		var span := a1 - a0
+		sling.scale = Vector3(span.length() / 3.3, 1.0, 1.0)
+		sling.rotation.y = atan2(-span.z, span.x)
+		sling.rotation.z = atan2(span.y, Vector2(span.x, span.z).length())
+	else:
+		for k in 9:
+			var f := float(k) / 8.0
+			var p := a0.lerp(a1, f) + Vector3(0, -0.55 * sin(PI * f), 0)
+			box(p, Vector3(0.42, 0.04, 0.95), Color(0.85, 0.45, 0.35), false, rad_to_deg(atan2(a1.x - a0.x, a1.z - a0.z)) + 90.0, "fabric")
 	interactable(a0.lerp(a1, 0.5) + Vector3(0, -0.4, 0), Vector3(2.0, 1.0, 1.4), func(): return "Lie down in the hammock",
 		func():
 			if not Game.has_flag("observer_noticed"):
