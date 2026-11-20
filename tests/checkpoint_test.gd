@@ -26,6 +26,8 @@ func _run() -> void:
 		for id in table:
 			var cp: Array = table[id]
 			print("== %s: %s" % [z, id])
+			Game._cancel_sequences()
+			await get_tree().create_timer(0.5).timeout
 			Game.hud.close_menu()
 			Game._reset_world()
 			Game.enter_zone(z)
@@ -57,9 +59,13 @@ func _run() -> void:
 			_world_checks(z, id)
 			# still alive, still there, 10 s on (the dark, the drop, whatever's about)
 			await get_tree().create_timer(10.0).timeout
-			check(Game.zone_type == z and Game.mode == "game" and not Game.in_sequence and pl.global_position.distance_to(spawn) < 2.0,
+			var drift := 4.0 if z == "above" else 2.0      # (ABOVE's wind shoves you about)
+			check(Game.zone_type == z and Game.mode == "game" and not Game.in_sequence and pl.global_position.distance_to(spawn) < drift,
 				"still alive and on the spot 10 s later (%s)" % pl.global_position.snapped(Vector3.ONE * 0.01))
-			# and the way on is open: a couple of steps forward don't drop you
+			# and the way on is open: a couple of steps forward don't drop you (except floor 7: a step on and
+			# the building starts coming down - that's the point of it)
+			if id == "floor7":
+				continue
 			Input.action_press("move_forward")
 			await get_tree().create_timer(1.0).timeout
 			Input.action_release("move_forward")

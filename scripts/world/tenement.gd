@@ -429,6 +429,8 @@ func _stairwell() -> void:
 			Sfx.play("knock", -6.0, 0.7)
 			Game.hud.show_thought("Locked. \"ROOF ACCESS - FLOOR 7\". This is floor %d." % _floor_num, 3.0),
 		func(): return _floor_num != EXIT_FLOOR)
+	if Game.counters.has("floor"):
+		_floor_num = int(Game.counters["floor"])     # (back from a checkpoint: the floor you'd got to)
 	_update_labels()
 	trigger(Vector3(O.x - 1.0, 0.8, O.z - 0.6), Vector3(1.0, 1.6, 1.0), func():
 		Game.set_flag("ten_stairs")
