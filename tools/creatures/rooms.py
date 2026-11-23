@@ -16,7 +16,7 @@ from mathutils import Vector
 
 from dp import scene, tex
 from dp.geo import MeshBuilder
-from kit import box
+from lib import box, turned_leg   # (chamfered boxes, turned legs)
 from home import lathe, rounded_box, _wood, _fabric
 
 
@@ -30,18 +30,21 @@ def _export(path, name, M, fn):
     scene.export_glb(path, [o])
 
 
+def _lin(rgb):   # these colours were picked as sRGB (texture colours); material factors are linear
+    return tuple(c ** 2.2 for c in rgb)
+
+
 def _mats_wood(name, rgb, seed):
-    a, n = _wood(name, rgb, seed, 40)
-    return scene.material(name, a, normal_tex=n, roughness=0.5)
+    # the game gives "__wood" materials real grain (models/textures/woodgrain) in this colour
+    return scene.material(name + "__wood", base_color=_lin(rgb), roughness=0.4)
 
 
 def _mats_fabric(name, rgb, seed, weave=64):
-    a, n = _fabric(name, rgb, seed, weave)
-    return scene.material(name, a, normal_tex=n, roughness=0.95)
+    return scene.material(name + "__fabric", base_color=_lin(rgb), roughness=0.95)
 
 
 def M_metal(name="metal", rgb=(0.6, 0.6, 0.62), r=0.35):
-    return scene.material(name, base_color=rgb, roughness=r, metallic=0.85)
+    return scene.material(name + "__metal", base_color=rgb, roughness=r, metallic=0.85)
 
 
 def M_plain(name, rgb, r=0.5, emit=0.0):
@@ -52,7 +55,10 @@ def legs4(mb, w, d, h, r, mat, inset=0.04, taper=0.8):
     for sx in (-1, 1):
         for sy in (-1, 1):
             c = Vector((sx * (w / 2 - inset), sy * (d / 2 - inset), 0))
-            lathe(mb, [(r * taper, 0.0), (r, h)], 8, mat, center=c)
+            if h > 0.2 and mat in ("wood", "dark", "frame_wood"):
+                turned_leg(mb, c, h, r * 1.2, mat)
+            else:
+                lathe(mb, [(r * taper, 0.0), (r, h)], 8, mat, center=c)
 
 
 def build(d):

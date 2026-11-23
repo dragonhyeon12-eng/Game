@@ -172,15 +172,20 @@ func _furnish() -> void:
 		if pill == null:
 			pill = part("capsule", p, Vector3(0.012, 0.016, 0.012), Color(0.4, 0.65, 0.9), null, Vector3(0, 0, 90))
 		_pills.append(pill)
-		var me := pill
-		interactable(p + Vector3(0, 0.03, 0), Vector3(0.065, 0.12, 0.12), func(): return "Take a pill" if me.visible else "",
-			func():
-				me.visible = false
-				Game.items.add("pills")
-				Sfx.play("page", -14.0, 2.4)
-				if Game.items.count("pills") == 1:
-					Game.hud.show_hint("PILLS: for 10 seconds nothing frightens you more.\n" + ("Tap PILLS to take one" if TouchControls.wanted() else "Press 1 to take one"), 6.0),
-			func(): return me.visible)
+	# one easy target over the whole dish (a pill each is too small to aim at, above all on a phone): a pill per press
+	var left := func() -> Array: return _pills.filter(func(x): return x.visible)
+	interactable(shelf_at + Vector3(-0.08, 0.66, -0.02), Vector3(0.42, 0.22, 0.3),
+		func(): return ("Take a pill (%d left)" % left.call().size()) if not left.call().is_empty() else "",
+		func():
+			var l: Array = left.call()
+			if l.is_empty():
+				return
+			(l[0] as Node3D).visible = false
+			Game.items.add("pills")
+			Sfx.play("page", -14.0, 2.4)
+			if Game.items.count("pills") == 1:
+				Game.hud.show_hint("PILLS: for 10 seconds nothing frightens you more.\n" + ("Tap PILLS to take one" if TouchControls.wanted() else "Press 1 to take one"), 6.0),
+		func(): return not left.call().is_empty())
 	# the little table by the chair: a lamp, and the music box
 	var table_at := Vector3(-0.3 if index != 2 else 0.0, 0, -2.2)
 	prop("side_table", table_at, 0.0)

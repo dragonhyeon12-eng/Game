@@ -29,7 +29,7 @@ func shot(name: String) -> void:
 
 func use(prompt: String) -> bool:
 	for it in Game.zone.find_children("*", "Interactable", true, false):
-		if it.get_prompt() == prompt:
+		if it.get_prompt() == prompt or (prompt.length() > 3 and it.get_prompt().begins_with(prompt + " (")):
 			it.interact()
 			return true
 	return false

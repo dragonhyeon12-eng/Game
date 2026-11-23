@@ -5,6 +5,9 @@ extends Node3D
 const PAGES := [
 	["resting place", [["music_box", 6.0], ["pill_bottle", 9.0], ["pill", 25.0], ["shelf_white", 0.7], ["armchair", 1.0], ["bed_white", 0.5], ["table_lamp", 1.6], ["side_table", 1.3], ["flower_vase", 1.8], ["rug_round", 0.45]]],
 	["houses", [["house_a", 0.09], ["house_b", 0.09], ["house_white", 0.09]]],
+	["living room", [["sofa", 0.55], ["armchair_old", 0.9], ["coffee_table", 0.9], ["tv_stand", 0.6], ["bookshelf_low", 0.8], ["floor_lamp", 0.55]]],
+	["bedroom and office", [["desk_wood", 0.65], ["office_chair", 0.9], ["bed_single", 0.45], ["nightstand", 1.3], ["wardrobe", 0.45], ["kitchen_table", 0.75], ["chair_wood", 1.0]]],
+	["kitchen, bath, hospital", [["kitchen_cabinet", 0.75], ["fridge", 0.5], ["sink_basin", 1.0], ["reception_desk", 0.32], ["desk_long", 0.45], ["records_shelf", 0.6], ["bedside_locker", 1.2]]],
 	["blackout", [["fence_panel", 0.45], ["gate_arch", 0.38], ["utility_pole", 0.14], ["mailbox", 0.9], ["manhole", 1.3], ["grass_tall", 0.9]]],
 ]
 
@@ -24,7 +27,10 @@ func _run() -> void:
 	Game.hud.set_fade(0.0)
 	var out: String = OS.get_cmdline_user_args()[0]
 	var page_i := 0
+	var only := Array(OS.get_cmdline_user_args()).slice(1)
 	for page in PAGES:
+		if not only.is_empty() and not only.has(page[0].split(" ")[0]):
+			continue
 		var root := Node3D.new()
 		add_child(root)
 		var env := WorldEnvironment.new()

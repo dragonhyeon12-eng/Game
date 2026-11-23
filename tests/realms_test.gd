@@ -90,7 +90,7 @@ func use(prompt: String, near := Vector3.INF) -> bool:
 	var best: Interactable = null
 	var bd := INF
 	for c in _all(Game.zone):
-		if c is Interactable and c.get_prompt() == prompt and c.can_interact():
+		if c is Interactable and (c.get_prompt() == prompt or c.get_prompt().begins_with(prompt + " (")) and c.can_interact():
 			var d: float = 0.0 if near == Vector3.INF else c.global_position.distance_to(near)
 			if d < bd:
 				bd = d
