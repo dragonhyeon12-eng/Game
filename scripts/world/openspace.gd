@@ -522,13 +522,25 @@ func _update_stairs(delta: float, p: Vector3) -> void:
 		_stairs_moves += 1
 		var fwd := -Game.player.global_transform.basis.z
 		fwd.y = 0.0
+		var moved := false
 		for tries in 12:
 			var a := randf() * TAU
 			var r := randf_range(70.0, 130.0)
 			var cand := Vector3(p.x + cos(a) * r, 0, p.z + sin(a) * r)
 			if absf(cand.x - PLAZA.x) < 190.0 and cand.z < PLAZA.z - 10.0 and cand.z > PLAZA.z - 340.0 and not Observation.in_view(cand, 3.0):
 				_stairs.global_position = cand
+				moved = true
 				break
+		if not moved:
+			# (never left where they were: behind you, kept inside the plaza)
+			var back := -fwd.normalized() if fwd.length() > 0.1 else Vector3(0, 0, 1)
+			var cand := p + back * 90.0
+			cand.x = clampf(cand.x, PLAZA.x - 180.0, PLAZA.x + 180.0)
+			cand.z = clampf(cand.z, PLAZA.z - 330.0, PLAZA.z - 20.0)
+			cand.y = 0.0
+			if cand.distance_to(_stairs.global_position) < 20.0:
+				cand.x = clampf(cand.x + 60.0 * signf(PLAZA.x - cand.x + 0.01), PLAZA.x - 180.0, PLAZA.x + 180.0)
+			_stairs.global_position = cand
 		Sfx.play_at("whoosh", self, _stairs.global_position, 6.0, 300.0)
 		if _stairs_moves == 1:
 			Game.hud.show_thought("Where - they were right there. ...Don't take your eyes off them this time.", 4.0)
