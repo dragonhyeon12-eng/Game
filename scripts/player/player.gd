@@ -327,7 +327,11 @@ func _physics_process(delta: float) -> void:
 			velocity += dir.normalized() * jump_boost
 	else:
 		velocity.y = maxf(velocity.y, -1.0)
+	var was_on_floor := is_on_floor()
 	move_and_slide()
+	# kerbs and steps: when walking into a low ledge, step up onto it
+	if was_on_floor and is_on_wall() and want.length() > 0.5 and not phasing:
+		_try_step(Vector3(want.x, 0, want.z).normalized())
 
 	_update_camera(delta)
 	_update_footsteps(delta)
@@ -599,3 +603,26 @@ func _update_hands(delta: float) -> void:
 				# curl toward you (onto the face): about the vertical axis, signed by hand
 				var curl := (12.0 + 55.0 * grip) * (1.0 if j > 0 else 0.6)
 				(chain[j] as Node3D).rotation_degrees = Vector3(spread if j == 0 else 0.0, -curl * side, 0)
+
+
+const STEP_UP := 0.36
+
+
+## Up STEP_UP, a little forward, back down: if that lands on floor, we've climbed a kerb or a stair.
+func _try_step(dir: Vector3) -> bool:
+	var xf := global_transform
+	if test_move(xf, Vector3.UP * STEP_UP):
+		return false           # no headroom
+	xf.origin += Vector3.UP * STEP_UP
+	var fwd := dir * 0.18
+	if test_move(xf, fwd):
+		return false           # a wall, not a step
+	xf.origin += fwd
+	var hit := KinematicCollision3D.new()
+	if not test_move(xf, Vector3.DOWN * (STEP_UP + 0.05), hit):
+		return false           # nothing to stand on (a drop, not a step)
+	if hit.get_normal().y < 0.7:
+		return false
+	xf.origin += hit.get_travel()
+	global_transform = xf
+	return true

@@ -336,8 +336,8 @@ func _arcade() -> void:
 		prop("pendant_lamp", Vector3(mid, CURB + h, k2), 0.0)
 		k2 -= 10.0
 	# benches down the middle, a bin, and a pool's depth sign where a shop sign should be
-	_bench(Vector3(mid, CURB, z1 - 14.0), 90)
-	_bench(Vector3(mid, CURB, z1 - 28.0), -90)
+	_bench(Vector3(x0 + 1.4, CURB, z1 - 14.0), -90)
+	_bench(Vector3(x1 - 1.4, CURB, z1 - 28.0), 90)
 	label(Vector3(x0 + 0.25, CURB + 4.8, tiles_from - 6.0), 90, "DEPTH 1.2 m", 0.25, Color(0.1, 0.3, 0.6), false)
 	label(Vector3(x1 - 0.25, CURB + 4.8, tiles_from + 8.0), -90, "NO RUNNING", 0.25, Color(0.75, 0.1, 0.08), false)
 	trigger(Vector3(mid, 1.5, z1 - 4.0), Vector3(r.size.x, 3, 2), func():
