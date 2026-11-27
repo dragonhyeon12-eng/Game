@@ -201,10 +201,12 @@ func _run() -> void:
 
 	print("== the observer")
 	var obs: Observer = Game.zone.observer
-	Game.player.teleport(Transform3D(Basis(), Vector3(2.0, CityZone.CURB, -58.0)))
-	# put him back at his first spot, by the bus stop at the end of the avenue (rule breaks above may have moved him)
-	obs._pending_move = false
-	obs.global_position = Game.zone._observer_spots[0]
+	# put him back at his first spot, by the bus stop at the end of the avenue (rule breaks above may have moved
+	# or hidden him): with your back turned, so he can appear
+	Game.player.teleport(Transform3D(Basis(Vector3.UP, PI), Vector3(-2.0, CityZone.CURB, -60.0)))
+	await wait(0.3)
+	obs.hide_now()
+	check(obs.try_appear_at(CityZone.BUS_STOP + Vector3(-0.5, 0, 4.0)), "the observer appears at the bus stop")
 	await wait(1.0)
 	look_at_point(obs.global_position + Vector3(0, 1.2, 0))
 	await wait(1.5)
