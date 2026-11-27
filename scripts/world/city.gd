@@ -4,7 +4,11 @@ extends Zone
 ## Deliberately comforting - fear gains are heavily damped and nothing changes behind your back.
 ## The only thing out of place is a black figure at the far end of the avenue, easy to overlook.
 ##
-## Grid: 5x5 blocks, pitch 42m (32m block incl. 3.5m sidewalk + 10m street). Block (0,0) is the park.
+## One long walk north that never looks like a line: the PARK (you wake here) -> the AVENUE, longer than it
+## should be, ending at a wall painted with sky -> a jog east along a cross street -> the ARCADE, a glass-roofed
+## passage that starts to smell of chlorine -> the LIDO, an open-air pool sunk in the middle of the city, the
+## road running straight into it -> the STEPS, too many of them -> the PLAYGROUND on a terrace above the
+## rooftops -> the gate -> the MEADOW, where the city simply stops, and the hill with the big tree.
 
 const PITCH := 42.0
 const BLOCK := 32.0
@@ -13,6 +17,22 @@ const CURB := 0.15
 const HALF := 2
 const GRASS_Y := 0.17
 const BOUNDS := 109.0
+# the walk, south to north (y = ground height)
+const AVE_X := 8.5                       # the avenue: x -8.5..8.5 (road -5..5), z -26..-110
+const AVE_END := -110.0
+const CROSS := Rect2(-8.5, -127.0, 70.5, 17.0)     # the cross street, running east (x, z, w, d)
+const ARCADE := Rect2(39.0, -177.0, 10.0, 50.0)    # x 39..49, z -177..-127
+const LIDO := Rect2(14.0, -252.0, 78.0, 75.0)      # the courtyard: x 14..92, z -252..-177
+const POOL := Rect2(28.0, -216.0, 50.0, 21.0)      # x 28..78, z -216..-195
+const POOL_FLOOR := -2.1
+const LAWN := Rect2(14.0, -244.0, 78.0, 22.0)      # the lido lawn, north of the pool: z -244..-222
+const STEPS := Rect2(44.0, -282.0, 20.0, 30.0)     # x 44..64, z -282..-252, rising to TOP_Y
+const TOP_Y := 9.15
+const TERRACE := Rect2(20.0, -318.0, 70.0, 36.0)   # the playground: x 20..90, z -318..-282, at TOP_Y
+const MEADOW := Rect2(-40.0, -470.0, 190.0, 152.0) # x -40..150, z -470..-318, at TOP_Y
+const CAR_SPOT := Vector3(3.0, 0, -70.0)
+const BUS_STOP := Vector3(6.6, CURB, -104.0)
+const KITE_BASE := Vector3(44, 21, -300)
 
 const ASPHALT := Color(0.09, 0.095, 0.105)
 const PAVEMENT := Color(0.62, 0.6, 0.56)
@@ -55,7 +75,17 @@ func surface_at(p: Vector3) -> String:
 	var inner := (BLOCK - 2.0 * SIDEWALK) * 0.5
 	if absf(p.x) < inner and absf(p.z) < inner and absf(p.x) > 1.3 and absf(p.z) > 1.3 and Vector2(p.x, p.z).length() > 2.7:
 		return "grass"
+	var q := Vector2(p.x, p.z)
+	if LAWN.has_point(q) or (MEADOW.has_point(q) and p.y > TOP_Y - 1.0):
+		return "grass"
 	return "concrete"
+
+
+## The lido pool: you can swim in it.
+func water_level_at(p: Vector3) -> float:
+	if POOL.has_point(Vector2(p.x, p.z)) and p.y > POOL_FLOOR - 1.0 and p.y < 1.0:
+		return 0.0
+	return -INF
 func fear_decay() -> float: return 5.0
 func walk_speed() -> float: return 3.0
 func sprint_speed() -> float: return 5.4
@@ -67,8 +97,13 @@ func player_start() -> Transform3D:
 
 func build() -> void:
 	_ground()
-	_buildings()
-	_streets()
+	_district()
+	_avenue()
+	_arcade()
+	_lido()
+	_steps()
+	_playground()
+	_meadow()
 	_park()
 	_skyline()
 	_lighting()
@@ -76,103 +111,521 @@ func build() -> void:
 	_quest()
 	ambient("city", Vector3.ZERO, false, -14.0)
 	_water = ambient("water", Vector3(0, 0.8, 0), true, -2.0, 22.0)
-	for s in [Vector3(BOUNDS, 10, 0), Vector3(-BOUNDS, 10, 0)]:
-		blocker(s, Vector3(1, 40, BOUNDS * 2))
-	for s in [Vector3(0, 10, BOUNDS), Vector3(0, 10, -BOUNDS)]:
-		blocker(s, Vector3(BOUNDS * 2, 40, 1))
+	ambient("water", Vector3(53, 0.5, -205), true, -6.0, 40.0)
 
 
 # ------------------------------------------------------------------ geometry
 
 func _ground() -> void:
-	box(Vector3(0, -0.25, 0), Vector3(800, 0.5, 800), ASPHALT, true, 0.0, "asphalt")
-	for i in range(-HALF, HALF + 1):
-		for j in range(-HALF, HALF + 1):
-			box(Vector3(i * PITCH, CURB * 0.5, j * PITCH), Vector3(BLOCK, CURB, BLOCK), PAVEMENT, true, 0.0, "pavers")
-	for k in range(-HALF, HALF):
-		var mid := (k + 0.5) * PITCH
-		var t := -90.0
-		while t <= 90.0:
-			box(Vector3(t, 0.015, mid), Vector3(3, 0.02, 0.14), Color(0.85, 0.75, 0.3), false)
-			box(Vector3(mid, 0.015, t), Vector3(0.14, 0.02, 3), Color(0.85, 0.75, 0.3), false)
-			t += 6.0
+	box(Vector3(0, -0.25, -200), Vector3(900, 0.5, 900), ASPHALT, true, 0.0, "asphalt")
+	# the park block and the ring road round it
+	box(Vector3(0, CURB * 0.5, 0), Vector3(BLOCK, CURB, BLOCK), PAVEMENT, true, 0.0, "pavers")
+	for z in [21.0, -21.0]:
+		box(Vector3(0, CURB * 0.5, z + signf(z) * 3.25), Vector3(52, CURB, 3.5), PAVEMENT, true, 0.0, "pavers")
+	for x in [21.0, -21.0]:
+		box(Vector3(x + signf(x) * 3.25, CURB * 0.5, 0), Vector3(3.5, CURB, 52), PAVEMENT, true, 0.0, "pavers")
+	_dashes(Vector3(0, 0, 21.0), Vector3(1, 0, 0), 46.0)
+	_dashes(Vector3(0, 0, -21.0), Vector3(1, 0, 0), 46.0)
+	_dashes(Vector3(21.0, 0, 0), Vector3(0, 0, 1), 46.0)
+	_dashes(Vector3(-21.0, 0, 0), Vector3(0, 0, 1), 46.0)
 
 
-func _buildings() -> void:
+## A dashed yellow centre line, `length` long, centred on `c`, along `dir`.
+func _dashes(c: Vector3, dir: Vector3, length: float, y := 0.015) -> void:
+	var t := -length * 0.5
+	while t <= length * 0.5:
+		var sz := Vector3(3, 0.02, 0.14) if absf(dir.x) > 0.5 else Vector3(0.14, 0.02, 3)
+		box(c + dir * t + Vector3(0, y, 0), sz, Color(0.85, 0.75, 0.3), false)
+		t += 6.0
+
+
+## Pavement strip (a sidewalk) as a box, x0..x1, z0..z1, at height y.
+func _walk(x0: float, x1: float, z0: float, z1: float, y := CURB, surf := "pavers", col := PAVEMENT) -> void:
+	box(Vector3((x0 + x1) * 0.5, y - 0.15, (z0 + z1) * 0.5), Vector3(x1 - x0, 0.3, z1 - z0), col, true, 0.0, surf)
+
+
+# ------------------------------------------------------------------ the buildings that make the walls of the walk
+
+## Every block of the city: [x0, x1, z0, z1, the sides that face the walk ("n" = -z ...), min height, max height]
+const BLOCKS := [
+	# round the park
+	[-62.0, -26.0, -26.0, 40.0, "e", 9.0, 22.0], [26.0, 62.0, -26.0, 40.0, "w", 9.0, 22.0], [-62.0, 62.0, 26.0, 60.0, "n", 9.0, 22.0],
+	[-62.0, -8.5, -110.0, -26.0, "es", 12.0, 30.0], [8.5, 62.0, -110.0, -26.0, "wsn", 12.0, 30.0],
+	# the cross street
+	[-40.0, -8.5, -127.0, -110.0, "e", 14.0, 30.0], [62.0, 96.0, -127.0, -100.0, "w", 14.0, 30.0],
+	[-40.0, 39.0, -177.0, -127.0, "sen", 16.0, 34.0], [49.0, 96.0, -177.0, -127.0, "swn", 16.0, 34.0],
+	# round the lido
+	[-20.0, 14.0, -252.0, -177.0, "e", 18.0, 32.0], [92.0, 126.0, -252.0, -177.0, "w", 18.0, 32.0],
+	# the steps, between two tall blocks; then the terrace's flanks
+	[14.0, 44.0, -282.0, -252.0, "sen", 20.0, 30.0], [64.0, 92.0, -282.0, -252.0, "swn", 20.0, 30.0],
+	[-10.0, 20.0, -318.0, -282.0, "en", 18.0, 26.0], [90.0, 120.0, -318.0, -282.0, "wn", 18.0, 26.0],
+]
+
+
+func _district() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1987
-	var lot := BLOCK - 2.0 * SIDEWALK
-	for i in range(-HALF, HALF + 1):
-		for j in range(-HALF, HALF + 1):
-			if i == 0 and j == 0:
+	for b in BLOCKS:
+		_block(b[0], b[1], b[2], b[3], b[4], b[5], b[6], rng)
+
+
+## A city block: buildings along the sides that face the walk (a strip ~16 m deep), plain roofs behind them.
+func _block(x0: float, x1: float, z0: float, z1: float, sides: String, hmin: float, hmax: float, rng: RandomNumberGenerator) -> void:
+	const DEPTH := 15.0
+	var done := []    # rects already built (corners are shared by two sides)
+	for side in sides:
+		var along_x: bool = side == "n" or side == "s"
+		var a0: float = x0 if along_x else z0
+		var a1: float = x1 if along_x else z1
+		var t := a0
+		while t < a1 - 4.0:
+			var w := minf(rng.randf_range(11.0, 17.0), a1 - t)
+			if a1 - (t + w) < 6.0:
+				w = a1 - t
+			var c: Vector3
+			var size: Vector2   # x, z
+			match side:
+				"s": c = Vector3(t + w * 0.5, CURB, z1 - DEPTH * 0.5); size = Vector2(w, DEPTH)
+				"n": c = Vector3(t + w * 0.5, CURB, z0 + DEPTH * 0.5); size = Vector2(w, DEPTH)
+				"e": c = Vector3(x1 - DEPTH * 0.5, CURB, t + w * 0.5); size = Vector2(DEPTH, w)
+				_: c = Vector3(x0 + DEPTH * 0.5, CURB, t + w * 0.5); size = Vector2(DEPTH, w)
+			t += w
+			var r := Rect2(c.x - size.x * 0.5 + 0.5, c.z - size.y * 0.5 + 0.5, size.x - 1.0, size.y - 1.0)
+			if done.any(func(o: Rect2): return o.intersects(r)):
 				continue
-			if i == 0 and j == -2:
-				continue     # the hill with the big tree: the quiet place at the end of the city
-			var c := Vector3(i * PITCH, CURB, j * PITCH)
-			var near_park := absi(i) <= 1 and absi(j) <= 1
-			var layout := rng.randi_range(0, 2)
-			var sx := 1 if layout == 0 else 2
-			var sz := 2 if layout == 2 else 1
-			var gap := 0.6
-			var w := (lot - gap * (sx - 1)) / sx
-			var d := (lot - gap * (sz - 1)) / sz
-			for a in sx:
-				for b in sz:
-					var x := c.x - lot * 0.5 + w * 0.5 + a * (w + gap)
-					var z := c.z - lot * 0.5 + d * 0.5 + b * (d + gap)
-					var h := rng.randf_range(9.0, 23.0) if near_park else rng.randf_range(16.0, 48.0)
-					var facade: Color = FACADES[rng.randi() % FACADES.size()]
-					# a real building from the facade kit, when there is one
-					var style: String = ["brick", "plaster", "plaster", "modern"][rng.randi() % 4] if near_park else ["brick", "modern", "plaster"][rng.randi() % 3]
-					var tint := facade.lightened(0.15) if style == "plaster" else (Color(0.78, 0.5, 0.4) if style == "brick" else Color(0.82, 0.82, 0.8))
-					if facade_building(Vector3(x, c.y, z), w, d, maxi(1, int((h - 4.2) / 3.6)), style, tint, near_park or rng.randf() < 0.4):
-						if rng.randf() < 0.6:
-							box(Vector3(x + rng.randf_range(-w, w) * 0.25, c.y + 4.2 + int((h - 4.2) / 3.6) * 3.6 + 1.15, z + rng.randf_range(-d, d) * 0.25),
-								Vector3(2.2, 1.1, 1.6), Color(0.6, 0.6, 0.6), false, 0.0, "metal")
-						continue
-					box(Vector3(x, c.y + h * 0.5, z), Vector3(w, h, d), facade, true, 0.0, "plaster")
-					box(Vector3(x, c.y + 1.25, z), Vector3(w + 0.1, 2.5, d + 0.1), facade.darkened(0.45), false)
-					box(Vector3(x, c.y + 2.68, z), Vector3(w + 0.7, 0.1, d + 0.7), FACADES[rng.randi() % FACADES.size()], false)
-					var y := 3.8
-					while y < h - 2.0:
-						box(Vector3(x, c.y + y, z), Vector3(w + 0.08, 1.5, d + 0.08), GLASS, false, 0.0, "glass")
-						y += 3.6
-					box(Vector3(x, c.y + h + 0.12, z), Vector3(w + 0.16, 0.24, d + 0.16), TRIM, false)
-					if rng.randf() < 0.6:
-						box(Vector3(x + rng.randf_range(-w, w) * 0.25, c.y + h + 0.7, z + rng.randf_range(-d, d) * 0.25),
-							Vector3(2.2, 1.1, 1.6), Color(0.6, 0.6, 0.6), false)
-			# street trees
-			var edge := BLOCK * 0.5 - 1.75
-			for side in 4:
-				for t in [-1, 0, 1]:
-					var along: float = t * 10.5 + rng.randf_range(-0.8, 0.8)
-					var p := c
-					match side:
-						0: p += Vector3(along, 0, edge)
-						1: p += Vector3(along, 0, -edge)
-						2: p += Vector3(edge, 0, along)
-						_: p += Vector3(-edge, 0, along)
-					_tree(p, rng.randf_range(0.8, 1.1), rng.randi() % 3)
+			done.append(r)
+			_building(c, size.x - 0.6, size.y - 0.6, rng.randf_range(hmin, hmax), rng)
+	# behind the strip: roofs seen from the terrace, nothing more
+	var inner := Rect2(x0 + DEPTH, z0 + DEPTH, (x1 - x0) - DEPTH * 2.0, (z1 - z0) - DEPTH * 2.0)
+	if inner.size.x > 2.0 and inner.size.y > 2.0:
+		var h := rng.randf_range(hmin, hmax) * 0.8
+		box(Vector3(inner.get_center().x, CURB + h * 0.5, inner.get_center().y), Vector3(inner.size.x, h, inner.size.y),
+			(FACADES[rng.randi() % FACADES.size()] as Color).darkened(0.35), true, 0.0, "concrete")
+
+
+func _building(c: Vector3, w: float, d: float, h: float, rng: RandomNumberGenerator) -> void:
+	var facade: Color = FACADES[rng.randi() % FACADES.size()]
+	var style: String = ["brick", "plaster", "plaster", "modern"][rng.randi() % 4]
+	var tint := facade.lightened(0.15) if style == "plaster" else (Color(0.78, 0.5, 0.4) if style == "brick" else Color(0.82, 0.82, 0.8))
+	if facade_building(c, w, d, maxi(1, int((h - 4.2) / 3.6)), style, tint, rng.randf() < 0.5):
+		return
+	box(Vector3(c.x, c.y + h * 0.5, c.z), Vector3(w, h, d), facade, true, 0.0, "plaster")
+	var y := 3.8
+	while y < h - 2.0:
+		box(Vector3(c.x, c.y + y, c.z), Vector3(w + 0.08, 1.5, d + 0.08), GLASS, false, 0.0, "glass")
+		y += 3.6
+
+
+# ------------------------------------------------------------------ 2 the avenue
+
+func _avenue() -> void:
+	# road and sidewalks, from the park's ring road to the cross street
+	_walk(-AVE_X, -5.0, AVE_END, -26.0)
+	_walk(5.0, AVE_X, AVE_END - 3.5, -26.0)
+	_dashes(Vector3(0, 0, (AVE_END - 26.0) * 0.5 - 8.0), Vector3(0, 0, 1), -AVE_END - 26.0 + 16.0)
+	_crosswalk(Vector3(0, 0, -30.0), false)
+	_crosswalk(Vector3(0, 0, AVE_END - 2.0), false)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	var z := -34.0
+	while z > AVE_END + 4.0:
+		_tree(Vector3(-AVE_X + 1.6, CURB, z), rng.randf_range(0.8, 1.05), rng.randi() % 3)
+		_tree(Vector3(AVE_X - 1.6, CURB, z - 6.0), rng.randf_range(0.8, 1.05), rng.randi() % 3)
+		if int(-z) % 24 < 12:
+			_lamp(Vector3(-AVE_X + 0.8, CURB, z - 3.0))
+		z -= 12.0
+	for c in [[Vector3(-3.0, 0, -44.0), 90], [CAR_SPOT, 90], [Vector3(-3.0, 0, -88.0), 90], [Vector3(3.0, 0, -96.0), 90]]:
+		_car(c[0], c[1], (FACADES[rng.randi() % FACADES.size()] as Color).darkened(rng.randf_range(0.0, 0.4)))
+	# the cross street, running east; the avenue itself runs straight into a wall painted with sky
+	_walk(CROSS.position.x, CROSS.end.x, CROSS.position.y, CROSS.position.y + 3.5)
+	_walk(AVE_X, CROSS.end.x, CROSS.end.y - 3.5, CROSS.end.y)
+	_dashes(Vector3(CROSS.get_center().x + 4.0, 0, CROSS.get_center().y), Vector3(1, 0, 0), CROSS.size.x - 8.0)
+	_crosswalk(Vector3(44.0, 0, CROSS.get_center().y), true)
+	for x in [20.0, 32.0, 56.0]:
+		_lamp(Vector3(x, CURB, CROSS.position.y + 1.0))
+	_sky_mural(Vector3(0, CURB, CROSS.position.y + 0.7))      # (in front of the facade bays)
+	trigger(Vector3(0, 1.5, -60.0), Vector3(17, 3, 2), func():
+		Game.hud.show_thought("Was the avenue always this long? ...It doesn't matter. It's lovely.", 4.0))
+	trigger(Vector3(0, 1.5, AVE_END - 5.0), Vector3(17, 3, 4), func():
+		Game.hud.show_thought("The street runs into the sky. ...No. That's a wall. Someone's painted sky on a wall.", 4.5))
+	# the bus stop, at the end of the avenue
+	if furnish("bus_shelter", BUS_STOP, 0.0):
+		blocker(BUS_STOP + Vector3(1.39, 1.25, 0), Vector3(0.06, 2.4, 4.0))
+		blocker(BUS_STOP + Vector3(1.0, 0.24, 0), Vector3(0.45, 0.48, 3.0))
+	label(BUS_STOP + Vector3(1.35, 2.0, 0), -90, "3:12  3:12  3:12  3:12", 0.08, Color(0.1, 0.1, 0.12), false)
+
+
+## A wall at the end of the avenue painted as the sky the street would run into: a gradient, clouds, the
+## road's own lines continuing up it. From far off, the avenue just goes on into the blue.
+func _sky_mural(base: Vector3) -> void:
+	var w := 17.0
+	var h := 16.0
+	var mi := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(w, h)
+	mi.mesh = q
+	var sh := Shader.new()
+	sh.code = """shader_type spatial;
+render_mode unshaded, cull_back;
+uniform vec3 zenith = vec3(0.18, 0.4, 0.82);
+uniform vec3 horizon = vec3(0.74, 0.84, 0.94);
+float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float n(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }
+void fragment() {
+	float y = 1.0 - UV.y;
+	vec3 c = mix(horizon, zenith, smoothstep(0.0, 0.9, y));
+	float cl = n(UV * vec2(6.0, 9.0)) * 0.6 + n(UV * vec2(13.0, 21.0)) * 0.4;
+	c = mix(c, vec3(1.0), smoothstep(0.62, 0.8, cl) * smoothstep(0.15, 0.5, y) * 0.85);
+	// the road, painted on: it narrows to the horizon line and stops
+	float road = step(abs(UV.x - 0.5), 0.3 * (1.0 - y / 0.12)) * step(y, 0.12);
+	c = mix(c, vec3(0.09, 0.095, 0.105), road);
+	c = mix(c, vec3(0.85, 0.75, 0.3), road * step(abs(UV.x - 0.5), 0.006) * step(0.5, fract(y * 40.0)));
+	ALBEDO = c;
+}"""
+	var m := ShaderMaterial.new()
+	m.shader = sh
+	mi.material_override = m
+	mi.position = base + Vector3(0, h * 0.5 - 0.15, 0)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+
+
+# ------------------------------------------------------------------ 3 the arcade
+
+func _arcade() -> void:
+	var r := ARCADE
+	var x0 := r.position.x
+	var x1 := r.end.x
+	var z0 := r.position.y
+	var z1 := r.end.y
+	var mid := r.get_center().x
+	# the floor: pavers, giving way to pool tiles for the last stretch
+	var tiles_from := z0 + 14.0
+	_walk(x0, x1, tiles_from, z1, CURB, "pavers")
+	_walk(x0, x1, z0, tiles_from, CURB, "tiles_pool", Color(0.82, 0.88, 0.9))
+	var h := 7.0
+	# shopfronts down both sides, shuttered; the walls go pool-tiled at the far end too
+	for side in [-1.0, 1.0]:
+		var wx = mid + side * (r.size.x * 0.5 + 0.1)
+		var k := z1 - 3.0
+		var i := 0
+		while k > z0 + 2.0:
+			var tiled := k < tiles_from + 2.0
+			var col := Color(0.82, 0.88, 0.9) if tiled else Color(0.62, 0.6, 0.56)
+			box(Vector3(wx, h * 0.5 + CURB, k), Vector3(0.2, h, 0.6), col, true, 0.0, "tiles_pool" if tiled else "concrete")   # pilaster
+			if not tiled:
+				# a shutter, down; one in five lit and open, nothing on its shelves
+				var open := i % 5 == 2
+				box(Vector3(wx + side * 0.05, CURB + 1.6, k - 2.5), Vector3(0.08, 3.2, 4.2), Color(0.55, 0.57, 0.58) if not open else Color(0.95, 0.93, 0.85), true, 0.0, "metal" if not open else "plaster")
+				box(Vector3(wx, CURB + 4.6, k - 2.5), Vector3(0.24, 2.6, 4.4), Color(0.85, 0.8, 0.72), true, 0.0, "plaster")
+				if open:
+					omni(Vector3(wx - side * 0.8, CURB + 2.6, k - 2.5), Color(1.0, 0.95, 0.85), 0.6, 5.0, false)
+			else:
+				box(Vector3(wx, CURB + h * 0.5, k - 2.5), Vector3(0.2, h, 4.4), col, true, 0.0, "tiles_pool")
+			k -= 5.0
+			i += 1
+	# the glass roof on its frames
+	for zz in range(int(z1) - 2, int(z0), -5):
+		box(Vector3(mid, CURB + h, zz), Vector3(r.size.x + 0.6, 0.25, 0.18), Color(0.2, 0.22, 0.2), false, 0.0, "metal")
+	box(Vector3(mid, CURB + h + 0.15, (z0 + z1) * 0.5), Vector3(r.size.x + 0.6, 0.04, r.size.y), Color(0.75, 0.85, 0.85), false, 0.0, "glass")
+	box(Vector3(mid, CURB + h + 0.05, (z0 + z1) * 0.5), Vector3(0.2, 0.2, r.size.y), Color(0.2, 0.22, 0.2), false, 0.0, "metal")
+	# hanging lights, on in the middle of the day
+	var k2 := z1 - 6.0
+	while k2 > z0:
+		prop("pendant_lamp", Vector3(mid, CURB + h, k2), 0.0)
+		k2 -= 10.0
+	# benches down the middle, a bin, and a pool's depth sign where a shop sign should be
+	_bench(Vector3(mid, CURB, z1 - 14.0), 90)
+	_bench(Vector3(mid, CURB, z1 - 28.0), -90)
+	label(Vector3(x0 + 0.25, CURB + 4.8, tiles_from - 6.0), 90, "DEPTH 1.2 m", 0.25, Color(0.1, 0.3, 0.6), false)
+	label(Vector3(x1 - 0.25, CURB + 4.8, tiles_from + 8.0), -90, "NO RUNNING", 0.25, Color(0.75, 0.1, 0.08), false)
+	trigger(Vector3(mid, 1.5, z1 - 4.0), Vector3(r.size.x, 3, 2), func():
+		Game.hud.show_thought("An arcade. Every shop's shut. ...On a summer afternoon?", 3.5))
+	trigger(Vector3(mid, 1.5, tiles_from + 4.0), Vector3(r.size.x, 3, 2), func():
+		Game.hud.show_thought("Chlorine. It smells like the swimming baths in here.", 3.5))
+
+
+# ------------------------------------------------------------------ 4 the lido
+
+func _lido() -> void:
+	var c := LIDO
+	# the deck, all pool tiles, the whole courtyard: and the lawn beyond the water
+	var deck := Color(0.62, 0.66, 0.67)     # (white tiles in full sun: kept a touch grey, or they glare)
+	_walk(c.position.x, c.end.x, POOL.end.y, c.end.y, CURB, "tiles_floor", deck)                      # south deck
+	_walk(c.position.x, c.end.x, LAWN.end.y, POOL.position.y, CURB, "tiles_pool", deck)                # north deck
+	_walk(c.position.x, POOL.position.x, POOL.position.y, POOL.end.y, CURB, "tiles_pool", deck)
+	_walk(POOL.end.x, c.end.x, POOL.position.y, POOL.end.y, CURB, "tiles_pool", deck)
+	_walk(LAWN.position.x, LAWN.end.x, LAWN.position.y, LAWN.end.y, CURB, "grass", GRASS)
+	_walk(c.position.x, c.end.x, c.position.y, LAWN.position.y, CURB, "tiles_floor", deck)             # the strip to the steps
+	# the pool: a tiled basin, still water
+	var pc := POOL.get_center()
+	box(Vector3(pc.x, POOL_FLOOR - 0.2, pc.y), Vector3(POOL.size.x, 0.4, POOL.size.y), Color(0.75, 0.86, 0.9), true, 0.0, "tiles_pool")
+	var wall_h := CURB - POOL_FLOOR
+	for e in [[Vector3(pc.x, 0, POOL.position.y - 0.15), Vector3(POOL.size.x + 0.6, 0, 0.3)], [Vector3(pc.x, 0, POOL.end.y + 0.15), Vector3(POOL.size.x + 0.6, 0, 0.3)],
+			[Vector3(POOL.position.x - 0.15, 0, pc.y), Vector3(0.3, 0, POOL.size.y)], [Vector3(POOL.end.x + 0.15, 0, pc.y), Vector3(0.3, 0, POOL.size.y)]]:
+		var at: Vector3 = e[0]
+		var sz: Vector3 = e[1]
+		box(Vector3(at.x, POOL_FLOOR + wall_h * 0.5, at.z), Vector3(sz.x, wall_h, sz.z), Color(0.75, 0.86, 0.9), true, 0.0, "tiles_pool")
+	var water := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = POOL.size
+	plane.subdivide_width = 60
+	plane.subdivide_depth = 24
+	water.mesh = plane
+	var wm := ShaderMaterial.new()
+	wm.shader = load("res://scripts/world/water.gdshader" if Settings.quality >= 1 else "res://scripts/world/water_lite.gdshader")
+	wm.set_shader_parameter("wave_height", 0.002)      # (dead still: no foam, no chop, a clean blue)
+	wm.set_shader_parameter("foam_amount", 0.0)
+	wm.set_shader_parameter("wave_speed", 0.08)
+	wm.set_shader_parameter("refraction", 0.012)
+	wm.set_shader_parameter("absorb", 0.32)
+	wm.set_shader_parameter("deep", Color(0.05, 0.45, 0.62))
+	wm.set_shader_parameter("shallow", Color(0.55, 0.9, 0.95))
+	water.material_override = wm
+	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	water.position = Vector3(pc.x, 0.0, pc.y)
+	add_child(water)
+	# lanes on the bottom, ropes on top
+	for k in 5:
+		var lz := POOL.position.y + 3.5 * (k + 1)
+		box(Vector3(pc.x, POOL_FLOOR + 0.01, lz + 1.75 - 3.5), Vector3(POOL.size.x - 4.0, 0.02, 0.3), Color(0.08, 0.12, 0.3), false)
+		for seg in 5:
+			scatter_prop("lane_rope", Vector3(POOL.position.x + 5.0 + seg * 10.0, 0.0, lz), 0.0)
+	# the road from the arcade runs straight across the deck and on into the water, along the bottom
+	var road_x := ARCADE.get_center().x
+	for k in range(int(LIDO.end.y) - 1, int(POOL.position.y) - 30, -6):
+		var y := CURB + 0.01 if k > POOL.end.y else POOL_FLOOR + 0.015
+		if k < POOL.position.y and k > POOL.position.y - 1.0:
+			continue
+		if k < POOL.position.y:
+			y = CURB + 0.01
+		box(Vector3(road_x, y, k), Vector3(0.14, 0.02, 3.0), Color(0.85, 0.75, 0.3), false)
+	_crosswalk(Vector3(road_x, CURB - 0.02, POOL.end.y + 4.0), false)
+	_crosswalk(Vector3(road_x, POOL_FLOOR, pc.y + 2.0), false)
+	# a street lamp standing in the deep end, lit; a car parked on the bottom
+	_lamp(Vector3(66.0, POOL_FLOOR, -204.0))
+	omni(Vector3(66.0, 5.0, -204.0), Color(1.0, 0.85, 0.6), 1.2, 9.0, false)
+	prop("car_3", Vector3(57.0, POOL_FLOOR, -210.5), 80.0)
+	# poolside: starting blocks at the shallow end, the diving tower at the deep end, a lifeguard's chair
+	for k in 6:
+		scatter_prop("starting_block", Vector3(POOL.position.x - 0.45, CURB, POOL.position.y + 1.75 + k * 3.5), 90.0)
+	furnish("diving_tower", Vector3(POOL.end.x - 3.5, CURB, POOL.position.y - 0.9), 0.0, Vector3(2.4, 5.0, 0.6), Vector3(0, 2.5, -0.75))
+	furnish("lifeguard_chair", Vector3(pc.x, CURB, POOL.end.y + 1.6), 180.0, Vector3(1.0, 2.0, 1.0), Vector3(0, 1.0, 0))
+	for x in [POOL.position.x + 2.0, POOL.end.x - 2.0]:
+		prop("pool_ladder", Vector3(x, CURB, POOL.end.y), 180.0)
+		prop("pool_ladder", Vector3(x, CURB, POOL.position.y), 0.0)
+	# ...and pool ladders going down into the lawn
+	for x in [30.0, 52.0, 76.0]:
+		prop("pool_ladder", Vector3(x, CURB, LAWN.end.y - 0.2), 180.0)
+	var sign := prop("pool_sign", Vector3(POOL.position.x + 6.0, CURB, POOL.end.y + 1.2), 180.0)
+	if sign:
+		label(sign.position + Vector3(0, 1.6, -0.04), 180, "NO DIVING\nDEPTH 1.2 m", 0.09, Color(0.1, 0.1, 0.12), false)
+	prop("lifebuoy_post", Vector3(POOL.end.x + 2.5, CURB, POOL.end.y + 1.5), 200.0)
+	# changing cabins in a row along the south side
+	var x := c.position.x + 3.0
+	while x < c.end.x - 2.0:
+		if absf(x - road_x) > 4.0:
+			if scatter_prop("changing_cabin", Vector3(x, CURB, c.end.y - 1.2), 180.0):
+				blocker(Vector3(x, CURB + 1.2, c.end.y - 1.2), Vector3(1.3, 2.4, 1.3))
+		x += 1.5
+	# loungers and parasols on the lawn, set out for people who aren't coming
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 818
+	for k in 9:
+		var lx := LAWN.position.x + 6.0 + k * 8.0
+		var lz := LAWN.get_center().y + rng.randf_range(-3.0, 3.0)
+		scatter_prop("deckchair", Vector3(lx, CURB, lz), 180.0 + rng.randf_range(-10, 10))
+		scatter_prop("deckchair", Vector3(lx + 1.0, CURB, lz), 180.0 + rng.randf_range(-10, 10))
+		if k % 2 == 0:
+			prop("parasol", Vector3(lx + 0.5, CURB, lz - 1.4), 0.0)
+	for i in 1400:
+		var gp := Vector3(rng.randf_range(LAWN.position.x, LAWN.end.x), CURB - 0.02, rng.randf_range(LAWN.position.y, LAWN.end.y))
+		var gb := Basis(Vector3.UP, rng.randf() * TAU) * Basis.from_scale(Vector3(1.1, rng.randf_range(0.3, 0.5), 1.1))
+		if not scatter("grass_clump", Transform3D(gb, gp), Color.WHITE, "", false, false):
+			break
+	trigger(Vector3(road_x, 1.5, LIDO.end.y - 3.0), Vector3(10, 3, 2), func():
+		Game.hud.show_thought("A swimming pool. In the middle of the city. Under the sky. ...Of course there is.", 4.5))
+	trigger(Vector3(road_x, 1.5, POOL.end.y + 3.0), Vector3(8, 3, 2), func():
+		Game.hud.show_thought("The road goes straight into the water. Lines and all.", 3.5))
+
+
+# ------------------------------------------------------------------ 5 the steps
+
+func _steps() -> void:
+	var r := STEPS
+	var n := 31
+	var run := r.size.y / n
+	var rise := (TOP_Y - CURB) / n
+	for k in n:
+		var y := CURB + rise * (k + 1)
+		var z := r.end.y - run * (k + 0.5)
+		box(Vector3(r.get_center().x, y * 0.5, z), Vector3(r.size.x, y, run), Color(0.78, 0.76, 0.72), false, 0.0, "concrete")
+	# you walk up a ramp (the steps are for looking at)
+	var body := StaticBody3D.new()
+	var cs := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	var length := Vector2(r.size.y, TOP_Y - CURB).length()
+	bs.size = Vector3(r.size.x, 0.2, length)
+	cs.shape = bs
+	body.add_child(cs)
+	body.position = Vector3(r.get_center().x, (CURB + TOP_Y) * 0.5 - 0.1, r.get_center().y)
+	body.rotation.x = atan2(TOP_Y - CURB, r.size.y)     # (rising to the north, -z)
+	add_child(body)
+	# handrails up the middle
+	for k in 6:
+		var z := r.end.y - k * 5.0 - 2.5
+		var y := CURB + (r.end.y - z) / r.size.y * (TOP_Y - CURB)
+		prop("wood_post", Vector3(r.get_center().x, y - 0.1, z), 0.0, 0.6)
+	trigger(Vector3(r.get_center().x, 3.0, r.get_center().y), Vector3(r.size.x, 8, 2), func():
+		Game.hud.show_thought("Ninety-eight. Ninety-nine. ...I didn't think there'd be this many.", 4.0))
+
+
+# ------------------------------------------------------------------ 6 the playground, on a terrace above the roofs
+
+func _playground() -> void:
+	var r := TERRACE
+	box(Vector3(r.get_center().x, TOP_Y * 0.5, r.get_center().y), Vector3(r.size.x, TOP_Y, r.size.y), Color(0.62, 0.6, 0.56), true, 0.0, "pavers")
+	# the play area: soft red ground, a low fence of coloured pickets
+	var pa := Rect2(28.0, -314.0, 52.0, 26.0)
+	box(Vector3(pa.get_center().x, TOP_Y + 0.01, pa.get_center().y), Vector3(pa.size.x, 0.02, pa.size.y), Color(0.34, 0.17, 0.15), false, 0.0, "concrete")
+	var fx := pa.position.x + 1.0
+	while fx < pa.end.x:
+		if absf(fx - 55.0) > 2.0:
+			scatter_prop("play_fence", Vector3(fx, TOP_Y, pa.end.y), 0.0)
+		scatter_prop("play_fence", Vector3(fx, TOP_Y, pa.position.y), 0.0)
+		fx += 2.0
+	var fz := pa.position.y + 1.0
+	while fz < pa.end.y:
+		scatter_prop("play_fence", Vector3(pa.position.x, TOP_Y, fz), 90.0)
+		scatter_prop("play_fence", Vector3(pa.end.x, TOP_Y, fz), 90.0)
+		fz += 2.0
+	for s in [[Vector2(pa.get_center().x, pa.end.y), Vector3(pa.size.x, 1.2, 0.2), false], [Vector2(pa.get_center().x, pa.position.y), Vector3(pa.size.x, 1.2, 0.2), true],
+			[Vector2(pa.position.x, pa.get_center().y), Vector3(0.2, 1.2, pa.size.y), false], [Vector2(pa.end.x, pa.get_center().y), Vector3(0.2, 1.2, pa.size.y), false]]:
+		if s[2]:
+			continue      # (the north side is open: the gate to the meadow is there)
+		var at: Vector2 = s[0]
+		var size: Vector3 = s[1]
+		if size.x > 1.0:    # the south fence has a gap where you come in
+			var gap := 55.0
+			blocker(Vector3((pa.position.x + gap - 1.8) * 0.5, TOP_Y + 0.6, at.y), Vector3(gap - 1.8 - pa.position.x, 1.2, 0.2))
+			blocker(Vector3((pa.end.x + gap + 1.8) * 0.5, TOP_Y + 0.6, at.y), Vector3(pa.end.x - gap - 1.8, 1.2, 0.2))
+		else:
+			blocker(Vector3(at.x, TOP_Y + 0.6, at.y), size)
+	furnish("swing_set", Vector3(36.0, TOP_Y, -300.0), 0.0, Vector3(3.2, 2.4, 0.2), Vector3(0, 1.2, 0))
+	furnish("slide", Vector3(48.0, TOP_Y, -306.0), 30.0, Vector3(0.8, 2.4, 0.8), Vector3(0, 1.2, -0.7))
+	furnish("climbing_dome", Vector3(64.0, TOP_Y, -296.0), 0.0, Vector3(3.0, 1.5, 3.0), Vector3(0, 0.75, 0))
+	prop("sandbox", Vector3(72.0, TOP_Y, -306.0), 15.0)
+	_roundabout = prop("roundabout", Vector3(40.0, TOP_Y, -294.0), 0.0)
+	prop("seesaw", Vector3(58.0, TOP_Y, -310.0), 10.0)
+	prop("spring_rider", Vector3(70.0, TOP_Y, -294.0), 200.0)
+	prop("spring_rider", Vector3(72.5, TOP_Y, -295.5), 160.0)
+	for b in [[Vector3(30.0, TOP_Y, -286.5), 0], [Vector3(76.0, TOP_Y, -286.5), 0]]:
+		_bench(b[0], b[1])
+	trigger(Vector3(55.0, TOP_Y + 1.5, -284.5), Vector3(20, 3, 2), func():
+		Game.hud.show_thought("A playground. Up here, above the roofs. ...Nobody on the swings. The roundabout's still turning.", 4.5))
+	# the gate out, on the north side
+	prop("park_gate", Vector3(55.0, TOP_Y, r.position.y), 0.0)
+	for side in [-1.0, 1.0]:
+		blocker(Vector3(55.0 + side * 1.7, TOP_Y + 1.4, r.position.y), Vector3(0.6, 2.8, 0.6))
+	# the terrace's north edge: railings, and the gate the only way through
+	blocker(Vector3((r.position.x + 53.3) * 0.5, TOP_Y + 0.6, r.position.y), Vector3(53.3 - r.position.x, 1.2, 0.2))
+	blocker(Vector3((r.end.x + 56.7) * 0.5, TOP_Y + 0.6, r.position.y), Vector3(r.end.x - 56.7, 1.2, 0.2))
+	var rx := r.position.x + 1.0
+	while rx < r.end.x:
+		if absf(rx - 55.0) > 2.5:
+			scatter_prop("play_fence", Vector3(rx, TOP_Y, r.position.y), 0.0)
+		rx += 2.0
+
+
+var _roundabout: Node3D
+
+
+# ------------------------------------------------------------------ 7 the meadow, where the city stops
+
+const HILL := Vector3(55, TOP_Y, -400)
+
+
+func _meadow() -> void:
+	var r := MEADOW
+	box(Vector3(r.get_center().x, TOP_Y * 0.5, r.get_center().y), Vector3(r.size.x, TOP_Y, r.size.y), GRASS, true, 0.0, "grass")
+	# the edges: you can't walk off the world (and nobody would want to)
+	for e in [[Vector3(r.get_center().x, TOP_Y + 5, r.position.y), Vector3(r.size.x, 10, 1)],
+			[Vector3(r.position.x, TOP_Y + 5, r.get_center().y), Vector3(1, 10, r.size.y)], [Vector3(r.end.x, TOP_Y + 5, r.get_center().y), Vector3(1, 10, r.size.y)],
+			[Vector3((r.position.x + TERRACE.position.x) * 0.5, TOP_Y + 5, r.end.y), Vector3(TERRACE.position.x - r.position.x, 10, 1)],
+			[Vector3((TERRACE.end.x + r.end.x) * 0.5, TOP_Y + 5, r.end.y), Vector3(r.end.x - TERRACE.end.x, 10, 1)]]:
+		blocker(e[0], e[1])
+	# a path through the grass from the gate to the hill
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2026
+	var a := Vector3(55.0, TOP_Y, r.end.y)
+	var b := HILL + Vector3(0, 0, 15.0)
+	var n := 48
+	for k in n:
+		var t := k / float(n - 1)
+		var p := a.lerp(b, t) + Vector3(sin(t * PI * 1.5) * 9.0, 0, 0)
+		var dx := cos(t * PI * 1.5) * PI * 1.5 * 9.0      # d/dt of the sideways swing
+		var dz := b.z - a.z
+		box(Vector3(p.x, TOP_Y + 0.005, p.z), Vector3(2.2, 0.02, 2.4), PATH, false, rad_to_deg(atan2(dx, dz)), "concrete")
+	# grass, a few trees, wildflowers
+	for i in 5000:
+		var gp := Vector3(rng.randf_range(r.position.x + 20.0, r.end.x - 20.0), TOP_Y - 0.02, rng.randf_range(r.position.y + 15.0, r.end.y))
+		var gb := Basis(Vector3.UP, rng.randf() * TAU) * Basis.from_scale(Vector3(1.1, rng.randf_range(0.4, 0.7), 1.1))
+		if not scatter("grass_clump", Transform3D(gb, gp), Color.WHITE, "", false, false):
+			break
+	for i in 700:
+		var gp := Vector3(rng.randf_range(r.position.x + 20.0, r.end.x - 20.0), TOP_Y - 0.05, rng.randf_range(r.position.y + 15.0, r.end.y))
+		if not scatter("grass_tall", Transform3D(Basis(Vector3.UP, rng.randf() * TAU) * Basis.from_scale(Vector3.ONE * rng.randf_range(0.7, 1.0)), gp), Color.WHITE, "", false, false):
+			break
+	for i in 14:
+		var tp := Vector3(rng.randf_range(r.position.x + 15.0, r.end.x - 15.0), TOP_Y, rng.randf_range(r.position.y + 15.0, r.end.y - 25.0))
+		if tp.distance_to(HILL) < 22.0 or absf(tp.x - 55.0) < 14.0:
+			continue
+		_tree(tp, rng.randf_range(1.0, 1.5), rng.randi() % 3)
+	# things that don't belong in a field: a street lamp, lit; a swing hanging from nothing, high as the clouds
+	_lamp(Vector3(26.0, TOP_Y, -372.0))
+	omni(Vector3(26.0, TOP_Y + 5.0, -372.0), Color(1.0, 0.85, 0.6), 1.0, 8.0, false)
+	prop("pool_ladder", Vector3(92.0, TOP_Y, -352.0), 140.0)
+	_sky_swing = group(Vector3(80.0, TOP_Y + 40.0, -385.0))
+	var chain := CylinderMesh.new()
+	chain.top_radius = 0.012
+	chain.bottom_radius = 0.012
+	chain.height = 39.3
+	chain.radial_segments = 4
+	for dx in [-0.22, 0.22]:
+		var mi := MeshInstance3D.new()
+		mi.mesh = chain
+		mi.material_override = Shapes.material(Color(0.7, 0.7, 0.72), 0.3, 0.0, 0.9)
+		mi.position = Vector3(dx, -19.65, 0)
+		_sky_swing.add_child(mi)
+	part("box", Vector3(0, -39.3, 0), Vector3(0.55, 0.04, 0.2), Color(0.3, 0.2, 0.12), _sky_swing, Vector3.ZERO, 0.0, "wood")
+	trigger(Vector3(55.0, TOP_Y + 1.5, r.end.y - 4.0), Vector3(8, 3, 2), func():
+		Game.hud.show_thought("The city just... stops. Grass, all the way to the sky.", 4.0))
+	trigger(Vector3(80.0, TOP_Y + 1.5, -385.0), Vector3(10, 3, 10), func():
+		Game.hud.show_thought("A swing. The chains go up... and up. ...What's it hanging from?", 4.0))
+
+
+var _sky_swing: Node3D
 
 
 func _skyline() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 77
-	for side in 4:
-		var t := -170.0
-		while t <= 170.0:
-			var depth := 126.0 + rng.randf_range(0.0, 25.0)
+	# towers all round the walk's south half (the meadow, to the north, has only sky)
+	for side in 3:
+		var t := -260.0 if side >= 1 else -110.0
+		var t_end := 60.0 if side >= 1 else 170.0
+		while t <= t_end:
 			var h := rng.randf_range(25.0, 95.0)
 			var col: Color = FACADES[rng.randi() % FACADES.size()].darkened(0.1)
 			var p: Vector3
 			match side:
-				0: p = Vector3(t, h * 0.5, depth)
-				1: p = Vector3(t, h * 0.5, -depth)
-				2: p = Vector3(depth, h * 0.5, t)
-				_: p = Vector3(-depth, h * 0.5, t)
+				0: p = Vector3(t, h * 0.5, 90.0 + rng.randf_range(0.0, 25.0))
+				1: p = Vector3(-90.0 - rng.randf_range(0.0, 25.0), h * 0.5, t)
+				_: p = Vector3(150.0 + rng.randf_range(0.0, 25.0), h * 0.5, t)
 			if not _far_building(p - Vector3(0, h * 0.5, 0), h, col, rng):
 				box(p, Vector3(14, h, 14), col, false)
-			t += 17.0
+			t += 19.0
 
 
 ## Distant skyline: large modern facades, two bays a side, double-height floors (they are far away).
@@ -241,34 +694,6 @@ func _crosswalk(center: Vector3, along_x: bool) -> void:
 		var off := Vector3(0, 0, k * 1.05) if along_x else Vector3(k * 1.05, 0, 0)
 		var sz := Vector3(3, 0.02, 0.55) if along_x else Vector3(0.55, 0.02, 3)
 		box(center + off + Vector3(0, 0.035, 0), sz, Color(0.85, 0.85, 0.82), false)
-
-
-func _streets() -> void:
-	for sx in [-1, 1]:
-		for sz in [-1, 1]:
-			var i := Vector3(sx * PITCH * 0.5, 0, sz * PITCH * 0.5)
-			_crosswalk(i + Vector3(0, 0, 6.7), false)
-			_crosswalk(i + Vector3(0, 0, -6.7), false)
-			_crosswalk(i + Vector3(6.7, 0, 0), true)
-			_crosswalk(i + Vector3(-6.7, 0, 0), true)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 4242
-	var spots := [[Vector3(-30, 0, -17.4), 0], [Vector3(-44, 0, 17.4), 0], [Vector3(9, 0, 17.4), 0],
-		[Vector3(-17.4, 0, 33), 90], [Vector3(17.4, 0, -32), 90], [Vector3(17.4, 0, 42), 90],
-		[Vector3(56, 0, 17.4), 0], [Vector3(-60, 0, -17.4), 0], [Vector3(-17.4, 0, -52), 90]]
-	for s in spots:
-		_car(s[0], s[1], (FACADES[rng.randi() % FACADES.size()] as Color).darkened(rng.randf_range(0.0, 0.4)))
-	# the bus stop at the far end of the avenue
-	var stop := Vector3(69.75, CURB, -31.5)
-	if furnish("bus_shelter", stop, 0.0):
-		blocker(stop + Vector3(1.39, 1.25, 0), Vector3(0.06, 2.4, 4.0))
-		blocker(stop + Vector3(1.0, 0.24, 0), Vector3(0.45, 0.48, 3.0))
-	else:
-		box(stop + Vector3(0.6, 2.5, 0), Vector3(1.8, 0.1, 4.2), METAL)
-		box(stop + Vector3(1.4, 1.25, 0), Vector3(0.06, 2.4, 4.0), Color(0.5, 0.62, 0.7), false, 0.0, 0.2)
-		box(stop + Vector3(-0.2, 1.25, -2.05), Vector3(0.08, 2.5, 0.08), METAL)
-		box(stop + Vector3(-0.2, 1.25, 2.05), Vector3(0.08, 2.5, 0.08), METAL)
-		box(stop + Vector3(1.0, 0.45, 0), Vector3(0.45, 0.08, 3.0), METAL)
 
 
 func _park() -> void:
@@ -455,12 +880,12 @@ func _characters() -> void:
 	# Theo and his kite.
 	_theo = NPC.new()
 	add_child(_theo)
-	_theo.position = Vector3(9.5, GRASS_Y, 9.5)
-	_theo.rotation_degrees.y = 150
+	_theo.position = Vector3(44.0, TOP_Y, -306.0)
+	_theo.rotation_degrees.y = 10
 	_theo.setup("theo", "Theo", "the kid with the kite", {"skin": Color(0.58, 0.4, 0.28), "hair": Color(0.05, 0.04, 0.04),
 		"shirt": Color(0.96, 0.8, 0.2), "pants": Color(0.25, 0.4, 0.62), "height": 0.68, "cap": true,
 		"cap_color": Color(0.85, 0.15, 0.12), "hair_style": "curly", "build": 0.9, "shoes": Color(0.9, 0.9, 0.92)})
-	_kite = group(Vector3(14, 15, 17))
+	_kite = group(KITE_BASE)
 	if prop("kite", Vector3.ZERO, 0.0, 1.0, _kite) == null:
 		part("box", Vector3.ZERO, Vector3(0.9, 0.9, 0.03), Color(0.9, 0.2, 0.25), _kite, Vector3(0, 0, 45))
 		part("box", Vector3(0, 0, 0.01), Vector3(0.5, 0.5, 0.02), Color(0.98, 0.85, 0.3), _kite, Vector3(0, 0, 45))
@@ -472,16 +897,17 @@ func _characters() -> void:
 	# The jogger, looping the park.
 	var jog := NPC.new()
 	add_child(jog)
-	var e := BLOCK * 0.5 - 1.75
-	jog.position = Vector3(-e, CURB, -e)
+	var jy := CURB
+	jog.position = Vector3(24.0, jy, -190.0)
 	jog.setup("jogger", "the jogger", "the jogger", {"skin": Color(0.74, 0.52, 0.38), "hair": Color(0.6, 0.42, 0.2),
 		"shirt": Color(0.25, 0.72, 0.72), "pants": Color(0.08, 0.08, 0.1), "hair_style": "long",
 		"shoes": Color(0.95, 0.4, 0.3)})
-	jog.patrol = [Vector3(-e, CURB, -e), Vector3(e, CURB, -e), Vector3(e, CURB, e), Vector3(-e, CURB, e)]
+	jog.patrol = [Vector3(24.0, jy, -191.0), Vector3(86.0, jy, -191.0), Vector3(86.0, jy, -219.5), Vector3(22.0, jy, -219.5)]
 	jog.patrol_speed = 3.3
 
 	# The Observer: far end of the avenue, by the bus stop. Easy to overlook.
-	_observer_spots = [Vector3(69.75, CURB, -27.8), Vector3(-69.75, CURB, 9.0), Vector3(-9.0, CURB, 69.75), Vector3(9.0, CURB, -69.75)]
+	# (the far end of the avenue, across the pool, the terrace's far corner, the far edge of the meadow)
+	_observer_spots = [BUS_STOP + Vector3(-0.5, 0, 4.0), Vector3(88.0, CURB, -248.0), Vector3(86.0, TOP_Y, -316.0), Vector3(120.0, TOP_Y, -450.0)]
 	observer = Observer.new()
 	add_child(observer)
 	observer.global_position = _observer_spots[0]
@@ -576,6 +1002,11 @@ func _life(delta: float) -> void:
 			var hop := maxf(0.0, sin(t * 2.0)) * 0.04
 			_pigeons[i].position = _pigeon_home[i] + Vector3(sin(t * 0.21 + i) * 0.25, hop, cos(t * 0.17 + i * 2.0) * 0.25)
 			_pigeons[i].rotation.y = i * 0.9 + sin(t * 0.4) * 1.2
+	# the roundabout turns on its own; the swing in the meadow sways, very slowly, very far
+	if _roundabout:
+		_roundabout.rotation.y += delta * 0.35
+	if _sky_swing:
+		_sky_swing.rotation.x = sin(_t * 0.25) * 0.03
 	# birdsong, now and then
 	if _t > _next_chirp:
 		_next_chirp = _t + randf_range(1.5, 6.0)
@@ -585,7 +1016,7 @@ func _life(delta: float) -> void:
 			Sfx.play_at("chirp", self, where, -6.0, 40.0)
 	# the kite sways; its string runs to Theo's hand
 	if _kite:
-		var kp := Vector3(14 + sin(_t * 0.4) * 1.6, 15 + sin(_t * 0.7) * 0.7, 17 + cos(_t * 0.33) * 1.2)
+		var kp := KITE_BASE + Vector3(sin(_t * 0.4) * 1.6, sin(_t * 0.7) * 0.7, cos(_t * 0.33) * 1.2)
 		_kite.position = kp
 		_kite.rotation_degrees = Vector3(sin(_t * 1.1) * 10, 40, sin(_t * 0.9) * 15)
 		if _theo and _theo.get_hand():
@@ -604,11 +1035,9 @@ func _find_spot_near(ppos: Vector3, min_d: float, max_d: float) -> Vector3:
 	for attempt in 24:
 		var dir := Vector3.FORWARD.rotated(Vector3.UP, randf() * TAU)
 		var p := ppos + dir * randf_range(min_d, max_d)
-		if absf(p.x) > BOUNDS - 3 or absf(p.z) > BOUNDS - 3:
-			continue
-		p.y = ground_y(p, CURB)
-		if p.y > CURB + 0.3:
-			continue   # landed on a roof, a car or a bench: he stands on the ground
+		p.y = ground_y(p + Vector3(0, ppos.y - p.y + 1.0, 0), ppos.y)
+		if absf(p.y - ppos.y) > 0.4:
+			continue   # landed on a roof, a car or a bench (or in the pool): he stands where you stand
 		var body := p + Vector3.UP * 0.95
 		# unobserved now, but in plain sight the moment you turn around
 		if not Observation.is_observed(body, 0.6) and Observation.has_line_of_sight(body):
@@ -632,7 +1061,6 @@ func observer_event(event: String) -> void:
 # something, change two things  4 The Residents: talk, tell one of them  5 The Observer  6 The Exit:
 # the hammock under the giant tree on the hill, visible over the rooftops from the park.
 
-const HILL := Vector3(0, CURB, -84)
 var _landmarks := {}
 var _changes := {}
 var _fountain_jets: Array[Node3D] = []
@@ -643,7 +1071,7 @@ func _quest() -> void:
 	# landmarks: the fountain, the ice cream cart, the bus stop at the far end of the avenue
 	for lm in [["fountain", Vector3(0, 1, 0), Vector3(9, 3, 9), "The fountain's dry. In a dream? I could fix that."],
 			["cart", Vector3(2.4, 1, -9), Vector3(5, 3, 5), "An ice cream cart. Nobody's queuing."],
-			["busstop", Vector3(69, 1, -31.5), Vector3(8, 3, 9), "The 3:12 bus. Every stop on the timetable says 3:12."]]:
+			["busstop", BUS_STOP + Vector3(0, 1, 0), Vector3(8, 3, 9), "The 3:12 bus. Every stop on the timetable says 3:12."]]:
 		var id: String = lm[0]
 		var line: String = lm[3]
 		trigger(lm[1], lm[2], func():
@@ -652,12 +1080,11 @@ func _quest() -> void:
 			Game.hud.show_thought(line, 4.0)
 			if _landmarks.size() >= 3:
 				Game.set_flag("city_landmarks"))
-	label(Vector3(69.0, 2.2, -29.4), 180, "3:12  3:12  3:12  3:12", 0.08, Color(0.1, 0.1, 0.12), false)
 
 	# things that can be changed by wanting them changed
 	interactable(Vector3(0, GRASS_Y + 0.9, 2.7), Vector3(5.4, 1.4, 0.6), func(): return "" if _changes.has("fountain") else "Picture the fountain flowing",
 		func(): _change("fountain"), func(): return not _changes.has("fountain"))
-	interactable(Vector3(9, 0.9, 17.4), Vector3(4.4, 1.6, 2.2), func(): return "" if _changes.has("car") else "Picture it another colour",
+	interactable(CAR_SPOT + Vector3(0, 0.9, 0), Vector3(2.2, 1.6, 4.4), func(): return "" if _changes.has("car") else "Picture it another colour",
 		func(): _change("car"), func(): return not _changes.has("car"))
 	interactable(Vector3(-10, GRASS_Y + 1.5, -1.7), Vector3(0.8, 3.0, 0.8), func(): return "" if _changes.has("lamps") else "Picture the lamps lit",
 		func(): _change("lamps"), func(): return not _changes.has("lamps"))
@@ -671,7 +1098,7 @@ func _quest() -> void:
 	var hill := MeshInstance3D.new()
 	hill.mesh = cone
 	hill.material_override = Shapes.surface("grass", GRASS)
-	hill.position = HILL + Vector3(0, 1.8, 0)
+	hill.position = HILL + Vector3(0, 1.8 - 0.05, 0)
 	add_child(hill)
 	var body := StaticBody3D.new()
 	var cs := CollisionShape3D.new()
@@ -717,7 +1144,6 @@ func _quest() -> void:
 				return
 			Game.hud.show_thought("Quiet. Just the leaves. ...Time to wake up.", 3.0)
 			Game.request_wake())
-	label(HILL + Vector3(0, 0.8, 14.0), 0, "THE HILL", 0.3, Color(0.2, 0.18, 0.14), false)
 	Notebook.rule_broken.connect(_on_rule_broken)
 
 
@@ -748,7 +1174,7 @@ func _change(what: String) -> void:
 		"car":
 			var tint := Color.from_hsv(randf(), 0.55, 0.8)
 			for c in get_children():
-				if c is Node3D and String(c.name).begins_with("car_") and (c as Node3D).global_position.distance_to(Vector3(9, 0, 17.4)) < 1.0:
+				if c is Node3D and String(c.name).begins_with("car_") and (c as Node3D).global_position.distance_to(CAR_SPOT) < 1.0:
 					for mi in c.find_children("*", "MeshInstance3D", true, false):
 						for si in mi.mesh.get_surface_count():
 							var m: Material = mi.mesh.surface_get_material(si)
