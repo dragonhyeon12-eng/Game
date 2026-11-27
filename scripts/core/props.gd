@@ -42,7 +42,13 @@ static func _dress(ps: PackedScene) -> void:
 			continue
 		for i in mesh.get_surface_count():
 			var m := mesh.surface_get_material(i) as BaseMaterial3D
-			if m == null or not String(m.resource_name).contains("__"):
+			if m == null:
+				continue
+			var wm := _windy(String(m.resource_name).to_lower(), m, mesh)
+			if wm:
+				mesh.surface_set_material(i, wm)
+				continue
+			if not String(m.resource_name).contains("__"):
 				continue
 			var t := _textured(String(m.resource_name).get_slice("__", 1).get_slice(".", 0), m)
 			if t:
@@ -165,3 +171,58 @@ static func parts(slot: String) -> Array:
 		root.free()
 	_parts[slot] = out
 	return out
+
+
+
+# ------------------------------------------------------------------ wind
+# Leaves, grass and the bark under them get shaders that move them in the wind (scripts/world/foliage.gdshader,
+# bark_wind.gdshader): the whole plant leans with gusts, every leaf shivers. A zone can still the air.
+
+static var _wind_mats: Array[ShaderMaterial] = []
+static var _wind := 1.0
+static var _white: ImageTexture
+
+
+static func set_wind(v: float) -> void:
+	_wind = v
+	for m in _wind_mats:
+		m.set_shader_parameter("wind", v)
+
+
+static func wind() -> float:
+	return _wind
+
+
+static func _windy(name: String, m: BaseMaterial3D, mesh: Mesh) -> Material:
+	var leafy := name.contains("leaf") or name.contains("grass") or name.contains("blade") or name.contains("hedge")
+	var barky := name.contains("bark")
+	if not leafy and not barky:
+		return null
+	var h := maxf(mesh.get_aabb().end.y, 0.3)
+	var sm := ShaderMaterial.new()
+	if _white == null:
+		var img := Image.create(1, 1, false, Image.FORMAT_RGBA8)
+		img.fill(Color.WHITE)
+		_white = ImageTexture.create_from_image(img)
+	if leafy:
+		sm.shader = preload("res://scripts/world/foliage.gdshader")
+		sm.set_shader_parameter("albedo_tex", m.albedo_texture if m.albedo_texture else _white)
+		sm.set_shader_parameter("albedo", m.albedo_color)
+		sm.set_shader_parameter("alpha_cut", m.alpha_scissor_threshold if m.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR else 0.4)
+		sm.set_shader_parameter("roughness", m.roughness)
+		sm.set_shader_parameter("flutter", clampf(h * 0.004, 0.006, 0.04))
+		if name.contains("hedge"):
+			sm.set_shader_parameter("flutter", 0.01)
+	else:
+		sm.shader = preload("res://scripts/world/bark_wind.gdshader")
+		sm.set_shader_parameter("albedo_tex", m.albedo_texture if m.albedo_texture else _white)
+		sm.set_shader_parameter("albedo", m.albedo_color)
+		sm.set_shader_parameter("roughness", m.roughness)
+		sm.set_shader_parameter("normal_tex", m.normal_texture)
+		sm.set_shader_parameter("use_normal", 1.0 if m.normal_texture else 0.0)
+	sm.set_shader_parameter("sway_height", h)
+	sm.set_shader_parameter("sway", clampf(h * 0.022, 0.015, 0.32) if not name.contains("hedge") else 0.02)
+	sm.set_shader_parameter("wind", _wind)
+	sm.resource_name = m.resource_name
+	_wind_mats.append(sm)
+	return sm

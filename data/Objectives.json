@@ -55,6 +55,32 @@
 			"after": "observer_noticed"
 		}
 	],
+	"remember": [
+		{
+			"flag": "rm_fountain",
+			"text": "Walk into the park"
+		},
+		{
+			"flag": "rm_gardens",
+			"text": "Follow the signs to the gardens",
+			"after": "rm_fountain"
+		},
+		{
+			"flag": "rm_playground",
+			"text": "Keep walking",
+			"after": "rm_gardens"
+		},
+		{
+			"flag": "rm_gate",
+			"text": "Find the three markers ({markers}/3)",
+			"after": "rm_impossible"
+		},
+		{
+			"flag": "rm_exit",
+			"text": "Go out through the white arch",
+			"after": "rm_gate"
+		}
+	],
 	"maze": [
 		{
 			"flag": "maze_found_wing",

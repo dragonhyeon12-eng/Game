@@ -182,7 +182,7 @@ func _cancel_sequences() -> void:
 
 # ------------------------------------------------------------------ zones
 
-const ZONES := ["bedroom", "bedroom_dream", "city", "maze", "deep", "seabed", "abyss", "compression", "tenement", "above",
+const ZONES := ["bedroom", "bedroom_dream", "city", "remember", "maze", "deep", "seabed", "abyss", "compression", "tenement", "above",
 	"blackout", "stilllife", "openspace", "pattern", "quiet", "rest1", "rest2", "rest3"]
 ## The resting places, and where each one's doorway leads: [zone, title card, subtitle].
 const RESTS := {
@@ -211,6 +211,8 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 			zone = bd
 		"city":
 			zone = CityZone.new()
+		"remember":
+			zone = RememberZone.new()
 		"maze":
 			var m := MazeZone.new()
 			m.seed_value = maze_seed
@@ -272,6 +274,9 @@ func enter_zone(type: String, from_save := false, waking := false) -> void:
 	Sfx.music_gain = 1.0
 	match type:
 		"city": Sfx.play_music("city", 4.0)
+		"remember":
+			Sfx.play_music("city", 8.0)
+			Sfx.music_gain = 0.35
 		"bedroom_dream":
 			Sfx.play_music("city", 6.0)
 			Sfx.music_gain = 0.5
@@ -380,7 +385,7 @@ func _restore_checkpoint(fear_override := -1.0, stability_override := -1.0) -> b
 # ------------------------------------------------------------------ flow
 
 ## The title screen: behind the menu, a slow tour of where each realm begins.
-const TITLE_TOUR := [["bedroom", "3:12 AM"], ["city", "THE CITY"], ["maze", "THE BACKROOMS"], ["deep", "THE DEEP"],
+const TITLE_TOUR := [["bedroom", "3:12 AM"], ["city", "THE CITY"], ["remember", "THE PLACE WE REMEMBER"], ["maze", "THE BACKROOMS"], ["deep", "THE DEEP"],
 	["seabed", "THE DEEP  -  THE SEABED"], ["abyss", "THE DEEP  -  THE ABYSS"], ["rest1", "SOMEWHERE QUIET"], ["compression", "COMPRESSION"],
 	["tenement", "COMPRESSION  -  THE TENEMENT"], ["above", "ABOVE"], ["rest2", "SOMEWHERE QUIET  -  II"], ["blackout", "BLACKOUT"], ["stilllife", "STILL LIFE"],
 	["openspace", "OPEN SPACE"], ["rest3", "SOMEWHERE QUIET  -  III"], ["pattern", "PATTERN"], ["quiet", "THE QUIET"]]
@@ -620,6 +625,9 @@ func request_wake() -> void:
 		hud.show_thought("Wake up. Wake up. Wake up. ...Nothing.", 3.5)
 		player.dread.add_fear(4.0, "can't wake")
 		return
+	if zone_type == "remember":
+		hud.show_thought("Not yet. ...I want to see the rest of it first.", 3.0)
+		return
 	if zone_type != "city":
 		return
 	in_sequence = true
@@ -638,6 +646,42 @@ func request_wake() -> void:
 	hud.fade_to(1.0, 0.6)
 	if not await _wait(1.0, t): return
 	player.set_phasing(false)
+	enter_zone("maze")
+	player.dread.set_values(maxf(player.dread.fear, 22.0), player.dread.stability)
+	save_checkpoint()
+	hud.fade_to(0.0, 3.0)
+	in_sequence = false
+	set_mode("game")
+
+
+# ------------------------------------------------------------------ the hammock -> THE PLACE WE REMEMBER -> (falling) -> the maze
+
+## Asleep in the hammock under the big tree: a dream inside the dream.
+func enter_remember() -> void:
+	_realm_transition("city_slept", "remember", "THE PLACE WE REMEMBER", "")
+
+
+## Out through the white arch, onto an ordinary street; a moment's quiet; then the floor stops being there.
+func on_remember_exit() -> void:
+	if in_sequence:
+		return
+	in_sequence = true
+	var t := _seq
+	set_mode("cinematic")
+	set_flag("rm_done")
+	set_flag("fell_through")
+	Notebook.reveal_on_next_open("never_twice")
+	hud.fade_to(1.0, 2.5)
+	if not await _wait(2.8, t): return
+	Sfx.stop_music(0.01)
+	hud.show_card("THE PLACE WE REMEMBER", "You were never there. You remember it anyway.", 2.0)
+	if not await _wait(5.0, t): return
+	hud.hide_card(1.5)
+	if not await _wait(1.2, t): return
+	Sfx.play("thud", -2.0)
+	Sfx.play("whoosh", 0.0)
+	if not await _wait(1.2, t): return
+	player.reset_presentation()
 	enter_zone("maze")
 	player.dread.set_values(maxf(player.dread.fear, 22.0), player.dread.stability)
 	save_checkpoint()

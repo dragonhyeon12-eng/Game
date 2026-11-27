@@ -5,6 +5,7 @@ extends Node3D
 const PAGES := [
 	["resting place", [["music_box", 6.0], ["pill_bottle", 9.0], ["pill", 25.0], ["shelf_white", 0.7], ["armchair", 1.0], ["bed_white", 0.5], ["table_lamp", 1.6], ["side_table", 1.3], ["flower_vase", 1.8], ["rug_round", 0.45]]],
 	["houses", [["house_a", 0.09], ["house_b", 0.09], ["house_white", 0.09]]],
+	["trees", [["park_oak", 0.22], ["park_linden", 0.19], ["park_plane", 0.18], ["park_birch", 0.24], ["park_maple_red", 0.26], ["hedge_block", 0.6]]],
 	["living room", [["sofa", 0.55], ["armchair_old", 0.9], ["coffee_table", 0.9], ["tv_stand", 0.6], ["bookshelf_low", 0.8], ["floor_lamp", 0.55]]],
 	["bedroom and office", [["desk_wood", 0.65], ["office_chair", 0.9], ["bed_single", 0.45], ["nightstand", 1.3], ["wardrobe", 0.45], ["kitchen_table", 0.75], ["chair_wood", 1.0]]],
 	["kitchen, bath, hospital", [["kitchen_cabinet", 0.75], ["fridge", 0.5], ["sink_basin", 1.0], ["reception_desk", 0.32], ["desk_long", 0.45], ["records_shelf", 0.6], ["bedside_locker", 1.2]]],

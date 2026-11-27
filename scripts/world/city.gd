@@ -999,7 +999,7 @@ func _viaduct() -> void:
 		var a := TAU * k / n
 		var p := Vector3(cos(a) * VIADUCT_R, VIADUCT_Y, sin(a) * VIADUCT_R)
 		var yaw := rad_to_deg(-a) - 90.0
-		var xf := Transform3D(Basis(Vector3.UP, deg_to_rad(yaw)).scaled(Vector3(stretch, 1, 1)), p)
+		var xf := Transform3D(Basis(Vector3.UP, deg_to_rad(yaw)) * Basis.from_scale(Vector3(stretch, 1, 1)), p)
 		var ps := Props.parts("viaduct_segment")
 		if ps.is_empty():
 			return
@@ -1365,8 +1365,8 @@ func _quest() -> void:
 			if not Game.has_flag("observer_noticed"):
 				Game.hud.show_thought("Not yet. There's more of the dream to see.", 3.0)
 				return
-			Game.hud.show_thought("Quiet. Just the leaves. ...Time to wake up.", 3.0)
-			Game.request_wake())
+			Game.hud.show_thought("Quiet. Just the leaves. ...So sleepy. Just for a minute.", 3.0)
+			Game.enter_remember())
 	Notebook.rule_broken.connect(_on_rule_broken)
 
 

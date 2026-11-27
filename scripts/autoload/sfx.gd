@@ -302,12 +302,13 @@ func play(name: String, volume_db := 0.0, pitch := 1.0) -> void:
 
 
 ## Play a positional one-shot somewhere in the world.
-func play_at(name: String, parent: Node, position: Vector3, volume_db := 0.0, max_distance := 40.0) -> void:
+func play_at(name: String, parent: Node, position: Vector3, volume_db := 0.0, max_distance := 40.0, pitch := 1.0) -> void:
 	if not streams.has(name) or parent == null:
 		return
 	var p := AudioStreamPlayer3D.new()
 	p.stream = _oneshot(name)
 	p.volume_db = volume_db
+	p.pitch_scale = pitch
 	p.max_distance = max_distance
 	p.unit_size = 6.0
 	parent.add_child(p)
@@ -382,7 +383,7 @@ func _build_all() -> void:
 	streams["water"] = _to_wav(_water(3.0), true)
 	streams["hum"] = _to_wav(_hum(2.0), true)
 	streams["drone"] = _to_wav(_drone(6.0), true)
-	for surface in ["concrete", "wood", "carpet", "grass", "metal", "wet"]:
+	for surface in ["concrete", "wood", "carpet", "grass", "metal", "wet", "gravel"]:
 		for v in 4:
 			streams["step_%s_%d" % [surface, v]] = _to_wav(_footstep(surface, v), false)
 	streams["knock"] = _to_wav(_knock(), false)
@@ -561,6 +562,14 @@ func _footstep(surface: String, variant: int) -> PackedFloat32Array:
 		var x := r.randf() * 2.0 - 1.0
 		var v := 0.0
 		match surface:
+			"gravel":
+				# a crunch: a dull press, then a scatter of little stones shifting under the sole
+				lp += (x - lp) * 0.35
+				v += sin(TAU * thump_f * 0.9 * t) * exp(-t * 40.0) * 0.35
+				var grains := 0.0
+				if r.randf() < 0.035 * exp(-t * 9.0):
+					grains = (r.randf() * 2.0 - 1.0) * 1.6
+				v += (x - lp) * exp(-t * 18.0) * 0.35 + grains
 			"concrete":
 				# firm heel click + gritty scrape
 				lp += (x - lp) * 0.5

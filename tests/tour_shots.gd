@@ -33,6 +33,12 @@ const SETS := {
 	"plaza": [["city", Vector3(0, 0.2, 24.0), 0.0, 6.0, "pz1_arrival"], ["city", Vector3(0, 0.2, 24.0), 0.0, 6.0, "pz2_flowing", "fountain_on"],
 		["city", Vector3(10.0, 0.2, 14.0), 35.0, 2.0, "pz3_rotunda"], ["city", Vector3(-7.0, 0.2, 13.0), 160.0, -6.0, "pz4_bench"],
 		["city", Vector3(4.0, 0.2, 9.0), -10.0, 30.0, "pz5_sky"], ["city", Vector3(-6.0, 0.2, 16.0), 200.0, 14.0, "pz7_sky_s"], ["city", Vector3(0, 0.2, -24.0), 180.0, 4.0, "pz6_back"]],
+	"remember": [["remember", Vector3(0, 0.05, 6.0), 0.0, 1.0, "r01_entrance"], ["remember", Vector3(3.0, 0.05, -60.0), 0.0, 1.0, "r02_path"],
+		["remember", Vector3(0, 0.05, -106.0), 0.0, 4.0, "r03_fountain"], ["remember", Vector3(-6.0, 0.05, -116.0), 230.0, -14.0, "r04_cups"],
+		["remember", Vector3(0, 0.05, -186.0), 0.0, 2.0, "r05_gardens"], ["remember", Vector3(24.0, 0.05, -246.0), 0.0, -4.0, "r06_room"],
+		["remember", Vector3(0, 0.05, -328.0), 0.0, 0.0, "r07_playground"], ["remember", Vector3(-22.0, 0.05, -342.0), 60.0, -2.0, "r08_swings"],
+		["remember", Vector3(0, 0.05, -436.0), 0.0, 6.0, "r09_approach"], ["remember", Vector3(0, 0.05, -490.0), 0.0, 3.0, "r10_hub"],
+		["remember", Vector3(20.0, 0.05, -500.0), -90.0, 2.0, "r11_corridor"], ["remember", Vector3(0, 0.05, -560.0), 0.0, 4.0, "r12_arch"]],
 	"cave": [["seabed", Vector3(2, 0.05, -128.0), 0.0, 4.0, "cave_mouth"], ["seabed", Vector3(2.5, 0.05, -150.0), 0.0, 0.0, "cave_tunnel"],
 		["seabed", Vector3(2, 0.05, -172.0), 0.0, 3.0, "cave_chamber"]],
 }

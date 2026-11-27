@@ -43,6 +43,10 @@ var _pitch := 0.0
 var _bob_phase := 0.0
 var _bob_blend := 0.0
 var _step_acc := 0.0
+var _step_count := 0          # how many footfalls the head bob has passed (a step lands on each)
+var _air_speed := 0.0         # how fast we were falling (for the dip when we land)
+var _land := 0.0              # the landing dip, springing back
+var _breath := 0.0
 var _jolt := Vector3.ZERO
 var _crouched := false
 const CHASE_SPRINT := 1.3     # running for your life is faster than running
@@ -436,18 +440,33 @@ func _update_water(delta: float, input: Vector2) -> bool:
 	return true
 
 
+## The walk: a footfall every half-cycle of the bob (lowest point = heel strike), the head swaying over the
+## planted foot, a little roll; a dip when you land; breathing when you stand still.
 func _update_camera(delta: float) -> void:
 	_jolt = _jolt.lerp(Vector3.ZERO, clampf(delta * 6.0, 0.0, 1.0))
-	camera.rotation_degrees = _jolt
 	var flat := Vector2(velocity.x, velocity.z).length()
 	var moving := is_on_floor() and flat > 0.3 and not controls_locked
-	_bob_blend = lerpf(_bob_blend, 1.0 if (moving and Settings.head_bob) else 0.0, clampf(delta * 6.0, 0.0, 1.0))
+	_bob_blend = lerpf(_bob_blend, 1.0 if (moving and Settings.head_bob) else 0.0, clampf(delta * 5.0, 0.0, 1.0))
 	if moving:
-		_bob_phase += delta * flat / 1.7 * PI
-	var amp := _bob_blend * clampf(flat / 3.0, 0.4, 1.4) * 0.011
+		var stride := 1.6 if flat > 4.0 else (0.8 if _crouched else 1.15)      # metres per step
+		_bob_phase += delta * flat / stride * PI
+	var amp := _bob_blend * clampf(flat / 3.0, 0.5, 1.5) * 0.016
+	# landing: remember how fast we fell; on touchdown, dip and spring back
+	if not is_on_floor():
+		_air_speed = maxf(_air_speed, -velocity.y)
+	elif _air_speed > 2.5:
+		_land = minf(_air_speed * 0.012, 0.12)
+		Sfx.play("step_%s_%d" % [_surface_here(), randi() % 4], linear_to_db(clampf(_air_speed / 6.0, 0.4, 1.3)) - 3.0, 0.85)
+		_air_speed = 0.0
+	else:
+		_air_speed = 0.0
+	_land = lerpf(_land, 0.0, clampf(delta * 7.0, 0.0, 1.0))
+	_breath += delta * (0.9 if flat < 0.3 else 0.0)
+	var breathe := sin(_breath * 1.6) * 0.004 * (1.0 - _bob_blend) if Settings.head_bob else 0.0
 	var eye := (1.05 if _crouched else EYE_HEIGHT)
 	head.position.y = lerpf(head.position.y, eye, clampf(delta * 10.0, 0.0, 1.0))
-	camera.position = Vector3(cos(_bob_phase) * amp * 0.8, (absf(sin(_bob_phase)) * 2.0 - 1.0) * amp, 0)
+	camera.position = Vector3(cos(_bob_phase) * amp * 0.9, (absf(sin(_bob_phase)) * 2.0 - 1.0) * amp - _land + breathe, 0)
+	camera.rotation_degrees = _jolt + Vector3(-_land * 20.0, 0, cos(_bob_phase) * amp * 22.0)
 
 
 func _update_ankle_hands(delta: float) -> void:
@@ -465,19 +484,24 @@ func _update_ankle_hands(delta: float) -> void:
 	head.rotation.x = _pitch
 
 
-func _update_footsteps(delta: float) -> void:
+func _surface_here() -> String:
+	var surf := surface
+	if Game.zone and Game.zone.has_method("surface_at"):
+		surf = Game.zone.surface_at(global_position)
+	return surf
+
+
+## A footstep each time the walk's cycle passes a heel strike (so the sound lands with the head's dip).
+func _update_footsteps(_delta: float) -> void:
 	var flat := Vector2(velocity.x, velocity.z).length()
-	if not is_on_floor() or flat < 0.4:
-		_step_acc = minf(_step_acc, 1.2)
+	var n := int(floor(_bob_phase / PI))
+	if n == _step_count:
 		return
-	_step_acc += flat * delta
-	var stride := 2.1 if flat > 3.5 else 1.65
-	if _step_acc >= stride:
-		_step_acc = 0.0
-		var surf := surface
-		if Game.zone and Game.zone.has_method("surface_at"):
-			surf = Game.zone.surface_at(global_position)
-		Sfx.play("step_%s_%d" % [surf, randi() % 4], linear_to_db(clampf(flat / 3.5, 0.5, 1.2)) - 6.0, randf_range(0.93, 1.07))
+	_step_count = n
+	if not is_on_floor() or flat < 0.4:
+		return
+	var vol := linear_to_db(clampf(flat / 3.5, 0.45, 1.2)) - (9.0 if _crouched else 6.0)
+	Sfx.play("step_%s_%d" % [_surface_here(), randi() % 4], vol + randf_range(-1.5, 1.0), randf_range(0.92, 1.08))
 
 
 func _update_holds(delta: float) -> void:

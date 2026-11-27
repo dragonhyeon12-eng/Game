@@ -37,6 +37,8 @@ import apartment  # noqa: E402
 import hospital   # noqa: E402
 import lido       # noqa: E402
 import plaza      # noqa: E402
+import realtree   # noqa: E402
+import remember   # noqa: E402
 
 CREATURES = {
     "leviathan": (leviathan.build, "models/creatures/leviathan.glb"),
@@ -58,6 +60,8 @@ CREATURES = {
     "hospital": (hospital.build, "models/props"),
     "lido": (lido.build, "models/props"),
     "plaza": (plaza.build, "models/props"),
+    "realtree": (realtree.build, "models/props"),
+    "remember": (remember.build, "models/props"),
 }
 
 
