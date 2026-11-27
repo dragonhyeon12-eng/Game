@@ -32,15 +32,27 @@ def hz(m):
     return 440.0 * 2.0 ** ((m - 69) / 12.0)
 
 
-TOTAL = 214.0
+# a breath between some of the phrases: the phrase ends, everything goes still for a moment, the next begins
+PAUSES = [48.0, 72.0, 120.0, 168.0]     # at these phrase boundaries (in the score's own time)
+GAP = 0.55
+
+
+def shift(t):
+    """Score time -> real time: everything after a pause comes a breath later."""
+    return t + GAP * sum(1 for p in PAUSES if p <= t + 1e-6)
+
+
+TOTAL = 214.0 + GAP * len(PAUSES)
 N = int(TOTAL * SR)
 L = np.zeros(N)
 R = np.zeros(N)
 dry_l, dry_r = np.zeros(N), np.zeros(N)       # what goes to the reverb
 
 
-def place(sig, start, pan=0.0, gain=1.0, verb=0.35):
-    """Add a mono signal at `start` seconds, panned (-1 left .. 1 right)."""
+def place(sig, start, pan=0.0, gain=1.0, verb=0.35, anchor=None):
+    """Add a mono signal at `start` seconds (score time), panned (-1 left .. 1 right). `anchor`: the bar it
+    belongs to, if it starts a little before it (pads, voices), so it moves with its bar across a pause."""
+    start = start + (shift(anchor) - anchor if anchor is not None else shift(start) - start)
     i0 = int(start * SR)
     if i0 >= N:
         return
@@ -155,7 +167,7 @@ END_CH = A_CH[:3] + [[53, 57, 60, 64]]
 
 def phrase_pad(start, chords, gain):
     for b, ch in enumerate(chords):
-        place(pad(ch, BAR + 1.6), start + b * BAR - 0.8, 0.0, gain, 0.5)
+        place(pad(ch, BAR + 1.6), start + b * BAR - 0.8, 0.0, gain, 0.5, start + b * BAR)
 
 
 def melody(start, notes, gain, echo=True, inst=music_box, pan=0.1, octave=0):
@@ -202,7 +214,7 @@ def humming(start, chords, gain, vowel="mm"):
     """Three voices humming the chord tones, each its own slow breath."""
     for b, ch in enumerate(chords):
         for v, m in enumerate(ch[:3]):
-            place(hum_voice(m, BAR + 3.0, int(start * 10) + b * 7 + v, vowel), start + b * BAR - 1.0 + v * 0.3, [-0.55, 0.0, 0.55][v], gain, 0.6)
+            place(hum_voice(m, BAR + 3.0, int(start * 10) + b * 7 + v, vowel), start + b * BAR - 1.0 + v * 0.3, [-0.55, 0.0, 0.55][v], gain, 0.6, start + b * BAR)
 
 
 # 0:00 intro
@@ -303,8 +315,22 @@ def impulse(seconds, seed):
 
 wet_l = fftconvolve(dry_l, impulse(4.2, 1))[:N]
 wet_r = fftconvolve(dry_r, impulse(4.2, 2))[:N]
-mix_l = L + wet_l * 0.9 + wind[0]
-mix_r = R + wet_r * 0.9 + wind[1]
+# the breaths: at each pause the phrase's last notes fade quickly into stillness; the room keeps a faint
+# echo of them; the wind dips but goes on; then the next phrase begins
+hold = np.ones(N)
+room = np.ones(N)
+air = np.ones(N)
+tsec = np.arange(N) / SR
+for k, p in enumerate(PAUSES):
+    a = p + GAP * k                      # where the phrase ends, in real time
+    fade_out = np.clip((tsec - (a - 0.18)) / 0.18, 0, 1)
+    back_in = np.clip((tsec - (a + GAP - 0.02)) / 0.04, 0, 1)
+    inside = (tsec > a - 0.18) & (tsec < a + GAP + 0.02)
+    hold[inside] = np.minimum(hold[inside], (1 - fade_out[inside]) + back_in[inside])
+    room[inside] = np.minimum(room[inside], 0.15 + 0.85 * ((1 - fade_out[inside]) + back_in[inside]))
+    air[inside] = np.minimum(air[inside], 0.55 + 0.45 * ((1 - fade_out[inside]) + back_in[inside]))
+mix_l = L * hold + wet_l * 0.9 * room + wind[0] * air
+mix_r = R * hold + wet_r * 0.9 * room + wind[1] * air
 # warm it a touch, take the mud out of the low end
 hp = butter(1, 45, btype="high", fs=SR, output="sos")
 lp = butter(2, 5500, btype="low", fs=SR, output="sos")          # rounded, nothing sharp up top
