@@ -17,6 +17,15 @@ const CURB := 0.15
 const HALF := 2
 const GRASS_Y := 0.17
 const BOUNDS := 109.0
+const PARK := 28.0                        # the park block: x, z -28..28 (lawns to 26, the plaza in the middle)
+const PLAZA_R := 15.0
+const RING_OUT := 38.5                    # the ring road round the park, and its far pavement, end here
+const VIADUCT_R := 100.0                  # the ring road in the sky, round the whole city
+const VIADUCT_Y := 34.0
+const LAMPS := [Vector3(2.9, CURB, -14.4), Vector3(-2.9, CURB, 14.4), Vector3(14.4, CURB, 2.9), Vector3(-14.4, CURB, -2.9),
+	Vector3(-2.9, CURB, -14.4), Vector3(2.9, CURB, 14.4), Vector3(14.4, CURB, -2.9), Vector3(-14.4, CURB, 2.9)]
+const CART := Vector3(6.5, CURB, 20.0)
+const ARNE_BENCH := Vector3(-8.0, CURB, 8.6)
 # the walk, south to north (y = ground height)
 const AVE_X := 8.5                       # the avenue: x -8.5..8.5 (road -5..5), z -26..-110
 const AVE_END := -110.0
@@ -72,8 +81,7 @@ func fear_gain() -> float: return 0.35
 
 ## Grass inside the park (away from the paths), concrete everywhere else.
 func surface_at(p: Vector3) -> String:
-	var inner := (BLOCK - 2.0 * SIDEWALK) * 0.5
-	if absf(p.x) < inner and absf(p.z) < inner and absf(p.x) > 1.3 and absf(p.z) > 1.3 and Vector2(p.x, p.z).length() > 2.7:
+	if absf(p.x) < PARK - 2.0 and absf(p.z) < PARK - 2.0 and absf(p.x) > 2.6 and absf(p.z) > 2.6 and Vector2(p.x, p.z).length() > PLAZA_R + 0.3:
 		return "grass"
 	var q := Vector2(p.x, p.z)
 	if LAWN.has_point(q) or (MEADOW.has_point(q) and p.y > TOP_Y - 1.0):
@@ -92,7 +100,7 @@ func sprint_speed() -> float: return 5.4
 
 
 func player_start() -> Transform3D:
-	return Transform3D(Basis(Vector3.UP, deg_to_rad(-90)), Vector3(-13.5, GRASS_Y + 0.05, 0))
+	return Transform3D(Basis(Vector3.UP, 0.0), Vector3(0.0, CURB + 0.05, 24.0))     # on the south path, the fountain ahead
 
 
 func build() -> void:
@@ -105,6 +113,7 @@ func build() -> void:
 	_playground()
 	_meadow()
 	_park()
+	_viaduct()
 	_skyline()
 	_lighting()
 	_characters()
@@ -119,15 +128,12 @@ func build() -> void:
 func _ground() -> void:
 	box(Vector3(0, -0.25, -200), Vector3(900, 0.5, 900), ASPHALT, true, 0.0, "asphalt")
 	# the park block and the ring road round it
-	box(Vector3(0, CURB * 0.5, 0), Vector3(BLOCK, CURB, BLOCK), PAVEMENT, true, 0.0, "pavers")
-	for z in [21.0, -21.0]:
-		box(Vector3(0, CURB * 0.5, z + signf(z) * 3.25), Vector3(52, CURB, 3.5), PAVEMENT, true, 0.0, "pavers")
-	for x in [21.0, -21.0]:
-		box(Vector3(x + signf(x) * 3.25, CURB * 0.5, 0), Vector3(3.5, CURB, 52), PAVEMENT, true, 0.0, "pavers")
-	_dashes(Vector3(0, 0, 21.0), Vector3(1, 0, 0), 46.0)
-	_dashes(Vector3(0, 0, -21.0), Vector3(1, 0, 0), 46.0)
-	_dashes(Vector3(21.0, 0, 0), Vector3(0, 0, 1), 46.0)
-	_dashes(Vector3(-21.0, 0, 0), Vector3(0, 0, 1), 46.0)
+	box(Vector3(0, CURB * 0.5, 0), Vector3(PARK * 2.0, CURB, PARK * 2.0), PAVEMENT, true, 0.0, "pavers")
+	for sgn in [-1.0, 1.0]:
+		box(Vector3(0, CURB * 0.5, sgn * (RING_OUT - 1.75)), Vector3(RING_OUT * 2.0, CURB, 3.5), PAVEMENT, true, 0.0, "pavers")
+		box(Vector3(sgn * (RING_OUT - 1.75), CURB * 0.5, 0), Vector3(3.5, CURB, RING_OUT * 2.0), PAVEMENT, true, 0.0, "pavers")
+		_dashes(Vector3(0, 0, sgn * 31.5), Vector3(1, 0, 0), 66.0)
+		_dashes(Vector3(sgn * 31.5, 0, 0), Vector3(0, 0, 1), 66.0)
 
 
 ## A dashed yellow centre line, `length` long, centred on `c`, along `dir`.
@@ -149,10 +155,11 @@ func _walk(x0: float, x1: float, z0: float, z1: float, y := CURB, surf := "paver
 ## Every block of the city: [x0, x1, z0, z1, the sides that face the walk ("n" = -z ...), min height, max height]
 const BLOCKS := [
 	# round the park
-	[-62.0, -26.0, -26.0, 40.0, "e", 9.0, 22.0], [26.0, 62.0, -26.0, 40.0, "w", 9.0, 22.0], [-62.0, 62.0, 26.0, 60.0, "n", 9.0, 22.0],
-	[-62.0, -8.5, -110.0, -26.0, "es", 12.0, 30.0], [8.5, 62.0, -110.0, -26.0, "wsn", 12.0, 30.0],
+	[-80.0, -RING_OUT, -RING_OUT, RING_OUT, "e", 50.0, 120.0, "glass"], [RING_OUT, 80.0, -RING_OUT, RING_OUT, "w", 50.0, 120.0, "glass"],
+	[-80.0, 80.0, RING_OUT, 80.0, "n", 50.0, 120.0, "glass"],
+	[-80.0, -8.5, -110.0, -RING_OUT, "es", 12.0, 30.0], [8.5, 80.0, -110.0, -RING_OUT, "wsn", 12.0, 30.0],
 	# the cross street
-	[-40.0, -8.5, -127.0, -110.0, "e", 14.0, 30.0], [62.0, 96.0, -127.0, -100.0, "w", 14.0, 30.0],
+	[-40.0, -8.5, -127.0, -110.0, "e", 14.0, 30.0], [62.0, 96.0, -127.0, -110.0, "w", 14.0, 30.0],
 	[-40.0, 39.0, -177.0, -127.0, "sen", 16.0, 34.0], [49.0, 96.0, -177.0, -127.0, "swn", 16.0, 34.0],
 	# round the lido
 	[-20.0, 14.0, -252.0, -177.0, "e", 18.0, 32.0], [92.0, 126.0, -252.0, -177.0, "w", 18.0, 32.0],
@@ -166,12 +173,12 @@ func _district() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1987
 	for b in BLOCKS:
-		_block(b[0], b[1], b[2], b[3], b[4], b[5], b[6], rng)
+		_block(b[0], b[1], b[2], b[3], b[4], b[5], b[6], rng, b.size() > 7 and b[7] == "glass")
 
 
 ## A city block: buildings along the sides that face the walk (a strip ~16 m deep), plain roofs behind them.
-func _block(x0: float, x1: float, z0: float, z1: float, sides: String, hmin: float, hmax: float, rng: RandomNumberGenerator) -> void:
-	const DEPTH := 15.0
+func _block(x0: float, x1: float, z0: float, z1: float, sides: String, hmin: float, hmax: float, rng: RandomNumberGenerator, glass := false) -> void:
+	var DEPTH := 22.0 if glass else 15.0
 	var done := []    # rects already built (corners are shared by two sides)
 	for side in sides:
 		var along_x: bool = side == "n" or side == "s"
@@ -194,13 +201,43 @@ func _block(x0: float, x1: float, z0: float, z1: float, sides: String, hmin: flo
 			if done.any(func(o: Rect2): return o.intersects(r)):
 				continue
 			done.append(r)
-			_building(c, size.x - 0.6, size.y - 0.6, rng.randf_range(hmin, hmax), rng)
+			if glass:
+				_glass_tower(c, size.x - 3.0, size.y - 3.0, rng.randf_range(hmin, hmax), rng)
+			else:
+				_building(c, size.x - 0.6, size.y - 0.6, rng.randf_range(hmin, hmax), rng)
 	# behind the strip: roofs seen from the terrace, nothing more
 	var inner := Rect2(x0 + DEPTH, z0 + DEPTH, (x1 - x0) - DEPTH * 2.0, (z1 - z0) - DEPTH * 2.0)
-	if inner.size.x > 2.0 and inner.size.y > 2.0:
+	if inner.size.x > 2.0 and inner.size.y > 2.0 and not glass:
 		var h := rng.randf_range(hmin, hmax) * 0.8
 		box(Vector3(inner.get_center().x, CURB + h * 0.5, inner.get_center().y), Vector3(inner.size.x, h, inner.size.y),
 			(FACADES[rng.randi() % FACADES.size()] as Color).darkened(0.35), true, 0.0, "concrete")
+
+
+static var _glass_mat: ShaderMaterial
+
+
+## A glass skyscraper: a slab with a setback crown, mirror glass on a world-space curtain wall.
+func _glass_tower(c: Vector3, w: float, d: float, h: float, rng: RandomNumberGenerator) -> void:
+	if _glass_mat == null:
+		_glass_mat = ShaderMaterial.new()
+		_glass_mat.shader = load("res://scripts/world/glass_tower.gdshader")
+	var tint := [Color(0.28, 0.42, 0.55), Color(0.3, 0.48, 0.55), Color(0.35, 0.42, 0.5), Color(0.25, 0.38, 0.52)][rng.randi() % 4] as Color
+	var m := _glass_mat
+	if rng.randf() < 0.5:
+		m = _glass_mat.duplicate()
+		m.set_shader_parameter("glass", tint)
+	var crown := h * rng.randf_range(0.72, 0.85)
+	for part_spec in [[Vector3(w, crown, d), crown * 0.5], [Vector3(w * 0.72, h - crown, d * 0.72), crown + (h - crown) * 0.5]]:
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = part_spec[0]
+		mi.mesh = bm
+		mi.material_override = m
+		mi.position = c + Vector3(0, part_spec[1], 0)
+		add_child(mi)
+	blocker(c + Vector3(0, crown * 0.5, 0), Vector3(w, crown, d))
+	# a podium at street level: stone, a canopy over the doors
+	box(c + Vector3(0, 0.5, 0), Vector3(w + 0.4, 1.0, d + 0.4), Color(0.45, 0.46, 0.47), false, 0.0, "concrete")
 
 
 func _building(c: Vector3, w: float, d: float, h: float, rng: RandomNumberGenerator) -> void:
@@ -220,21 +257,21 @@ func _building(c: Vector3, w: float, d: float, h: float, rng: RandomNumberGenera
 
 func _avenue() -> void:
 	# road and sidewalks, from the park's ring road to the cross street
-	_walk(-AVE_X, -5.0, AVE_END, -26.0)
-	_walk(5.0, AVE_X, AVE_END - 3.5, -26.0)
-	_dashes(Vector3(0, 0, (AVE_END - 26.0) * 0.5 - 8.0), Vector3(0, 0, 1), -AVE_END - 26.0 + 16.0)
-	_crosswalk(Vector3(0, 0, -30.0), false)
+	_walk(-AVE_X, -5.0, AVE_END, -RING_OUT)
+	_walk(5.0, AVE_X, AVE_END - 3.5, -RING_OUT)
+	_dashes(Vector3(0, 0, (AVE_END - RING_OUT) * 0.5 - 4.0), Vector3(0, 0, 1), -AVE_END - RING_OUT + 4.0)
+	_crosswalk(Vector3(0, 0, -RING_OUT - 3.0), false)
 	_crosswalk(Vector3(0, 0, AVE_END - 2.0), false)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4242
-	var z := -34.0
+	var z := -RING_OUT - 8.0
 	while z > AVE_END + 4.0:
 		_tree(Vector3(-AVE_X + 1.6, CURB, z), rng.randf_range(0.8, 1.05), rng.randi() % 3)
 		_tree(Vector3(AVE_X - 1.6, CURB, z - 6.0), rng.randf_range(0.8, 1.05), rng.randi() % 3)
 		if int(-z) % 24 < 12:
 			_lamp(Vector3(-AVE_X + 0.8, CURB, z - 3.0))
 		z -= 12.0
-	for c in [[Vector3(-3.0, 0, -44.0), 90], [CAR_SPOT, 90], [Vector3(-3.0, 0, -88.0), 90], [Vector3(3.0, 0, -96.0), 90]]:
+	for c in [[Vector3(-3.0, 0, -50.0), 90], [CAR_SPOT, 90], [Vector3(-3.0, 0, -88.0), 90], [Vector3(3.0, 0, -96.0), 90]]:
 		_car(c[0], c[1], (FACADES[rng.randi() % FACADES.size()] as Color).darkened(rng.randf_range(0.0, 0.4)))
 	# the cross street, running east; the avenue itself runs straight into a wall painted with sky
 	_walk(CROSS.position.x, CROSS.end.x, CROSS.position.y, CROSS.position.y + 3.5)
@@ -244,7 +281,7 @@ func _avenue() -> void:
 	for x in [20.0, 32.0, 56.0]:
 		_lamp(Vector3(x, CURB, CROSS.position.y + 1.0))
 	_sky_mural(Vector3(0, CURB, CROSS.position.y + 0.7))      # (in front of the facade bays)
-	trigger(Vector3(0, 1.5, -60.0), Vector3(17, 3, 2), func():
+	trigger(Vector3(0, 1.5, -64.0), Vector3(17, 3, 2), func():
 		Game.hud.show_thought("Was the avenue always this long? ...It doesn't matter. It's lovely.", 4.0))
 	trigger(Vector3(0, 1.5, AVE_END - 5.0), Vector3(17, 3, 4), func():
 		Game.hud.show_thought("The street runs into the sky. ...No. That's a wall. Someone's painted sky on a wall.", 4.5))
@@ -623,6 +660,10 @@ func _skyline() -> void:
 				0: p = Vector3(t, h * 0.5, 90.0 + rng.randf_range(0.0, 25.0))
 				1: p = Vector3(-90.0 - rng.randf_range(0.0, 25.0), h * 0.5, t)
 				_: p = Vector3(150.0 + rng.randf_range(0.0, 25.0), h * 0.5, t)
+			var rr := Vector2(p.x, p.z).length()
+			if rr > VIADUCT_R - 14.0 and rr < VIADUCT_R + 14.0:
+				t += 19.0
+				continue      # (the ring road in the sky passes here)
 			if not _far_building(p - Vector3(0, h * 0.5, 0), h, col, rng):
 				box(p, Vector3(14, h, 14), col, false)
 			t += 19.0
@@ -697,47 +738,150 @@ func _crosswalk(center: Vector3, along_x: bool) -> void:
 
 
 func _park() -> void:
-	var inner := BLOCK - 2.0 * SIDEWALK
-	box(Vector3(0, GRASS_Y - 0.01, 0), Vector3(inner, 0.02, inner), GRASS, false, 0.0, "grass")
-	box(Vector3(0, GRASS_Y + 0.005, 0), Vector3(inner, 0.02, 2.6), PATH, false, 0.0, "concrete")
-	box(Vector3(0, GRASS_Y + 0.02, 0), Vector3(2.6, 0.02, inner), PATH, false, 0.0, "concrete")
-	# low hedges with gaps for the paths: real bushes when there are models, boxes otherwise
-	var e := inner * 0.5
-	var length := e - 2.2
-	var grng := RandomNumberGenerator.new()
-	grng.seed = 515
-	var bushes := Props.has("bush")
-	for s in [-1, 1]:
-		var mid: float = s * (2.2 + length * 0.5)
-		for seg in [[Vector3(mid, 0.5, e), Vector3(length, 0.8, 0.7)], [Vector3(mid, 0.5, -e), Vector3(length, 0.8, 0.7)],
-				[Vector3(e, 0.53, mid), Vector3(0.68, 0.86, length - 0.02)], [Vector3(-e, 0.53, mid), Vector3(0.68, 0.86, length - 0.02)]]:
-			var c: Vector3 = seg[0]
-			var sz: Vector3 = seg[1]
-			if not bushes:
-				box(c, sz, LEAVES[2])
-				continue
-			blocker(c, sz)
-			var along := Vector3(1, 0, 0) if sz.x > sz.z else Vector3(0, 0, 1)
-			var len := maxf(sz.x, sz.z)
-			var k := -len * 0.5 + 0.4
-			while k < len * 0.5:
-				var b := Basis(Vector3.UP, grng.randf() * TAU) * Basis.from_scale(Vector3.ONE * grng.randf_range(0.75, 1.0))
-				scatter("bush", Transform3D(b, Vector3(c.x, GRASS_Y - 0.05, c.z) + along * k), Color.WHITE)
-				k += 0.75
-	# grass: thousands of clumps over the lawns
-	for i in 3200:
-		var gp := Vector3(grng.randf_range(-e, e), GRASS_Y - 0.02, grng.randf_range(-e, e))
-		if surface_at(gp) == "grass" and Vector2(gp.x, gp.z).length() > 3.1:
-			var gb := Basis(Vector3.UP, grng.randf() * TAU) * Basis.from_scale(Vector3(1.1, grng.randf_range(0.32, 0.55), 1.1) * grng.randf_range(0.8, 1.2))
+	var lawn := PARK - 2.0
+	# four lawns, a cross of paths, and in the middle a round plaza of polished stone
+	for sx in [-1.0, 1.0]:
+		for sz in [-1.0, 1.0]:
+			box(Vector3(sx * (lawn + 2.6) * 0.5, GRASS_Y - 0.01, sz * (lawn + 2.6) * 0.5), Vector3(lawn - 2.6, 0.02, lawn - 2.6), GRASS, false, 0.0, "grass")
+	var stone := ShaderMaterial.new()
+	stone.shader = load("res://scripts/world/plaza_stone.gdshader")
+	var disc := CylinderMesh.new()
+	disc.top_radius = PLAZA_R
+	disc.bottom_radius = PLAZA_R
+	disc.height = 0.06
+	disc.radial_segments = 72
+	var plaza := MeshInstance3D.new()
+	plaza.mesh = disc
+	plaza.material_override = stone
+	plaza.position = Vector3(0, CURB + 0.0, 0)
+	add_child(plaza)
+	for path in [[Vector3(0, CURB, (PLAZA_R + PARK) * 0.5), Vector3(5.2, 0.06, PARK - PLAZA_R + 0.5)], [Vector3(0, CURB, -(PLAZA_R + PARK) * 0.5), Vector3(5.2, 0.06, PARK - PLAZA_R + 0.5)],
+			[Vector3((PLAZA_R + PARK) * 0.5, CURB, 0), Vector3(PARK - PLAZA_R + 0.5, 0.06, 5.2)], [Vector3(-(PLAZA_R + PARK) * 0.5, CURB, 0), Vector3(PARK - PLAZA_R + 0.5, 0.06, 5.2)]]:
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = path[1]
+		mi.mesh = bm
+		mi.material_override = stone
+		mi.position = path[0]
+		add_child(mi)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 31337
+	# the fountain, and its water
+	_fountain_build()
+	# round the plaza: planters of white hydrangeas, benches in front of them facing the fountain, lantern lamps
+	for k in 4:
+		for side in [-1.0, 1.0]:
+			var a := deg_to_rad(k * 90.0 + side * 27.0)
+			var dir := Vector3(sin(a), 0, cos(a))
+			var yaw := rad_to_deg(a) + 90.0
+			var pc := dir * (PLAZA_R - 1.6)
+			if furnish("planter_hydrangea", Vector3(pc.x, CURB, pc.z), yaw, Vector3(3.6, 0.6, 1.1).rotated(Vector3.UP, deg_to_rad(yaw)).abs(), Vector3(0, 0.3, 0)):
+				pass
+			var bp := dir * (PLAZA_R - 3.1)
+			var bench_yaw := rad_to_deg(atan2(-dir.x, -dir.z))
+			if Vector3(bp.x, CURB, bp.z).distance_to(ARNE_BENCH) > 1.0:
+				_bench_classic(Vector3(bp.x, CURB, bp.z), bench_yaw)
+	_bench_classic(ARNE_BENCH, rad_to_deg(atan2(-ARNE_BENCH.x, -ARNE_BENCH.z)))
+	for l in LAMPS:
+		_lantern(l)
+	# the rotunda, on the north-west lawn (on the left of the fountain as you come in), with a path to it
+	var rot := Vector3(-16.0, CURB, -15.0)
+	if furnish("rotunda", rot, 20.0, Vector3.ZERO):
+		var body := StaticBody3D.new()
+		add_child(body)
+		body.position = rot
+		var steps := CollisionShape3D.new()
+		var cy := CylinderShape3D.new()
+		cy.radius = 3.9
+		cy.height = 0.54
+		steps.shape = cy
+		steps.position = Vector3(0, 0.27 - 0.27, 0)
+		body.add_child(steps)
+		for k in 8:
+			var a := 2.0 * PI * k / 8.0 + PI / 8.0 + deg_to_rad(20.0)
+			blocker(rot + Vector3(cos(a) * 3.0, 2.3, -sin(a) * 3.0), Vector3(0.45, 3.5, 0.45))
+	var to_rot := rot.normalized()
+	for k in 7:
+		var p := to_rot * (PLAZA_R - 0.5 + k * 1.5)
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(2.4, 0.05, 1.6)
+		mi.mesh = bm
+		mi.material_override = stone
+		mi.position = Vector3(p.x, CURB, p.z)
+		mi.rotation.y = atan2(to_rot.x, to_rot.z)
+		add_child(mi)
+	# trees all round the lawns, thick at the edges; hydrangeas along the paths; grass
+	for i in 70:
+		var p := Vector3(rng.randf_range(-lawn, lawn), GRASS_Y, rng.randf_range(-lawn, lawn))
+		var r := Vector2(p.x, p.z).length()
+		if r < PLAZA_R + 3.0 or absf(p.x) < 4.5 or absf(p.z) < 4.5 or p.distance_to(rot) < 7.0:
+			continue
+		if Vector2(p.x, p.z).distance_to(Vector2(CART.x, CART.z)) < 5.0:
+			continue
+		_tree(p, rng.randf_range(1.0, 1.5), rng.randi() % 3)
+	for k in 4:
+		for side in [-1.0, 1.0]:
+			for j in 4:
+				var a := deg_to_rad(k * 90.0)
+				var along := Vector3(sin(a), 0, cos(a))
+				var across = Vector3(cos(a), 0, -sin(a)) * side * 3.3
+				var bp = along * (PLAZA_R + 2.0 + j * 2.8) + across
+				scatter_prop("hydrangea_bush", Vector3(bp.x, GRASS_Y, bp.z), rng.randf() * 360.0, rng.randf_range(0.8, 1.1))
+	for i in 3600:
+		var gp := Vector3(rng.randf_range(-lawn, lawn), GRASS_Y - 0.02, rng.randf_range(-lawn, lawn))
+		if surface_at(gp) == "grass":
+			var gb := Basis(Vector3.UP, rng.randf() * TAU) * Basis.from_scale(Vector3(1.1, rng.randf_range(0.32, 0.55), 1.1) * rng.randf_range(0.8, 1.2))
 			if not scatter("grass_clump", Transform3D(gb, gp), Color.WHITE, "", false, false):
 				break
-	# fountain
-	if prop("fountain", Vector3(0, GRASS_Y, 0), 0.0) != null:
-		# (solid as before: a drum you can't walk into, a column)
+	# the ice cream cart (out of ice cream), at the edge of the south lawn
+	if not furnish("ice_cream_cart", CART, 0.0, Vector3(2.8, 1.2, 1.2), Vector3(0, 0.6, 0)):
+		box(CART + Vector3(0, 0.7, 0), Vector3(2.8, 0.9, 1.2), Color(0.98, 0.95, 0.88))
+	label(CART + Vector3(0, 0.75, 0.62), 0, "ICE CREAM", 0.22, Color(0.86, 0.35, 0.47), false)
+
+
+func _bench_classic(at: Vector3, yaw: float) -> void:
+	if prop("bench_classic", at, yaw) != null:
+		box(at + Vector3(0, 0.44, 0), Vector3(1.9, 0.08, 0.55).rotated(Vector3.UP, deg_to_rad(yaw)).abs(), Color(0, 0, 0, 0), true)
+	else:
+		_bench(at, yaw + 180.0)
+
+
+var _lantern_glow: Array = []      # [MeshInstance3D, surface] of each lamp's glass: dark until you picture them lit
+static var _unlit: StandardMaterial3D
+
+
+func _lantern(at: Vector3) -> void:
+	var l := prop("lamp_lantern", at, 0.0, 1.05)
+	if l == null:
+		_lamp(at)
+		return
+	blocker(at + Vector3(0, 2.0, 0), Vector3(0.3, 4.0, 0.3))
+	if _unlit == null:
+		_unlit = StandardMaterial3D.new()
+		_unlit.albedo_color = Color(0.85, 0.82, 0.75)
+		_unlit.roughness = 0.1
+		_unlit.metallic_specular = 0.9
+	for mi in l.find_children("*", "MeshInstance3D", true, false):
+		for i in (mi as MeshInstance3D).mesh.get_surface_count():
+			var m := (mi as MeshInstance3D).mesh.surface_get_material(i)
+			if m and String(m.resource_name).contains("glow"):
+				(mi as MeshInstance3D).set_surface_override_material(i, _unlit)
+				_lantern_glow.append([mi, i])
+
+
+# ------------------------------------------------------------------ the fountain
+
+const FOUNTAIN_LEVELS := [[0.62, 5.15], [1.98, 2.95], [3.12, 1.6], [4.02, 0.75]]   # water height, radius (from the model)
+var _fountain_flow: Array[Node3D] = []
+
+
+func _fountain_build() -> void:
+	if prop("fountain_grand", Vector3(0, CURB, 0), 0.0) != null:
 		var fb := StaticBody3D.new()
 		fb.collision_layer = 1
 		add_child(fb)
-		for spec in [[Vector3(0, GRASS_Y + 0.25, 0), 2.62, 0.5], [Vector3(0, GRASS_Y + 1.0, 0), 0.3, 1.6]]:
+		for spec in [[Vector3(0, CURB + 0.08, 0), 6.6, 0.16], [Vector3(0, CURB + 0.48, 0), 5.85, 0.95], [Vector3(0, CURB + 2.0, 0), 1.3, 4.0]]:
 			var cs := CollisionShape3D.new()
 			var cy := CylinderShape3D.new()
 			cy.radius = spec[1]
@@ -745,43 +889,83 @@ func _park() -> void:
 			cs.shape = cy
 			cs.position = spec[0]
 			fb.add_child(cs)
-		_fountain_water(Vector3(0, GRASS_Y + 0.47, 0), 2.4)
-		_fountain_water(Vector3(0, GRASS_Y + 1.855, 0), 0.9)
+		for lv in FOUNTAIN_LEVELS:
+			_fountain_water(Vector3(0, CURB + lv[0], 0), lv[1])
 	else:
-		shape_at("cylinder", Vector3(0, GRASS_Y + 0.25, 0), Vector3(5.2, 0.5, 5.2), STONE, true, Vector3.ZERO, "concrete")
-		_fountain_water(Vector3(0, GRASS_Y + 0.47, 0), 2.4)
-		shape_at("cylinder", Vector3(0, GRASS_Y + 1.0, 0), Vector3(0.6, 1.6, 0.6), STONE, true)
-		shape_at("cylinder", Vector3(0, GRASS_Y + 1.75, 0), Vector3(2.0, 0.2, 2.0), STONE)
-		_fountain_water(Vector3(0, GRASS_Y + 1.855, 0), 0.9)
-		shape_at("sphere", Vector3(0, GRASS_Y + 2.15, 0), Vector3(0.35, 0.5, 0.35), WATER.lightened(0.3), false, Vector3.ZERO, 0.05)
-	# trees
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 31337
-	for i in 26:
-		var p := Vector3(rng.randf_range(-13, 13), GRASS_Y, rng.randf_range(-13, 13))
-		if absf(p.x) < 3.2 or absf(p.z) < 3.2 or Vector2(p.x, p.z).length() < 7.0:
-			continue
-		if Vector2(p.x - 9.5, p.z - 9.5).length() < 5.0 or Vector2(p.x - 2.4, p.z + 9.0).length() < 4.0:
-			continue
-		_tree(p, rng.randf_range(0.9, 1.35), rng.randi() % 3)
-	# benches
-	_bench(Vector3(-9, GRASS_Y, 2.0), 180)
-	_bench(Vector3(-5, GRASS_Y, -2.0), 0)
-	_bench(Vector3(7, GRASS_Y, -2.0), 0)
-	_bench(Vector3(2.0, GRASS_Y, 8), -90)
-	_bench(Vector3(-2.0, GRASS_Y, -9), 90)
-	for l in [Vector3(-10, GRASS_Y, -1.7), Vector3(10, GRASS_Y, 1.7), Vector3(1.7, GRASS_Y, -10), Vector3(-1.7, GRASS_Y, 10)]:
-		_lamp(l)
-	# the ice cream cart (out of ice cream)
-	var cart := Vector3(2.4, GRASS_Y, -9.0)
-	if not furnish("ice_cream_cart", cart, 0.0, Vector3(2.8, 1.2, 1.2), Vector3(0, 0.6, 0)):
-		box(cart + Vector3(0, 0.7, 0), Vector3(2.8, 0.9, 1.2), Color(0.98, 0.95, 0.88))
-		box(cart + Vector3(0, 1.08, 0), Vector3(2.84, 0.14, 1.24), Color(0.95, 0.5, 0.6), false)
-		box(cart + Vector3(0, 1.19, 0), Vector3(2.0, 0.06, 1.0), Color(0.75, 0.85, 0.9), false, 0.0, 0.3)
-		shape_at("cylinder", cart + Vector3(-1.0, 0.22, 0), Vector3(0.44, 1.3, 0.44), Color(0.1, 0.1, 0.1), false, Vector3(90, 0, 0))
-		shape_at("cylinder", cart + Vector3(1.1, 2.0, -0.3), Vector3(0.05, 2.2, 0.05), TRIM)
-		shape_at("cone", cart + Vector3(1.1, 3.3, -0.3), Vector3(2.8, 0.55, 2.8), Color(0.98, 0.62, 0.7))
-	label(cart + Vector3(0, 0.75, 0.62), 0, "ICE CREAM", 0.22, Color(0.86, 0.35, 0.47), false)
+		shape_at("cylinder", Vector3(0, CURB + 0.25, 0), Vector3(11.0, 0.5, 11.0), STONE, true, Vector3.ZERO, "concrete")
+		_fountain_water(Vector3(0, CURB + 0.47, 0), 5.2)
+
+
+## The fountain running: a plume from the top, water sheeting off every tier's lip, spray. Off until you picture it.
+func _fountain_on() -> void:
+	var sheet_mat := ShaderMaterial.new()
+	sheet_mat.shader = load("res://scripts/world/falling_water.gdshader")
+	# sheets falling off the three tiers, each into the one below (the last into the basin)
+	for i in range(1, 4):
+		var top: float = CURB + FOUNTAIN_LEVELS[i][0] + 0.03
+		var r: float = FOUNTAIN_LEVELS[i][1] + 0.12
+		var below: float = CURB + FOUNTAIN_LEVELS[i - 1][0]
+		var cm := CylinderMesh.new()
+		cm.top_radius = r
+		cm.bottom_radius = r * 1.12
+		cm.height = top - below
+		cm.radial_segments = 40
+		cm.cap_top = false
+		cm.cap_bottom = false
+		var sheet := MeshInstance3D.new()
+		sheet.mesh = cm
+		sheet.material_override = sheet_mat
+		sheet.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		sheet.position = Vector3(0, (top + below) * 0.5, 0)
+		sheet.rotation.x = PI       # (V runs top to bottom: the streaks fall)
+		add_child(sheet)
+		_fountain_flow.append(sheet)
+	# the plume: two nested columns of rising water, the outer one wider and fainter
+	var plume_mat := sheet_mat.duplicate() as ShaderMaterial
+	plume_mat.set_shader_parameter("speed", -2.6)
+	plume_mat.set_shader_parameter("opacity", 0.85)
+	for spec in [[0.12, 0.32, 5.5], [0.3, 0.7, 4.2]]:
+		var cm := CylinderMesh.new()
+		cm.bottom_radius = spec[0]
+		cm.top_radius = spec[1]
+		cm.height = spec[2]
+		cm.radial_segments = 16
+		cm.cap_top = false
+		cm.cap_bottom = false
+		var jet := MeshInstance3D.new()
+		jet.mesh = cm
+		jet.material_override = plume_mat
+		jet.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		jet.position = Vector3(0, CURB + 4.45 + spec[2] * 0.5, 0)
+		add_child(jet)
+		_fountain_flow.append(jet)
+	# spray: droplets thrown up and falling back
+	var parts := GPUParticles3D.new() if Settings.quality >= 1 else null
+	if parts:
+		parts.amount = 600
+		parts.lifetime = 2.2
+		var pm := ParticleProcessMaterial.new()
+		pm.direction = Vector3(0, 1, 0)
+		pm.spread = 14.0
+		pm.initial_velocity_min = 8.0
+		pm.initial_velocity_max = 10.5
+		pm.gravity = Vector3(0, -9.8, 0)
+		pm.scale_min = 0.6
+		pm.scale_max = 1.4
+		parts.process_material = pm
+		var qm := QuadMesh.new()
+		qm.size = Vector2(0.06, 0.12)
+		var dm := StandardMaterial3D.new()
+		dm.albedo_color = Color(0.9, 0.97, 1.0, 0.7)
+		dm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		dm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		dm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		qm.material = dm
+		parts.draw_pass_1 = qm
+		parts.position = Vector3(0, CURB + 4.5, 0)
+		parts.visibility_aabb = AABB(Vector3(-8, -6, -8), Vector3(16, 14, 16))
+		add_child(parts)
+		_fountain_flow.append(parts)
 
 
 ## A disc of real water (the same shader as the pools), shallow and clear.
@@ -798,10 +982,39 @@ func _fountain_water(pos: Vector3, radius: float) -> void:
 	mat.shader = load("res://scripts/world/water.gdshader" if Settings.quality >= 1 else "res://scripts/world/water_lite.gdshader")
 	mat.set_shader_parameter("absorb", 0.6)
 	mat.set_shader_parameter("wave_height", 0.004)
+	mat.set_shader_parameter("foam_amount", 0.0)
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.position = pos
 	add_child(mi)
+
+
+# ------------------------------------------------------------------ the ring road in the sky
+
+## A ring of elevated road round the whole city, high over the roofs, on tall piers. Nothing ever drives on it.
+func _viaduct() -> void:
+	var n := int(ceil(TAU * VIADUCT_R / 22.0))
+	var stretch := (TAU * VIADUCT_R / n) / 22.0 + 0.01
+	for k in n:
+		var a := TAU * k / n
+		var p := Vector3(cos(a) * VIADUCT_R, VIADUCT_Y, sin(a) * VIADUCT_R)
+		var yaw := rad_to_deg(-a) - 90.0
+		var xf := Transform3D(Basis(Vector3.UP, deg_to_rad(yaw)).scaled(Vector3(stretch, 1, 1)), p)
+		var ps := Props.parts("viaduct_segment")
+		if ps.is_empty():
+			return
+		for i in ps.size():
+			var key := "viaduct_segment|#%d|false|true" % i
+			if not _scatter.has(key):
+				_scatter[key] = [ps[i][0], [], true]
+			_scatter[key][1].append([xf * (ps[i][1] as Transform3D), Color.WHITE])
+		# a pier where it stands on open ground (not through a roof)
+		var on_roof := false
+		for b in BLOCKS:
+			if p.x > b[0] - 3.0 and p.x < b[1] + 3.0 and p.z > b[2] - 3.0 and p.z < b[3] + 3.0:
+				on_roof = true
+		if not on_roof and k % 2 == 0:
+			scatter_prop("viaduct_pier", p + Vector3(0, -0.9, 0), yaw)
 
 
 # ------------------------------------------------------------------ light
@@ -820,7 +1033,10 @@ func _lighting() -> void:
 	sky_mat.shader = load("res://scripts/world/sky.gdshader")
 	sky_mat.set_shader_parameter("zenith", Color(0.18, 0.4, 0.82))
 	sky_mat.set_shader_parameter("horizon", Color(0.74, 0.84, 0.94))
-	sky_mat.set_shader_parameter("cloud_cover", 0.42)
+	sky_mat.set_shader_parameter("cloud_cover", 0.4)
+	sky_mat.set_shader_parameter("rings", 1.0)               # the dream's sky: vast pale rings, partly there
+	sky_mat.set_shader_parameter("sun_size", 0.9986)
+	sky_mat.set_shader_parameter("zenith", Color(0.16, 0.42, 0.88))
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
 	var env := make_env(Color(0.6, 0.7, 0.85), 0.6)
@@ -839,7 +1055,14 @@ func _lighting() -> void:
 	env.fog_light_color = Color(0.75, 0.82, 0.92)
 	env.fog_density = 0.0035
 	env.fog_sky_affect = 0.15
+	# a blazing summer light: the sun blooms, and the plaza's polished stone gives the sky back
+	env.glow_enabled = true
+	env.glow_intensity = 0.7 if Settings.quality >= 1 else 0.45
+	env.glow_bloom = 0.12
+	env.glow_hdr_threshold = 1.1
 	if Settings.quality >= 1:
+		env.ssr_enabled = true
+		env.ssr_max_steps = 48
 		env.ssil_enabled = true
 		env.volumetric_fog_enabled = true
 		env.volumetric_fog_density = 0.004
@@ -853,7 +1076,7 @@ func _characters() -> void:
 	# Mina, the ice cream vendor without ice cream.
 	var mina := NPC.new()
 	add_child(mina)
-	mina.position = Vector3(2.4, GRASS_Y, -10.4)
+	mina.position = CART + Vector3(0, 0, -1.4)
 	mina.rotation_degrees.y = 0
 	mina.setup("mina", "Mina", "the ice cream vendor", {"skin": Color(0.86, 0.64, 0.5), "hair": Color(0.32, 0.16, 0.07),
 		"shirt": Color(0.95, 0.55, 0.62), "pants": Color(0.2, 0.25, 0.42), "apron": true, "cap": true,
@@ -862,14 +1085,15 @@ func _characters() -> void:
 	# Mr. Halvorsen, on the bench, with the pigeons.
 	var arne := NPC.new()
 	add_child(arne)
-	arne.position = Vector3(-9, GRASS_Y, 1.86)      # (on the seat, not in the backrest)
-	arne.rotation_degrees.y = 180
+	var arne_dir := -ARNE_BENCH.normalized()
+	arne.position = ARNE_BENCH + arne_dir * 0.08      # (on the seat, facing the fountain)
+	arne.rotation_degrees.y = rad_to_deg(atan2(arne_dir.x, arne_dir.z))
 	arne.setup("halvorsen", "Mr. Halvorsen", "the old man", {"skin": Color(0.84, 0.68, 0.58), "hair": Color(0.78, 0.78, 0.76),
 		"shirt": Color(0.42, 0.47, 0.34), "pants": Color(0.33, 0.29, 0.24), "seated": true, "cap": true,
 		"cap_color": Color(0.28, 0.28, 0.3), "sleeves": "long", "hair_style": "short", "build": 1.05,
 		"shoes": Color(0.25, 0.15, 0.08)})
 	for i in 7:
-		var p := Vector3(-9 + randf_range(-1.7, 1.7), GRASS_Y + 0.06, randf_range(-0.9, 0.6))
+		var p := ARNE_BENCH - ARNE_BENCH.normalized() * randf_range(0.9, 2.2) + Vector3(randf_range(-1.6, 1.6), 0.06, randf_range(-1.0, 1.0))
 		var bird := group(p, randf_range(0, 360))
 		if prop("pigeon", Vector3(0, -0.06, 0), 0.0, 0.8, bird) == null:
 			part("sphere", Vector3(0, 0.06, 0), Vector3(0.09, 0.09, 0.14), Color(0.42, 0.43, 0.47), bird)
@@ -1063,14 +1287,13 @@ func observer_event(event: String) -> void:
 
 var _landmarks := {}
 var _changes := {}
-var _fountain_jets: Array[Node3D] = []
 var _told_t := -1.0
 
 
 func _quest() -> void:
 	# landmarks: the fountain, the ice cream cart, the bus stop at the far end of the avenue
-	for lm in [["fountain", Vector3(0, 1, 0), Vector3(9, 3, 9), "The fountain's dry. In a dream? I could fix that."],
-			["cart", Vector3(2.4, 1, -9), Vector3(5, 3, 5), "An ice cream cart. Nobody's queuing."],
+	for lm in [["fountain", Vector3(0, 1, 0), Vector3(18, 3, 18), "The fountain's not running. In a dream? I could fix that."],
+			["cart", CART + Vector3(0, 1, 0), Vector3(6, 3, 6), "An ice cream cart. Nobody's queuing."],
 			["busstop", BUS_STOP + Vector3(0, 1, 0), Vector3(8, 3, 9), "The 3:12 bus. Every stop on the timetable says 3:12."]]:
 		var id: String = lm[0]
 		var line: String = lm[3]
@@ -1082,11 +1305,11 @@ func _quest() -> void:
 				Game.set_flag("city_landmarks"))
 
 	# things that can be changed by wanting them changed
-	interactable(Vector3(0, GRASS_Y + 0.9, 2.7), Vector3(5.4, 1.4, 0.6), func(): return "" if _changes.has("fountain") else "Picture the fountain flowing",
+	interactable(Vector3(0, CURB + 1.1, 6.3), Vector3(6.0, 1.6, 1.0), func(): return "" if _changes.has("fountain") else "Picture the fountain flowing",
 		func(): _change("fountain"), func(): return not _changes.has("fountain"))
 	interactable(CAR_SPOT + Vector3(0, 0.9, 0), Vector3(2.2, 1.6, 4.4), func(): return "" if _changes.has("car") else "Picture it another colour",
 		func(): _change("car"), func(): return not _changes.has("car"))
-	interactable(Vector3(-10, GRASS_Y + 1.5, -1.7), Vector3(0.8, 3.0, 0.8), func(): return "" if _changes.has("lamps") else "Picture the lamps lit",
+	interactable((LAMPS[1] as Vector3) + Vector3(0, 1.6, 0), Vector3(0.9, 3.2, 0.9), func(): return "" if _changes.has("lamps") else "Picture the lamps lit",
 		func(): _change("lamps"), func(): return not _changes.has("lamps"))
 
 	# the hill: a long grassy mound, the biggest tree in the city, a hammock in its shade
@@ -1157,19 +1380,7 @@ func _change(what: String) -> void:
 	Game.player.jolt(Vector3(-1, 0, 0))
 	match what:
 		"fountain":
-			for k in 6:
-				var a := k / 6.0 * TAU
-				var jet := MeshInstance3D.new()
-				var c := CylinderMesh.new()
-				c.top_radius = 0.02
-				c.bottom_radius = 0.05
-				c.height = 1.3
-				jet.mesh = c
-				jet.material_override = Shapes.material(Color(0.75, 0.9, 1.0), 0.05, 0.6)
-				jet.position = Vector3(cos(a) * 1.6, GRASS_Y + 1.1, sin(a) * 1.6)
-				jet.rotation = Vector3(sin(a) * 0.35, 0, -cos(a) * 0.35)
-				add_child(jet)
-				_fountain_jets.append(jet)
+			_fountain_on()
 			Game.hud.show_thought("It just... does what I want. I want it, and it is.", 4.0)
 		"car":
 			var tint := Color.from_hsv(randf(), 0.55, 0.8)
@@ -1184,8 +1395,10 @@ func _change(what: String) -> void:
 								mi.set_surface_override_material(si, nm)
 			Game.hud.show_thought("Blue. No - that colour. Exactly that colour.", 3.5)
 		"lamps":
-			for l in [Vector3(-10, GRASS_Y, -1.7), Vector3(10, GRASS_Y, 1.7), Vector3(1.7, GRASS_Y, -10), Vector3(-1.7, GRASS_Y, 10)]:
-				omni(l + Vector3(0, 4.7, 0), Color(1.0, 0.85, 0.6), 2.0, 9.0, false)
+			for g in _lantern_glow:
+				(g[0] as MeshInstance3D).set_surface_override_material(g[1], null)
+			for l in LAMPS:
+				omni(l + Vector3(0, 4.1, 0), Color(1.0, 0.85, 0.6), 1.6, 8.0, false)
 			Game.hud.show_thought("Lamps in broad daylight. Because I can.", 3.0)
 	if _changes.size() >= 2:
 		Game.set_flag("city_changed")
@@ -1216,5 +1429,6 @@ func _quest_update(delta: float) -> void:
 			for c in get_children():
 				if c is NPC:
 					c.set_frozen(false)
-	for i in _fountain_jets.size():
-		_fountain_jets[i].scale.y = 1.0 + 0.08 * sin(_t * 9.0 + i)
+	for i in _fountain_flow.size():
+		if _fountain_flow[i] is MeshInstance3D and i >= 3:
+			_fountain_flow[i].scale.y = 1.0 + 0.05 * sin(_t * 7.0 + i)

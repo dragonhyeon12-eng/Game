@@ -14,7 +14,8 @@ uniform float cloud_speed = 0.004;
 uniform float sun_size = 0.9995;
 uniform float stars = 0.0;
 uniform float exposure = 1.0;
-uniform int octaves = 6;            // cloud detail (LOW graphics: 3)
+uniform int octaves = 6;
+uniform float rings = 0.0;          // > 0: huge pale rings arcing across the sky (the city's dream sky)            // cloud detail (LOW graphics: 3)
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vnoise(vec2 p) {
@@ -70,6 +71,19 @@ void sky() {
 		vec3 ccol = mix(cloud_shadow, cloud_light, lit) + sun_color * pow(max(sdot, 0.0), 6.0) * 0.4;
 		float fade = smoothstep(0.01, 0.2, h);
 		col = mix(col, ccol, dens * fade * 0.95);
+	}
+	if (rings > 0.0 && h > -0.05) {
+		// two vast circles of pale, glassy light, each only partly there: thin bright cores, a soft halo
+		vec3 c1 = normalize(vec3(0.25, 0.62, -0.75));
+		vec3 c2 = normalize(vec3(-0.7, 0.66, 0.1));
+		float r1 = dot(d, c1) - 0.58;
+		float r2 = dot(d, c2) - 0.70;
+		float a1 = 0.5 + 0.5 * sin(atan(dot(d, normalize(cross(c1, vec3(0, 1, 0)))), dot(d, vec3(0, 1, 0))) * 1.0 + 0.6);
+		float a2 = 0.5 + 0.5 * sin(atan(dot(d, normalize(cross(c2, vec3(0, 1, 0)))), dot(d, vec3(0, 1, 0))) * 1.0 - 1.1);
+		float k1 = exp(-pow(r1 / 0.0045, 2.0)) * 1.1 + exp(-pow(r1 / 0.025, 2.0)) * 0.3;
+		float k2 = exp(-pow(r2 / 0.0035, 2.0)) * 0.9 + exp(-pow(r2 / 0.02, 2.0)) * 0.24;
+		float fade = smoothstep(-0.05, 0.15, h);
+		col += vec3(0.86, 0.93, 1.0) * (k1 * smoothstep(0.05, 0.6, a1) + k2 * smoothstep(0.1, 0.65, a2)) * fade * rings;
 	}
 	COLOR = col * exposure;
 }

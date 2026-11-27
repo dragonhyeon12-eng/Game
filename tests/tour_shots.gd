@@ -30,6 +30,9 @@ const SETS := {
 		["city", Vector3(55.0, 9.3, -322.0), 0.0, 2.0, "w11_meadow"], ["city", Vector3(62.0, 9.3, -375.0), -10.0, 6.0, "w12_hill"]],
 	"walk2": [["city", Vector3(40.0, 0.3, -184.0), -30.0, -6.0, "w07_lido"], ["city", Vector3(80.0, 0.3, -192.0), 70.0, -8.0, "w08_lido_deep"],
 		["city", Vector3(55.0, 9.3, -286.0), 0.0, -4.0, "w10_playground"], ["city", Vector3(55.0, 9.3, -322.0), 0.0, 2.0, "w11_meadow"]],
+	"plaza": [["city", Vector3(0, 0.2, 24.0), 0.0, 6.0, "pz1_arrival"], ["city", Vector3(0, 0.2, 24.0), 0.0, 6.0, "pz2_flowing", "fountain_on"],
+		["city", Vector3(10.0, 0.2, 14.0), 35.0, 2.0, "pz3_rotunda"], ["city", Vector3(-7.0, 0.2, 13.0), 160.0, -6.0, "pz4_bench"],
+		["city", Vector3(4.0, 0.2, 9.0), -10.0, 30.0, "pz5_sky"], ["city", Vector3(-6.0, 0.2, 16.0), 200.0, 14.0, "pz7_sky_s"], ["city", Vector3(0, 0.2, -24.0), 180.0, 4.0, "pz6_back"]],
 	"cave": [["seabed", Vector3(2, 0.05, -128.0), 0.0, 4.0, "cave_mouth"], ["seabed", Vector3(2.5, 0.05, -150.0), 0.0, 0.0, "cave_tunnel"],
 		["seabed", Vector3(2, 0.05, -172.0), 0.0, 3.0, "cave_chamber"]],
 }
@@ -64,6 +67,10 @@ func _run() -> void:
 		var at: Vector3 = spec[1]
 		var yaw: float = deg_to_rad(spec[2])
 		var act: String = spec[5] if spec.size() > 5 else ""
+		if act == "fountain_on":
+			Game.zone._change("fountain")
+			Game.zone._change("lamps")
+			await get_tree().create_timer(1.0).timeout
 		if act == "open_locker":
 			Game.zone._open_locker(true)
 		if act == "breakers" or act == "flip_two":      # stand at the maze's breaker panel, facing it
