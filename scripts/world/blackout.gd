@@ -22,6 +22,7 @@ const BUS_DOOR := Vector3(-17.5, 0, -115.6)
 const DARK_LIMIT := 7.0
 ## Checkpoints (see Zone.checkpoint_at): number 9's lamp, the back garden.
 const CHECKPOINTS := {
+	"lane": [Vector3(1.5, 0.05, 1.0), 0.0, []],
 	"house": [Vector3(14.6, 0.05, -41.5), -90.0, ["bo_tree", "bo_inside", "bo_lamp"]],
 	"garden": [Vector3(28.5, 0.05, -48.0), 0.0, ["bo_tree", "bo_inside", "bo_lamp", "bo_key", "bo_backyard"]],
 }          # seconds of unbroken dark before it has you
@@ -75,7 +76,8 @@ func flashlight_scale() -> float: return 0.4
 
 
 func player_start() -> Transform3D:
-	return Transform3D(Basis(), Vector3(1.5, 0.05, 1.0))
+	# under the petrol station's canopy, facing the dark road
+	return Transform3D(Basis(Vector3.UP, deg_to_rad(-30.0)), START)
 
 
 # ------------------------------------------------------------------ build
@@ -89,6 +91,7 @@ func build() -> void:
 	_gardens()
 	_end_of_street()
 	_shadow_people()
+	_way_there()
 	observer = Observer.new()
 	add_child(observer)
 	observer.hide_now()
@@ -132,14 +135,13 @@ func _ground() -> void:
 	box(Vector3(-15, -0.04, NORTH + 3.0), Vector3(30, 0.1, 8), ASPHALT, true, 0.0, "asphalt")
 	shape_at("cylinder", Vector3(0, -0.045, 3.0), Vector3(12, 0.1, 12), ASPHALT, true, Vector3.ZERO, "asphalt")
 	# the edges of the world: fences
-	_fence(Vector3(-34, 0, 6), Vector3(34, 0, 6))
 	_fence(Vector3(-34, 0, 6), Vector3(-34, 0, NORTH - 2))
 	_fence(Vector3(34, 0, 6), Vector3(34, 0, NORTH - 2))
 	_fence(Vector3(-34, 0, NORTH - 2), Vector3(34, 0, NORTH - 2))
-	label(Vector3(-6.2, 2.3, 1.5), 90, "LARKSPUR LANE", 0.12, Color(0.85, 0.85, 0.8), false)
-	part("box", Vector3(-6.25, 2.3, 1.5), Vector3(0.04, 0.3, 1.6), Color(0.1, 0.3, 0.15))
-	part("cylinder", Vector3(-6.3, 1.2, 1.5), Vector3(0.06, 2.4, 0.06), Color(0.4, 0.4, 0.4))
-	label(Vector3(-6.2, 1.85, 1.5), 90, "NO THROUGH ROAD", 0.06, Color(0.85, 0.2, 0.15), false)
+	label(Vector3(-6.3, 2.3, 7.5), 180, "LARKSPUR LANE", 0.12, Color(0.85, 0.85, 0.8), false)
+	part("box", Vector3(-6.3, 2.3, 7.55), Vector3(1.6, 0.3, 0.04), Color(0.1, 0.3, 0.15))
+	part("cylinder", Vector3(-6.3, 1.2, 7.6), Vector3(0.06, 2.4, 0.06), Color(0.4, 0.4, 0.4))
+	label(Vector3(-6.3, 1.85, 7.5), 180, "NO THROUGH ROAD", 0.06, Color(0.85, 0.2, 0.15), false)
 
 
 ## A garden fence from a to b (straight along x or z), 1.6 m: you don't climb it.
@@ -680,11 +682,8 @@ func _power_on() -> void:
 	observer.try_appear_at(Vector3(0, 0, -20))
 	Game.hud.show_thought("Shadows. All down the road. People's shadows. There's nobody there. THERE'S NOBODY THERE.", 4.5)
 	await get_tree().create_timer(4.0, false).timeout
-	# the bus, and then the dark, coming back up the street from the far end
+	# the bus, lit up inside, its doors open. The shadows stay where they are. Nothing comes.
 	_bus_arrives()
-	_wave_t = 0.0
-	Sfx.play("siren", 0.0)
-	Sfx.play("static_burst", 0.0, 0.5)
 
 
 func _bus_arrives() -> void:
@@ -715,7 +714,7 @@ func _bus_arrives() -> void:
 	Sfx.play("whoosh", -6.0, 1.5)
 	interactable(BUS_DOOR + Vector3(0, 1.2, 0), Vector3(2.0, 2.4, 1.6), func(): return "Get on the bus",
 		func(): Game.on_blackout_exit())
-	Game.hud.show_thought("The bus! RUN!", 2.0)
+	Game.hud.show_thought("A bus. Lit up inside, the doors open. ...Waiting. For me.", 3.5)
 
 
 func _update_wave(delta: float) -> void:
@@ -817,6 +816,11 @@ func _process(delta: float) -> void:
 	var p := pl.global_position
 	_update_lamps(delta, p)
 	_update_wave(delta)
+	if _drum:
+		_drum.rotate_z(delta * 3.0)
+	if _shop_radio and not _shop_radio.playing and Sfx.music.has("muzak"):
+		_shop_radio.stream = Sfx.music["muzak"]
+		_shop_radio.play()
 	_update_dark(delta, p)
 	_update_shadows(delta, p)
 	_hints(p)
@@ -832,10 +836,208 @@ func _process(delta: float) -> void:
 func _hints(p: Vector3) -> void:
 	if _hint == 0 and _t > 2.0:
 		_hint = 1
-		Game.hud.show_thought("Larkspur Lane. ...It looks like our old street. Every house is dark.", 4.0)
+		Game.hud.show_thought("A petrol station. The only light for a mile. ...The whole town's dark.", 4.0)
 	elif _hint == 1 and _t > 7.0:
 		_hint = 2
 		Game.hud.show_hint("Stay in the light.\nThe streetlights only stay on while you can see them.", 7.0)
 	if _hint == 2 and p.z < -28.0:
 		_hint = 3
 		Game.hud.show_thought("That lamp's dead. It's a long way in the dark to the next one. Don't stop.", 3.5)
+
+
+# ------------------------------------------------------------------ the way there
+# Before Larkspur Lane: a petrol station, the only light for a mile - the canopy blazing on its own generator,
+# the shop lit and open and nobody behind the till, a car at pump 2 with its engine running and its door open -
+# then Mill Road, dark, streetlight to streetlight, past a launderette open all night with one drier turning,
+# a bus shelter, a phone box, to the turning into the lane.
+
+const ROAD_Z := 13.0                 # Mill Road: x -80..40, z 9..17
+const ROAD_X0 := -80.0
+const ROAD_X1 := 40.0
+const STATION := Rect2(-75, 19.5, 35, 26.5)     # the petrol station's lot
+const SHOP := Rect2(-70, 36, 12, 8)
+const LAUNDRY := Rect2(-28, 19.5, 12, 8.5)
+const START := Vector3(-57.0, 0.05, 33.6)
+
+var _drum: Node3D
+var _shop_radio: AudioStreamPlayer3D
+
+
+func _way_there() -> void:
+	# the road, its pavements, the verges
+	box(Vector3((ROAD_X0 + ROAD_X1) * 0.5, -0.05, ROAD_Z), Vector3(ROAD_X1 - ROAD_X0, 0.1, 8.0), ASPHALT, true, 0.0, "asphalt")
+	box(Vector3(0, -0.05, 8.5), Vector3(ROAD_W * 2.0, 0.1, 1.0), ASPHALT, true, 0.0, "asphalt")     # the mouth of the lane
+	for seg in [[ROAD_X0, -ROAD_W], [ROAD_W, ROAD_X1]]:
+		box(Vector3((seg[0] + seg[1]) * 0.5, 0.06, 7.75), Vector3(seg[1] - seg[0], 0.12, 2.5), PAVEMENT, true, 0.0, "pavers")
+	box(Vector3((ROAD_X0 + ROAD_X1) * 0.5, 0.06, 18.25), Vector3(ROAD_X1 - ROAD_X0, 0.12, 2.5), PAVEMENT, true, 0.0, "pavers")
+	for k in 22:
+		box(Vector3(ROAD_X0 + 3.0 + k * 5.5, 0.005, ROAD_Z), Vector3(2.4, 0.01, 0.12), Color(0.75, 0.72, 0.6), false)
+	box(Vector3((ROAD_X0 + ROAD_X1) * 0.5, -0.06, 34.0), Vector3(ROAD_X1 - ROAD_X0 + 20.0, 0.1, 30.0), GRASS, true, 0.0, "grass")
+	# the edges: fences, and barriers where the road goes on into nothing
+	_fence(Vector3(ROAD_X0, 0, 6.0), Vector3(-ROAD_W, 0, 6.0))
+	_fence(Vector3(ROAD_W, 0, 6.0), Vector3(ROAD_X1, 0, 6.0))
+	_fence(Vector3(STATION.end.x, 0, 19.5), Vector3(LAUNDRY.position.x, 0, 19.5))
+	_fence(Vector3(LAUNDRY.end.x, 0, 19.5), Vector3(ROAD_X1, 0, 19.5))
+	_fence(Vector3(ROAD_X0, 0, 19.5), Vector3(STATION.position.x, 0, 19.5))
+	_fence(Vector3(STATION.position.x, 0, 19.5), Vector3(STATION.position.x, 0, STATION.end.y))
+	_fence(Vector3(STATION.position.x, 0, STATION.end.y), Vector3(STATION.end.x, 0, STATION.end.y))
+	_fence(Vector3(STATION.end.x, 0, 19.5), Vector3(STATION.end.x, 0, STATION.end.y))
+	for x in [ROAD_X0, ROAD_X1]:
+		blocker(Vector3(x, 1.0, ROAD_Z), Vector3(0.4, 2.0, 13.5))
+		for k in 3:
+			box(Vector3(x, 0.55, ROAD_Z - 2.5 + k * 2.5), Vector3(0.15, 0.25, 2.2), Color(0.85, 0.2, 0.15) if k % 2 == 0 else Color(0.9, 0.9, 0.88), false)
+			box(Vector3(x, 0.3, ROAD_Z - 2.5 + k * 2.5), Vector3(0.1, 0.6, 0.1), Color(0.3, 0.3, 0.3), false, 0.0, "metal")
+		label(Vector3(x + (0.1 if x < 0 else -0.1), 1.0, ROAD_Z), 90.0 if x < 0 else -90.0, "ROAD CLOSED", 0.12, Color(0.9, 0.9, 0.85), false)
+	# houses across the road, dark (the other side of the town, all the way along)
+	for k in 9:
+		var hx := -70.0 + k * 13.0
+		if hx > STATION.position.x - 4.0 and hx < LAUNDRY.end.x + 4.0:
+			continue
+		box(Vector3(hx, 3.0, 29.0), Vector3(9.0, 6.0, 7.0), SIDING[k % SIDING.size()].darkened(0.55), true, 0.0, "plaster")
+		box(Vector3(hx, 6.8, 29.0), Vector3(9.6, 1.6, 7.4), ROOF, false, 0.0, "concrete")
+	_station()
+	_launderette()
+	# the bus shelter (the timetable only has one time on it) and the phone box
+	if not prop("bus_shelter", Vector3(-6.0, 0.12, 18.6), 180.0):
+		box(Vector3(-6.0, 1.2, 19.2), Vector3(3.0, 2.4, 0.1), Color(0.3, 0.32, 0.34), true, 0.0, "metal")
+	label(Vector3(-4.8, 1.5, 19.05), 180.0, "N2  EMPORIUM\n03:12\n03:12\n03:12", 0.06, Color(0.95, 0.95, 0.9), false)
+	interactable(Vector3(-4.8, 1.4, 18.9), Vector3(0.8, 0.8, 0.4), func(): return "The timetable",
+		func(): Game.hud.show_thought("N2, to the Emporium. Every bus at 3:12. Every one.", 3.0))
+	prop("payphone", Vector3(14.0, 0.12, 18.9), 180.0)
+	prop("mailbox", Vector3(20.0, 0.12, 7.6), 0.0)
+	# lamps down Mill Road, the street sort (they go out when you aren't looking)
+	for l in [[-66.0, 7.4], [-55.0, 7.4], [-44.0, 7.4], [-34.0, 18.6], [-12.0, 18.6], [-22.0, 7.4], [0.0, 18.6], [10.0, 7.4], [26.0, 18.6]]:
+		_lamp(Vector3(l[0], 0.12, l[1]), true, false, "street", 7.5)
+	trigger(Vector3(0, 1.2, 7.0), Vector3(ROAD_W * 2.0, 2.4, 1.0), func():
+		checkpoint_at("lane")
+		Game.hud.show_thought("Larkspur Lane. ...It looks like our old street. Every house is dark.", 4.0))
+
+
+func _station() -> void:
+	var lot := STATION
+	box(Vector3(lot.position.x + lot.size.x * 0.5, 0.0, lot.position.y + lot.size.y * 0.5), Vector3(lot.size.x, 0.1, lot.size.y), Color(0.42, 0.42, 0.41), true, 0.0, "concrete")
+	# the canopy, blazing: the generator's on
+	var cz := 27.0
+	box(Vector3(-57.0, 4.6, cz), Vector3(15.0, 0.6, 9.0), Color(0.92, 0.92, 0.9), true, 0.0, "plain@0.5")
+	box(Vector3(-57.0, 4.6, cz - 4.52), Vector3(15.0, 0.62, 0.04), Color(0.85, 0.15, 0.12), false)
+	label(Vector3(-57.0, 4.6, cz - 4.56), 180.0, "M I L L   S E R V I C E S", 0.22, Color(1, 1, 1), false)
+	for x in [-62.0, -52.0]:
+		for z in [cz - 2.5, cz + 2.5]:
+			box(Vector3(x, 2.15, z), Vector3(0.35, 4.3, 0.35), Color(0.85, 0.85, 0.83), true, 0.0, "plain@0.4")
+	for x in [-62.0, -57.0, -52.0]:
+		for z in [cz - 2.5, cz + 2.5]:
+			part("box", Vector3(x, 4.28, z), Vector3(1.6, 0.04, 0.8), Color(1.0, 1.0, 0.97), null, Vector3.ZERO, 3.0)
+	_fixed_light(Vector3(-57.0, 0, cz), 11.0, Color(0.96, 0.98, 1.0), 3.0, true)
+	omni(Vector3(-62.0, 3.8, cz), Color(0.95, 0.98, 1.0), 1.6, 12.0, false)
+	omni(Vector3(-52.0, 3.8, cz), Color(0.95, 0.98, 1.0), 1.6, 12.0, false)
+	# the pumps
+	for x in [-60.0, -54.0]:
+		box(Vector3(x, 0.12, cz), Vector3(1.2, 0.24, 3.4), Color(0.6, 0.6, 0.6), true, 0.0, "concrete")
+		for dz in [-1.0, 1.0]:
+			box(Vector3(x, 0.95, cz + dz), Vector3(0.7, 1.5, 0.5), Color(0.9, 0.9, 0.88), true, 0.0, "plain@0.35")
+			part("box", Vector3(x - 0.36, 1.3, cz + dz), Vector3(0.01, 0.25, 0.35), Color(0.2, 0.9, 0.4), null, Vector3.ZERO, 1.5)
+			box(Vector3(x - 0.38, 0.9, cz + dz + 0.15), Vector3(0.08, 0.3, 0.06), Color(0.1, 0.1, 0.1), false)
+	label(Vector3(-60.4, 1.62, cz - 1.0), -90.0, "1", 0.12, Color(0.85, 0.15, 0.12), false)
+	label(Vector3(-54.4, 1.62, cz - 1.0), -90.0, "2", 0.12, Color(0.85, 0.15, 0.12), false)
+	# a car at pump 2: door open, engine running, nobody in it
+	if not prop("car_1", Vector3(-51.2, 0.05, cz), 0.0):
+		box(Vector3(-51.2, 0.7, cz), Vector3(1.8, 1.4, 4.2), Color(0.5, 0.15, 0.12), true, 0.0, "metal")
+	blocker(Vector3(-51.2, 0.7, cz), Vector3(1.8, 1.4, 4.2))
+	var head := spot(Vector3(-51.2, 0.7, cz - 2.2), Vector3(-51.2, 0.0, cz - 14.0), Color(1.0, 0.95, 0.8), 4.0, 18.0, 30.0, false)
+	head.name = "Headlights"
+	ambient("motor", Vector3(-51.2, 0.6, cz), true, -14.0, 14.0)
+	interactable(Vector3(-50.2, 1.0, cz + 0.4), Vector3(0.4, 1.2, 1.2), func(): return "The car",
+		func(): Game.hud.show_thought("The door's open. The engine's running. Keys in it, the radio on very low. ...Nobody.", 4.5))
+	# the shop: lit, open, empty
+	_station_shop()
+	# the generator, round the back, droning
+	box(Vector3(-56.0, 0.7, 45.0), Vector3(2.2, 1.4, 1.2), Color(0.3, 0.42, 0.3), true, 0.0, "metal")
+	ambient("hum", Vector3(-56.0, 1.0, 45.0), true, -6.0, 30.0)
+	box(Vector3(-44.0, 0.5, 37.0), Vector3(1.2, 1.0, 0.7), Color(0.9, 0.92, 0.95), true, 0.0, "metal")      # an ice chest
+	label(Vector3(-44.0, 0.75, 36.64), 180.0, "ICE", 0.12, Color(0.2, 0.45, 0.85), false)
+
+
+func _station_shop() -> void:
+	var r := SHOP
+	var x0 := r.position.x
+	var x1 := r.end.x
+	var z0 := r.position.y
+	var z1 := r.end.y
+	var wall := Color(0.85, 0.85, 0.82)
+	room_shell(x0, x1, z0, z1, 3.0, "nswe", {"s": [[-65.5, -62.5, 2.3], [x0 + 0.6, -66.0, 2.4, 0.5], [-62.0, x1 - 0.6, 2.4, 0.5]]}, wall, Color(0.75, 0.75, 0.72),
+		{"floor_s": "tiles_floor", "base": Color(0.3, 0.3, 0.3)})
+	glass_pane(Vector3((x0 + 0.6 - 66.0) * 0.5, 1.45, z0), Vector3(-66.0 - x0 - 0.6, 1.9, 0.03))
+	glass_pane(Vector3((-62.0 + x1 - 0.6) * 0.5, 1.45, z0), Vector3(x1 - 0.6 + 62.0, 1.9, 0.03))
+	_fixed_light(Vector3((x0 + x1) * 0.5, 0, (z0 + z1) * 0.5), 6.5, Color(0.95, 0.98, 1.0), 1.4, true)
+	for x in [x0 + 3.0, x0 + 6.0, x0 + 9.0]:
+		part("box", Vector3(x, 2.97, (z0 + z1) * 0.5), Vector3(1.2, 0.03, 0.5), Color(1, 1, 0.97), null, Vector3.ZERO, 2.5)
+	# shelves of snacks; fridges humming along the back
+	for k in 2:
+		var sz := z0 + 3.0 + k * 2.2
+		box(Vector3(-65.5, 0.75, sz), Vector3(5.0, 1.5, 0.7), Color(0.85, 0.85, 0.85), true, 0.0, "metal")
+		for row in 3:
+			for c in 10:
+				var col: Color = [Color(0.85, 0.2, 0.15), Color(0.95, 0.75, 0.2), Color(0.2, 0.45, 0.85), Color(0.3, 0.7, 0.3)][(c + row + k) % 4]
+				box(Vector3(-67.7 + c * 0.48, 0.35 + row * 0.45, sz + (0.2 if row % 2 == 0 else -0.2)), Vector3(0.38, 0.28, 0.22), col, false)
+	for k in 3:
+		if not prop("fridge", Vector3(x0 + 1.0 + k * 0.8, 0, z1 - 0.45), 180.0):
+			box(Vector3(x0 + 1.0 + k * 0.8, 0.9, z1 - 0.45), Vector3(0.7, 1.8, 0.6), Color(0.9, 0.92, 0.95), true)
+		part("box", Vector3(x0 + 1.0 + k * 0.8, 1.0, z1 - 0.76), Vector3(0.6, 1.4, 0.01), Color(0.85, 0.95, 1.0), null, Vector3.ZERO, 0.8)
+	ambient("hum", Vector3(x0 + 2.0, 1.0, z1 - 0.5), true, -14.0, 9.0)
+	# the counter, the till open, the television on a bracket showing the test card
+	if not furnish("counter", Vector3(x1 - 2.0, 0, z0 + 3.4), 90.0, Vector3(1.8, 0.92, 0.6), Vector3(0, 0.46, 0)):
+		box(Vector3(x1 - 2.0, 0.46, z0 + 3.4), Vector3(0.6, 0.92, 1.8), Color(0.55, 0.45, 0.35), true, 0.0, "wood")
+	box(Vector3(x1 - 2.0, 1.0, z0 + 3.0), Vector3(0.35, 0.16, 0.3), Color(0.2, 0.2, 0.2), false)
+	box(Vector3(x1 - 1.8, 0.96, z0 + 3.0), Vector3(0.1, 0.06, 0.28), Color(0.6, 0.55, 0.3), false)        # the drawer, open
+	var tv := Vector3(x1 - 0.5, 2.3, z0 + 3.0)
+	box(tv, Vector3(0.4, 0.5, 0.7), Color(0.1, 0.1, 0.1), false)
+	var bars := [Color(0.9, 0.9, 0.9), Color(0.9, 0.9, 0.1), Color(0.1, 0.9, 0.9), Color(0.1, 0.9, 0.1), Color(0.9, 0.1, 0.9), Color(0.9, 0.1, 0.1), Color(0.1, 0.1, 0.9)]
+	for k in bars.size():
+		part("box", tv + Vector3(-0.21, 0.0, -0.27 + k * 0.09), Vector3(0.005, 0.38, 0.088), bars[k], null, Vector3.ZERO, 1.2)
+	ambient("static", tv, true, -26.0, 6.0)
+	interactable(Vector3(x1 - 2.0, 1.0, z0 + 3.4), Vector3(0.8, 0.6, 1.9), func(): return "The counter",
+		func(): Game.hud.show_thought("The till's open. A tea, still warm, a magazine face down. Like they just stepped into the back.", 4.5))
+	label(Vector3(-64.0, 2.65, z0 - 0.17), 180.0, "OPEN", 0.14, Color(0.3, 1.0, 0.45), true)
+	label(Vector3(-62.0, 1.1, z0 - 0.17), 180.0, "POWER CUT:\nWHOLE TOWN\nIN THE DARK", 0.05, Color(0.1, 0.1, 0.1), false)
+	_shop_radio = AudioStreamPlayer3D.new()
+	_shop_radio.max_distance = 14.0
+	_shop_radio.unit_size = 2.0
+	_shop_radio.volume_db = -12.0
+	_shop_radio.attenuation_filter_cutoff_hz = 3200.0
+	_shop_radio.position = Vector3(x1 - 1.0, 2.0, z0 + 5.0)
+	add_child(_shop_radio)
+
+
+func _launderette() -> void:
+	var r := LAUNDRY
+	var x0 := r.position.x
+	var x1 := r.end.x
+	var z0 := r.position.y
+	var z1 := r.end.y
+	var wall := Color(0.82, 0.86, 0.85)
+	room_shell(x0, x1, z0, z1, 3.0, "nswe", {"s": [[-21.0, -19.0, 2.3], [x0 + 0.6, -21.4, 2.4, 0.6], [-18.6, x1 - 0.6, 2.4, 0.6]]}, wall, Color(0.7, 0.72, 0.72),
+		{"floor_s": "tiles_floor", "base": Color(0.3, 0.3, 0.3)})
+	glass_pane(Vector3((x0 + 0.6 - 21.4) * 0.5, 1.5, z0), Vector3(-21.4 - x0 - 0.6, 1.8, 0.03))
+	glass_pane(Vector3((-18.6 + x1 - 0.6) * 0.5, 1.5, z0), Vector3(x1 - 0.6 + 18.6, 1.8, 0.03))
+	label(Vector3((x0 + x1) * 0.5, 2.65, z0 - 0.17), 180.0, "SUDS  -  OPEN 24 HOURS", 0.12, Color(0.4, 0.85, 1.0), true)
+	_fixed_light(Vector3((x0 + x1) * 0.5, 0, (z0 + z1) * 0.5), 6.5, Color(0.92, 0.97, 1.0), 1.5, true)
+	for x in [x0 + 3.0, x0 + 6.0, x0 + 9.0]:
+		part("box", Vector3(x, 2.97, (z0 + z1) * 0.5), Vector3(1.2, 0.03, 0.5), Color(1, 1, 0.97), null, Vector3.ZERO, 2.5)
+	for k in 7:
+		var mx := x0 + 1.2 + k * 1.4
+		if not prop("washing_machine", Vector3(mx, 0, z1 - 0.45), 180.0):
+			box(Vector3(mx, 0.45, z1 - 0.45), Vector3(0.65, 0.9, 0.65), Color(0.92, 0.92, 0.92), true, 0.0, "metal")
+		blocker(Vector3(mx, 0.45, z1 - 0.45), Vector3(0.65, 0.9, 0.65))
+	# one drier turning, a towel going round in it
+	_drum = group(Vector3(x0 + 1.2 + 3 * 1.4, 0.5, z1 - 0.78))
+	part("cylinder", Vector3.ZERO, Vector3(0.42, 0.02, 0.42), Color(0.15, 0.17, 0.2), _drum, Vector3(90, 0, 0), 0.0, 0.1)
+	part("box", Vector3(0.08, 0.05, -0.01), Vector3(0.2, 0.1, 0.01), Color(0.95, 0.45, 0.55), _drum)
+	ambient("motor", Vector3(x0 + 1.2 + 3 * 1.4, 0.5, z1 - 0.6), true, -16.0, 10.0)
+	for k in 4:
+		prop("chair_wood", Vector3(x0 + 1.5 + k * 0.7, 0, z0 + 1.2), 180.0)
+	box(Vector3(x1 - 1.5, 0.45, (z0 + z1) * 0.5), Vector3(1.0, 0.9, 2.4), Color(0.75, 0.75, 0.72), true, 0.0, "wood")
+	box(Vector3(x1 - 1.5, 0.95, (z0 + z1) * 0.5 - 0.4), Vector3(0.45, 0.1, 0.35), Color(0.9, 0.85, 0.6), false, 10.0, "fabric")   # folded washing
+	interactable(Vector3(x0 + 1.2 + 3 * 1.4, 0.6, z1 - 1.0), Vector3(0.8, 0.8, 0.5), func(): return "The drier",
+		func(): Game.hud.show_thought("A towel going round. Pink, with a duck on it. ...We had that towel. Mum had that towel.", 4.5))
+	trigger(Vector3(-20.0, 1.2, z0 + 1.0), Vector3(2.0, 2.4, 1.0), func():
+		Game.hud.show_thought("Somebody's washing. At three in the morning, in a power cut. The lights are on in here.", 4.0))

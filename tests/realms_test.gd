@@ -153,7 +153,7 @@ func _blackout() -> void:
 	await wait(4.0)
 	check(Game.has_flag("bo_power") and z._crowd[0].visible, "every light on - and the shadows")
 	await wait(5.0)
-	check(z._wave_t > 0.0, "and the dark coming back up the street")
+	check(z._wave_t < 0.0 and z._bus != null, "the bus comes - and the dark doesn't come after you")
 	await wait(3.5)
 	place(BlackoutZone.BUS_DOOR + Vector3(1.5, 0.05, 0.5), -90.0)
 	await wait(0.3)

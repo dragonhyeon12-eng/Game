@@ -68,6 +68,10 @@ const SETS := {
 		["above", Vector3(13.0, 0.05, 31.0), 180.0, 0.0, "a05_roofhut"], ["above", Vector3(-1.0, 0.05, 33.0), 135.0, 0.0, "a06_terrace"],
 		["above", Vector3(8.0, 0.05, 35.4), 180.0, -10.0, "a07_pool"], ["above", Vector3(5.0, 0.05, 23.0), 0.0, -4.0, "a08_bridge"],
 		["above", Vector3(0.0, 0.05, 44.8), 180.0, -12.0, "a09_view"]],
+	"blackout2": [["blackout", Vector3(-57.0, 0.05, 33.6), -30.0, 0.0, "bo01_station"], ["blackout", Vector3(-50.0, 0.05, 40.0), 160.0, -2.0, "bo02_canopy"],
+		["blackout", Vector3(-64.0, 0.05, 37.5), 180.0, -4.0, "bo03_shop"], ["blackout", Vector3(-40.0, 0.05, 13.0), -90.0, 2.0, "bo04_road"],
+		["blackout", Vector3(-22.0, 0.05, 21.0), 180.0, -4.0, "bo05_launderette"], ["blackout", Vector3(-8.0, 0.05, 13.0), -60.0, 0.0, "bo06_shelter"],
+		["blackout", Vector3(0.0, 0.05, 12.0), 0.0, 0.0, "bo07_lane"]],
 	"cave": [["seabed", Vector3(2, 0.05, -128.0), 0.0, 4.0, "cave_mouth"], ["seabed", Vector3(2.5, 0.05, -150.0), 0.0, 0.0, "cave_tunnel"],
 		["seabed", Vector3(2, 0.05, -172.0), 0.0, 3.0, "cave_chamber"]],
 }
