@@ -183,8 +183,8 @@ func _cancel_sequences() -> void:
 # ------------------------------------------------------------------ zones
 
 ## The current update, by number and name (see docs/CHANGELOG.md). Shown on the title screen.
-const UPDATE_NUMBER := 6
-const UPDATE_NAME := "Unleaded"
+const UPDATE_NUMBER := 7
+const UPDATE_NAME := "Mind the Gap"
 
 const ZONES := ["bedroom", "bedroom_dream", "city", "remember", "maze", "deep", "seabed", "abyss", "compression", "tenement", "above",
 	"blackout", "stilllife", "openspace", "pattern", "quiet", "rest1", "rest2", "rest3"]

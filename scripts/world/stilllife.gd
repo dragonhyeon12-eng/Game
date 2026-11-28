@@ -140,6 +140,10 @@ func _arcade() -> void:
 	for s in [-1.0, 1.0]:
 		box(Vector3(s * (HALF + 2.5) * 0.5, 2.0, 0.6), Vector3(HALF - 2.5, 4.0, 0.15), Color(0.3, 0.35, 0.38), true, 0.0, "glass")
 	box(Vector3(0, 1.2, 0.65), Vector3(5, 2.4, 0.12), Color(0.25, 0.3, 0.32), true, 0.0, "glass")
+	box(Vector3(0, 3.2, 0.6), Vector3(5, 1.6, 0.15), Color(0.3, 0.35, 0.38), true, 0.0, "glass")      # (over the doors)
+	# the side walls between the entrance and the first shops (the arcade's wider than it was)
+	for s in [-1.0, 1.0]:
+		box(Vector3(s * (HALF + 0.15), CEIL * 0.5, (0.6 + FIRST) * 0.5), Vector3(0.3, CEIL, 0.6 - FIRST + 0.3), WALL, true, 0.0, "plain@0.45")
 	box(Vector3(0, (4.0 + CEIL) * 0.5, 0.6), Vector3(HALF * 2.0, CEIL - 4.0, 0.4), WALL, true, 0.0, "plain@0.45")
 	label(Vector3(0, 2.6, 0.5), 180, "PUSH", 0.08, Color(0.8, 0.8, 0.8), false)
 	label(Vector3(0, 5.2, 0.38), 0, "THE EMPORIUM", 0.5, Color(1.0, 0.75, 0.35), true)

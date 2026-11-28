@@ -2,6 +2,16 @@
 
 Every update has a name. The newest is at the top, and the title screen shows the current one.
 
+## Update 7: "Mind the Gap"
+An emergency fix: walls had gone missing in places, and you could walk off the edge of the world.
+- **THE DEEP**: the lobby and the changing rooms had their street-side walls on the wrong side. You could walk straight out of the lobby into nothing. Fixed, street doors and all.
+- **The Backrooms**: the doorway where the service passage comes back into the yellow rooms was still built for the old, smaller rooms. That left a gap in the outer wall, and a ledge outside it with nothing beyond. Closed.
+- **STILL LIFE**: the arcade got wider but its entrance didn't, leaving a gap on each side between the doors and the first shops. Walled up.
+- **OPEN SPACE**: just past the car park, the fields had a strip with no ground. There's ground now.
+- **BLACKOUT**: a thin strip between Mill Road's pavement and the fence had no ground. Paved.
+- The bus in BLACKOUT is solid.
+- New test: `fall_probe` walks every reachable spot in every realm and reports anywhere you could step off into a drop.
+
 ## Update 6: "Unleaded"
 BLACKOUT doesn't start in the lane any more. It starts under a petrol station's canopy, the only light for a mile, running on its own generator.
 - The shop is lit and open. The till drawer is open, a tea is still warm, a test card is on the TV and a radio plays quietly.

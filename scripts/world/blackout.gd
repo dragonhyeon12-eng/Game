@@ -878,7 +878,7 @@ func _way_there() -> void:
 	box(Vector3((ROAD_X0 + ROAD_X1) * 0.5, -0.05, ROAD_Z), Vector3(ROAD_X1 - ROAD_X0, 0.1, 8.0), ASPHALT, true, 0.0, "asphalt")
 	box(Vector3(0, -0.05, 8.5), Vector3(ROAD_W * 2.0, 0.1, 1.0), ASPHALT, true, 0.0, "asphalt")     # the mouth of the lane
 	for seg in [[ROAD_X0, -ROAD_W], [ROAD_W, ROAD_X1]]:
-		box(Vector3((seg[0] + seg[1]) * 0.5, 0.06, 7.75), Vector3(seg[1] - seg[0], 0.12, 2.5), PAVEMENT, true, 0.0, "pavers")
+		box(Vector3((seg[0] + seg[1]) * 0.5, 0.06, 7.5), Vector3(seg[1] - seg[0], 0.12, 3.0), PAVEMENT, true, 0.0, "pavers")   # (right up to the fence)
 	box(Vector3((ROAD_X0 + ROAD_X1) * 0.5, 0.06, 18.25), Vector3(ROAD_X1 - ROAD_X0, 0.12, 2.5), PAVEMENT, true, 0.0, "pavers")
 	for k in 22:
 		box(Vector3(ROAD_X0 + 3.0 + k * 5.5, 0.005, ROAD_Z), Vector3(2.4, 0.01, 0.12), Color(0.75, 0.72, 0.6), false)

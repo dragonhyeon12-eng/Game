@@ -997,7 +997,8 @@ func _skylight(c: Vector3, size: Vector2, h: float, energy := 1.6, rng := 16.0) 
 
 func _lobby() -> void:
 	var wall := Color(0.82, 0.84, 0.8)
-	room_shell(-16, 4, HALL_Z, 34, LOBBY_H, "swe", {"w": [[24.0, 26.4, 2.4]], "s": [[-9.0, -3.0, 2.6]]}, wall, Color(0.62, 0.64, 0.62),
+	# (z0 is the pool hall's own wall: the lobby builds its street wall, z1, and its sides)
+	room_shell(-16, 4, HALL_Z, 34, LOBBY_H, "nwe", {"w": [[24.0, 26.4, 2.4]], "n": [[-9.0, -3.0, 2.6]]}, wall, Color(0.62, 0.64, 0.62),
 		{"floor_s": "tiles_floor", "base": Color(0.3, 0.32, 0.33)})
 	# the street doors, and the sea pressed up against them
 	for k in 2:
@@ -1101,7 +1102,7 @@ func _thing_chairs() -> void:
 
 func _changing() -> void:
 	var wall := Color(0.78, 0.86, 0.88)
-	room_shell(-46, -16, HALL_Z, 34, CHANGE_H, "s", {}, wall, Color(0.66, 0.74, 0.76), {"floor_s": "tiles_floor", "wall_s": "tiles_pool"})
+	room_shell(-46, -16, HALL_Z, 34, CHANGE_H, "n", {}, wall, Color(0.66, 0.74, 0.76), {"floor_s": "tiles_floor", "wall_s": "tiles_pool"})
 	wall_run(Vector3(-46.15, 0, HALL_Z), Vector3(-HALL_X - 0.15, 0, HALL_Z), CHANGE_H, [], wall, "tiles_pool")
 	# lockers along the south wall, benches down the middle
 	for k in 26:

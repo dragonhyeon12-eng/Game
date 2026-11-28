@@ -845,7 +845,9 @@ func _wall_bit(p0: float, p1: float, y0: float, y1: float, fixed: float, along_x
 		box(Vector3(c, y0 + 0.06, fixed) if along_x else Vector3(fixed, y0 + 0.06, c), Vector3(p1 - p0, 0.12, t + 0.03) if along_x else Vector3(t + 0.03, 0.12, p1 - p0), base, false)
 
 
-## Floor, ceiling and the walls named in `sides` ("s" z0, "n" z1, "w" x0, "e" x1) of a box room on y = 0.
+## Floor, ceiling and the walls named in `sides` of a box room on y = 0. NB the letters name the EDGE, not the
+## compass: "s" is the z0 edge (the smaller z), "n" the z1 edge, "w" x0, "e" x1 (in this game north is -z,
+## so "s" is actually the north side of a room). Check which edge a wall must go on.
 ## Walls along x run the full width (past the corners); walls along z fit between them. openings: {side: [...]}.
 ## opts: floor_s, wall_s, ceil_s, ceil_c, base (skirting colour), floor (false: no floor), t (wall thickness).
 func room_shell(x0: float, x1: float, z0: float, z1: float, h: float, sides: String, openings: Dictionary, wall_c: Color,

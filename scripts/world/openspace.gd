@@ -190,6 +190,13 @@ func hill_height(x: float, z: float) -> float:
 	return -0.05 + k * (1.6 * (n * 0.5 + 0.5) + 0.35 * bumps + 0.3 * sin(x * 0.05) * cos(z * 0.04) + 0.15)
 
 
+## Is this spot covered by the car park's or the road's ground box (so the hills can leave it out)?
+static func _under_flat(p: Vector3) -> bool:
+	if p.x >= -80.0 and p.x <= 80.0 and p.z >= -120.0 and p.z <= 80.0:
+		return true
+	return p.x >= -35.0 and p.x <= 35.0 and p.z >= -900.0 and p.z <= -100.0
+
+
 func _hills() -> void:
 	_hill_noise = FastNoiseLite.new()
 	_hill_noise.seed = 7
@@ -213,8 +220,8 @@ func _hills() -> void:
 			var b: Vector3 = pts[j][i + 1]
 			var d: Vector3 = pts[j + 1][i]
 			var e: Vector3 = pts[j + 1][i + 1]
-			if a.y < 0.0 and b.y < 0.0 and d.y < 0.0 and e.y < 0.0:
-				continue          # (flat ground: the boxes under the car park and the road)
+			if a.y < 0.0 and b.y < 0.0 and d.y < 0.0 and e.y < 0.0 and _under_flat(a) and _under_flat(e):
+				continue          # (flat ground: the boxes under the car park and the road - only where they really are)
 			for v in [a, b, e, a, e, d]:
 				st.add_vertex(v)
 	st.generate_normals()

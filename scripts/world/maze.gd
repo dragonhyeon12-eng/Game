@@ -848,8 +848,8 @@ func _escape_passage(grey: Color, floor_c: Color, z_axis: Vector3) -> void:
 		omni(_wing_xf * Vector3(x, H2 - 0.3, 6.5 * sd), Color(1.0, 0.18, 0.12), 0.0, 6.0, false).name = "EscapeLight"
 	# where it meets the maze: the boundary wall of the next cell, with a steel door in it
 	var along_z := _exit_dir == 0
-	var edge := _wing_xf * Vector3(0, 0, 5.0 * sd)
-	var o := 1.5 * sd
+	var edge := _wing_xf * Vector3(0, 0, CELL * sd)          # (the next cell's centre, on the boundary)
+	var o := (6.5 - CELL) * sd                               # (the door lines up with the passage, at 6.5 along)
 	var L := CELL - PILLAR + 0.04
 	var gap0 := minf(o - 0.65, o + 0.65)
 	var gap1 := maxf(o - 0.65, o + 0.65)
