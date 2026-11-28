@@ -336,12 +336,8 @@ func _run() -> void:
 	check(Game.player.global_position.x > 32.0, "the tunnel surfaced in the pump room (x=%.1f)" % Game.player.global_position.x)
 
 	print("== the drain")
-	check(Game.has_flag("deep_in_pump") and objective_done("Get into the PUMP ROOM"), "objective: got into the pump room")
-	use("DRAIN lever (no handle)")
-	check(not deep.lever_pulled and Game.has_flag("deep_saw_lever"), "the lever has no handle")
-	check(use("Take the lever handle"), "found the handle at the bottom of the pool")
-	check(use("Fit the handle"), "fitted the handle")
-	check(use("Pull the DRAIN lever") and deep.lever_pulled, "pulled the drain lever")
+	check(Game.has_flag("deep_in_pump"), "got into the pump room")
+	check(use("Pull the DRAIN lever") and deep.lever_pulled, "the handle's already on: pulled the drain lever")
 	deep.drain_rate_override = 12.0
 	Game.player.teleport(Transform3D(Basis(), Vector3(33.6, 0.05, -2)))
 	look_at_point(Vector3(38, 1.4, 2))
@@ -360,10 +356,7 @@ func _run() -> void:
 	check(not deep._pump_door.visible, "the pump room door opens from inside")
 
 	print("== the gate")
-	check(use("Gate") and not Game.has_flag("deep_gate"), "the gate is padlocked")
-	check(use("Locker 13") and Game.has_flag("deep_key"), "locker 13 had the key")
-	check(use("Unlock the gate") and Game.has_flag("deep_gate"), "unlocked the gate")
-	check(objective_done("Find the key") and objective_done("Unlock the gate"), "objectives ticked off")
+	check(use("Open the gate") and Game.has_flag("deep_gate"), "opened the gate")
 
 	print("== down the well, into the sea")
 	Game.player.teleport(Transform3D(Basis(), Vector3(18, 0.2, 2)))
@@ -428,7 +421,7 @@ func _run() -> void:
 			out = true
 			c.interact()
 	check(out, "the glowing doorway")
-	check(objective_done("Get inside the sea cave"), "seabed objectives")
+	check(objective_done("Find the way out"), "seabed objective done")
 	await wait(2.5)
 	await _abyss()
 	await wait(12.5)
@@ -505,7 +498,6 @@ func _compression() -> void:
 	await wait(1.0)
 	check(absf(cz._press_h[0] - h0) < 0.05, "the wall you watch stays put")
 	await shot("the_press")
-	check(use("Take the fuse", Vector3(13.7, 0.9, -18)), "fuse from the press")
 	Game.player.teleport(Transform3D(Basis(), Vector3(0.5, 0.05, -17)))
 	await wait(1.5)
 	check(cz._press_h[0] > h0, "walls retreat once you're out")
@@ -516,7 +508,6 @@ func _compression() -> void:
 	Game.player._set_crouch(false)
 	check(Game.player._crouched, "can't stand up inside the duct")
 	await shot("the_vent")
-	check(use("Take the fuse", Vector3(-6, 0.1, -29.0)), "fuse from the vent")
 	Game.player._crouched = false
 	print("== the drying room (walking there, so a blocked doorway shows up)")
 	Game.player.dread.set_values(20, 80)
@@ -547,12 +538,10 @@ func _compression() -> void:
 	var d2 := fig.global_position.distance_to(Game.player.global_position)
 	check(absf(d2 - fig.global_position.distance_to(Game.player.global_position)) < 0.01 and d2 > 0.8, "and stop when you look")
 	await shot("drying_room")
-	check(use("Take the fuse", Vector3(-13.2, 0.9, -12.3)), "fuse from the drying room")
 	Game.player.teleport(Transform3D(Basis(), Vector3(2.5, 0.05, -20.5)))
 	await wait(0.3)
-	check(Game.has_flag("comp_fuses") and Game.counters.get("fuses") == 3, "three fuses")
 	print("== the freight elevator")
-	check(use("Put the fuses in") and Game.has_flag("comp_power"), "power to the elevator")
+	check(Game.has_flag("comp_power"), "the elevator already has power (no fuses to hunt for)")
 	check(use("Call the elevator"), "called it")
 	await wait(1.8)
 	Game.player.teleport(Transform3D(Basis(), Vector3(1.0, 0.05, -23.2)))
@@ -586,7 +575,7 @@ func _above() -> void:
 	await wait(0.6)
 	check(Game.player.global_position.y > -0.5, "the plank holds you")
 	await shot("the_plank")
-	check(use("Take the key"), "took the key")
+	check(Game.has_flag("above_key"), "the key's already in your pocket")
 	print("== the beam and the wind")
 	az._gust_phase = 2
 	az._gust_t = 5.0

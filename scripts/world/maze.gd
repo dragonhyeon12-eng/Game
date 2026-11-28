@@ -168,6 +168,8 @@ func build() -> void:
 	_props()
 	_exit()
 	_expedition()
+	_way_in()
+	_stains()
 	_register_anomalies()
 	_hum = ambient("hum", Vector3.ZERO, false, -18.0)
 	observer = Observer.new()
@@ -318,7 +320,8 @@ func _geometry() -> void:
 					_set_dynamic(w, rng.randf() < 0.5)
 
 	for x in W:
-		_wall(Vector3(x * CELL, 0, -0.5 * CELL), false, length, WALL_A)
+		if x != ENTRY_CELL.x:      # (the way in: see _entry)
+			_wall(Vector3(x * CELL, 0, -0.5 * CELL), false, length, WALL_A)
 		if not (_exit_dir == 2 and (_exit_cell.x == x or _side_cell.x == x)):
 			_wall(Vector3(x * CELL, 0, (H - 0.5) * CELL), false, length, WALL_A)
 	for z in H:
@@ -440,7 +443,7 @@ func player_start() -> Transform3D:
 	var cp: Dictionary = Game.counters.get("chase", {})
 	if Game.has_flag("maze_chase") and not cp.is_empty():
 		return Transform3D(Basis(Vector3.UP, float(cp.yaw)), Vector3(float(cp.x), 0.05, float(cp.z)))
-	return Transform3D(Basis(Vector3.UP, _start_yaw), cell_center(0, 0) + Vector3(0, 0.05, 0))
+	return Transform3D(Basis(Vector3.UP, PI * 0.5), START)      # on the office carpet, facing the blinds
 
 
 # ------------------------------------------------------------------ anomalies
@@ -499,6 +502,7 @@ func _restore_chase() -> void:
 	if cp.is_empty():
 		return
 	_hint = 3
+	_seal_entry()
 	_maint_block.visible = false
 	_maint_block.get_child(0).disabled = true
 	open_door(_maint_door, 100.0, 0.01)
@@ -529,6 +533,7 @@ func _restore_chase() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	_update_way_in(delta)
 	if _hunting and not _chase_on and Game.player and _in_grid(Game.player.global_position) and not Game.in_sequence:
 		_begin_chase()
 	if _chase_on:
@@ -577,7 +582,7 @@ func on_dread(dread: float, stage: int, delta: float) -> void:
 					target *= lerpf(1.0, l.level, v)
 		l.light.light_energy = target
 	if _hum:
-		_hum.volume_db = -18.0 + 8.0 * d * Settings.audio_intensity
+		_hum.volume_db = _hum_base + 8.0 * d * Settings.audio_intensity
 	_update_observer(delta, stage, d)
 
 
@@ -903,6 +908,7 @@ func _flip(b: Dictionary) -> void:
 
 func _power_on() -> void:
 	Game.set_flag("maze_power")
+	_seal_entry()
 	_main_switch.rotation_degrees.z = 160.0
 	Sfx.play("switch", 0.0, 0.7)
 	Sfx.stinger("braam", 0.0)
@@ -1013,8 +1019,9 @@ func _hunt(delta: float) -> void:
 		# it never falls far behind, and right behind you it's short of your sprint (about 4):
 		# any hesitation - a wrong turn, a crawl, a stumble - and it has you
 		spd = 8.0 if dist > 10.0 else (6.1 if dist > 4.5 else 4.9)
-	if in_wing and (_wing_xf.affine_inverse() * me).z < -1.2:
-		target = _wing_xf * Vector3(9.25, 0, 0)
+	var ml := _wing_xf.affine_inverse() * me
+	if in_wing and ml.z < -1.2 and ml.z > -5.4 and ml.x > 7.0 and ml.x < 11.5:
+		target = _wing_xf * Vector3(9.25, 0, 0)       # (out of the room behind the glass, into the corridor)
 	_stalker.move_to(target if dist > 1.6 else p, spd, delta)
 	if _trail.size() > 400:
 		_trail = _trail.slice(-400)
@@ -1801,3 +1808,851 @@ func _set_breaker(b: Dictionary, up: bool) -> void:
 		(b.lever as Node3D).rotation_degrees.x = 0.0 if up else 110.0
 	else:
 		(b.group as Node3D).rotation_degrees.z = 160.0 if up else 0.0
+
+
+# ------------------------------------------------------------------ the way in
+# Before the yellow rooms, a walk. You wake on the carpet of an office at night, the blinds lit like day;
+# out down a corridor of numbered doors (one open: a radio playing a song you know); across a hall too big
+# to be inside any building - pillars to the haze, a row of chairs facing the way you came, a door standing
+# on its own, a staircase into the ceiling, a window onto a sky in a wall with nothing behind it, a payphone
+# ringing; then one last corridor, and the rooms. One way: once you're in, the doorway is wallpaper.
+
+const ENTRY_CELL := Vector2i(3, 0)    # the rooms are entered through this cell's south wall
+const ENTRY_HALF := 0.95
+const OFF_X0 := -35.0
+const OFF_X1 := 5.0
+const OFF_Z0 := -182.0
+const OFF_Z1 := -150.0
+const OFF_H := 2.9
+const C1_X := -15.0                    # the corridor of doors: x -16.2..-13.8, z -150..-110
+const COR_H := 2.6
+const HALL_X0 := -30.0
+const HALL_X1 := 70.0
+const HALL_Z0 := -110.0
+const HALL_Z1 := -40.0
+const HALL_H := 3.4
+const C2_X := 19.5                     # the last corridor: x 18.4..20.6, z -40..-3.4 (= the entry cell's x)
+const START := Vector3(-32.6, 0.05, -170.0)
+const PUDDLE := Vector3(10.0, 0.0, -62.0)
+const PHONE := Vector3(22.0, 0.0, -58.63)
+const SKY_WALL := Vector3(35.0, 0.0, -78.0)
+const LONE_DOOR := Vector3(2.0, 0.0, -88.0)
+
+const OFFICE_WALL := Color(0.8, 0.79, 0.75)
+const OFFICE_CARPET := Color(0.3, 0.33, 0.37)
+const C1_WALL := Color(0.86, 0.8, 0.6)
+
+var _entry_wall: StaticBody3D
+var _entry_sealed := false
+var _seal_noticed := false
+var _section := "office"
+var _hum_base := -26.0
+var _walk_lights: Array = []          # [light, panel, base energy]
+var _chairs_row: Array[Node3D] = []
+var _chairs_turned := false
+var _lone_door: Node3D
+var _lone_open := false
+var _lone_through := false
+var _clouds: Array[Node3D] = []
+var _phone_state := 0                 # 0 quiet, 1 ringing, 2 answered
+var _phone_t := 0.0
+var _desk_phone := Vector3.ZERO
+var _desk_state := 0
+var _desk_t := 0.0
+var _radio: AudioStreamPlayer3D
+var _radio_off_t := -1.0
+var _drip_t := 2.0
+var _tv_screen: MeshInstance3D
+var _flicker: Array = []              # [light, panel, base]
+var _flick_t := 0.0
+var _door_tries := 0
+
+
+func _way_in() -> void:
+	_office()
+	_corridor_of_doors()
+	_hall()
+	_last_corridor()
+	_entry()
+	checkpoint_zone("hall", Vector3(C1_X, 1.3, HALL_Z0 + 2.0), Vector3(2.2, 2.6, 1.5), Vector3(C1_X, 0.05, HALL_Z0 + 2.0), 180.0)
+	checkpoint_zone("rooms", Vector3(C2_X, 1.3, -8.0), Vector3(2.0, 2.6, 1.5), Vector3(C2_X, 0.05, -8.0), 180.0)
+	trigger(Vector3(C1_X, 1.3, HALL_Z0 + 1.0), Vector3(2.2, 2.6, 1.0), func():
+		Game.hud.show_thought("...How big IS this place?", 3.0))
+	trigger(Vector3(C2_X, 1.3, -30.0), Vector3(2.0, 2.6, 1.0), func():
+		Game.hud.show_thought("That smell. Damp carpet. ...I know where this goes.", 3.5))
+	for i in _walk_lights.size():
+		if i % 3 != 2:
+			continue
+		var wl: Array = _walk_lights[i]
+		Anomalies.register({"id": "light", "owner": self, "position": (wl[0] as Node3D).position, "radius": 1.5, "min_stage": 1,
+			"weight": 0.5, "discovery_fear": 2.0,
+			"apply": func():
+				var off: bool = (wl[0] as OmniLight3D).light_energy > 0.01
+				(wl[0] as OmniLight3D).light_energy = 0.0 if off else float(wl[2])
+				(wl[1] as MeshInstance3D).material_override = Shapes.material(Color(0.35, 0.34, 0.3)) if off else Shapes.material(PANEL, 0.85, 3.0)})
+	# the chairs in the hall turn to face you
+	Anomalies.register({"id": "chairs", "owner": self, "position": Vector3(-6.75, 0.6, -104.0), "radius": 6.0, "weight": 2.0,
+		"max_changes": 1, "discovery_fear": 6.0, "max_distance": 45.0,
+		"can_apply": func(): return Game.player != null and Game.player.global_position.z > -100.0,
+		"apply": func():
+			_chairs_turned = true
+			for ch in _chairs_row:
+				var to: Vector3 = Game.player.global_position - ch.global_position
+				ch.rotation.y = atan2(to.x, to.z)})
+
+
+## An axis-aligned wall from a to b (the same z, or the same x), h high, with openings [from, to, top] or
+## [from, to, top, sill] along it: a lintel from `top` up to h, and (windows) a wall up to `sill` below.
+func _wall_run(a: Vector3, b: Vector3, h: float, openings: Array, col: Color, surface := "wallpaper", t := 0.3) -> void:
+	var along_x := absf(b.x - a.x) >= absf(b.z - a.z)
+	var lo := minf(a.x, b.x) if along_x else minf(a.z, b.z)
+	var hi := maxf(a.x, b.x) if along_x else maxf(a.z, b.z)
+	var fixed := a.z if along_x else a.x
+	var cuts := openings.duplicate()
+	cuts.sort_custom(func(p, q): return p[0] < q[0])
+	var at := lo
+	for o in cuts:
+		_wall_piece(at, o[0], 0.0, h, fixed, along_x, col, surface, t, true)
+		_wall_piece(o[0], o[1], o[2], h, fixed, along_x, col, surface, t, false)
+		if o.size() > 3:
+			_wall_piece(o[0], o[1], 0.0, o[3], fixed, along_x, col, surface, t, true)
+		at = o[1]
+	_wall_piece(at, hi, 0.0, h, fixed, along_x, col, surface, t, true)
+
+
+func _wall_piece(p0: float, p1: float, y0: float, y1: float, fixed: float, along_x: bool, col: Color, surface: String, t: float, base: bool) -> void:
+	if p1 - p0 < 0.01 or y1 - y0 < 0.01:
+		return
+	var c := (p0 + p1) * 0.5
+	var y := (y0 + y1) * 0.5
+	box(Vector3(c, y, fixed) if along_x else Vector3(fixed, y, c), Vector3(p1 - p0, y1 - y0, t) if along_x else Vector3(t, y1 - y0, p1 - p0), col, true, 0.0, surface)
+	if base:
+		box(Vector3(c, 0.06, fixed) if along_x else Vector3(fixed, 0.06, c), Vector3(p1 - p0, 0.12, t + 0.03) if along_x else Vector3(t + 0.03, 0.12, p1 - p0), BASEBOARD, false)
+
+
+## Floor, ceiling and the walls named in `sides` ("s" z0, "n" z1, "w" x0, "e" x1) of a box room. Walls along x
+## run the full width (and past the corners); walls along z fit between them. openings: {side: [...]}.
+func _room(x0: float, x1: float, z0: float, z1: float, h: float, sides: String, openings: Dictionary, wall_c: Color,
+		floor_c: Color, wall_s := "wallpaper", ceil_c := CEILING) -> void:
+	var t := 0.3
+	box(Vector3((x0 + x1) * 0.5, -0.05, (z0 + z1) * 0.5), Vector3(x1 - x0, 0.1, z1 - z0), floor_c, true, 0.0, "carpet")
+	box(Vector3((x0 + x1) * 0.5, h + 0.05, (z0 + z1) * 0.5), Vector3(x1 - x0, 0.1, z1 - z0), ceil_c, true, 0.0, "tiles_ceiling")
+	if sides.contains("s"):
+		_wall_run(Vector3(x0 - t * 0.5, 0, z0), Vector3(x1 + t * 0.5, 0, z0), h, openings.get("s", []), wall_c, wall_s)
+	if sides.contains("n"):
+		_wall_run(Vector3(x0 - t * 0.5, 0, z1), Vector3(x1 + t * 0.5, 0, z1), h, openings.get("n", []), wall_c, wall_s)
+	if sides.contains("w"):
+		_wall_run(Vector3(x0, 0, z0 + t * 0.5), Vector3(x0, 0, z1 - t * 0.5), h, openings.get("w", []), wall_c, wall_s)
+	if sides.contains("e"):
+		_wall_run(Vector3(x1, 0, z0 + t * 0.5), Vector3(x1, 0, z1 - t * 0.5), h, openings.get("e", []), wall_c, wall_s)
+
+
+## A ceiling light that can go out: an emissive panel and a lamp under it.
+func _walk_light(pos: Vector3, h: float, energy: float, rng: float, col := LIGHT) -> void:
+	var panel := part("box", Vector3(pos.x, h - 0.02, pos.z), Vector3(1.2, 0.03, 0.6), PANEL, null, Vector3.ZERO, 3.0)
+	var l := omni(Vector3(pos.x, h - 0.35, pos.z), col, energy, rng, false)
+	_walk_lights.append([l, panel, energy])
+
+
+## Rows of ceiling troffers (models, drawn together), skipping where `skip` says.
+func _troffers(x0: float, x1: float, z0: float, z1: float, step: float, h: float, skip := Callable()) -> void:
+	var x := x0
+	while x <= x1 + 0.01:
+		var z := z0
+		while z <= z1 + 0.01:
+			var p := Vector3(x, h, z)
+			if not skip.is_valid() or not skip.call(p):
+				if not scatter_prop("ceiling_troffer", p, 0.0, 1.0, false):
+					part("box", p - Vector3(0, 0.02, 0), Vector3(1.2, 0.03, 0.5), PANEL, null, Vector3.ZERO, 2.5)
+			z += step
+		x += step
+
+
+## A thing that stands on the floor, with something to bump into.
+func _thing(slot: String, pos: Vector3, yaw: float, solid: Vector3, fallback_col := Color(0.5, 0.5, 0.5)) -> void:
+	if not scatter_prop(slot, pos, yaw, 1.0, true):
+		box(pos + Vector3(0, solid.y * 0.5, 0), solid, fallback_col, false, yaw, "wood")
+	if solid != Vector3.ZERO:
+		var b := Basis(Vector3.UP, deg_to_rad(yaw))
+		var cs := CollisionShape3D.new()
+		var bs := BoxShape3D.new()
+		bs.size = solid
+		cs.shape = bs
+		cs.transform = Transform3D(b, pos + Vector3(0, solid.y * 0.5, 0))
+		_body.add_child(cs)
+
+
+# ---- the office
+
+func _office() -> void:
+	var cx := (OFF_X0 + OFF_X1) * 0.5
+	# the west wall: six windows, the blinds down, and light behind them like the middle of the day
+	var wins := []
+	for k in 6:
+		var wz := OFF_Z0 + 4.0 + k * 4.8
+		wins.append([wz - 1.2, wz + 1.2, 2.3, 0.9])
+	var c1 := [C1_X - 1.05, C1_X + 1.05, COR_H]
+	_room(OFF_X0, OFF_X1, OFF_Z0, OFF_Z1, OFF_H, "nswe", {"w": wins, "n": [c1]}, OFFICE_WALL, OFFICE_CARPET, "plaster", Color(0.86, 0.85, 0.8))
+	for k in 6:
+		var wz := OFF_Z0 + 4.0 + k * 4.8
+		part("box", Vector3(OFF_X0 - 0.17, 1.6, wz), Vector3(0.02, 1.4, 2.4), Color(1.0, 0.97, 0.88), null, Vector3.ZERO, 2.2)
+		box(Vector3(OFF_X0 + 0.16, 0.92, wz), Vector3(0.08, 0.04, 2.44), Color(0.9, 0.9, 0.88), false)      # the sill
+		var up := k == 3      # one has its blinds pulled up: nothing out there but white
+		var y := 2.24
+		while y > (1.9 if up else 0.95):
+			box(Vector3(OFF_X0 + 0.05, y, wz), Vector3(0.05, 0.008, 2.36), Color(0.88, 0.87, 0.82), false, 0.0, "metal")
+			y -= 0.085
+		omni(Vector3(OFF_X0 + 1.6, 1.6, wz), Color(1.0, 0.95, 0.85), 0.55 if not up else 0.9, 7.0, false)
+	trigger(Vector3(OFF_X0 + 2.0, 1.3, OFF_Z0 + 4.0 + 3 * 4.8), Vector3(3.0, 2.6, 3.0), func():
+		Game.hud.show_thought("Daylight. ...It's three in the morning. And there's nothing out there. Just white.", 4.5))
+	# ceiling
+	_troffers(OFF_X0 + 2.5, OFF_X1 - 2.5, OFF_Z0 + 2.0, OFF_Z1 - 2.0, 4.0, OFF_H,
+		func(p: Vector3): return absf(p.x - (-25.0)) < 0.6 and absf(p.z - (-174.0)) < 0.6 or absf(p.x - (-5.0)) < 0.6 and absf(p.z - (-174.0)) < 0.6)
+	_walk_light(Vector3(-25.0, 0, -174.0), OFF_H, 1.0, 15.0, Color(1.0, 0.98, 0.92))
+	_walk_light(Vector3(-5.0, 0, -174.0), OFF_H, 1.0, 15.0, Color(1.0, 0.98, 0.92))
+	omni(Vector3(-15.0, OFF_H - 0.4, -158.0), Color(1.0, 0.98, 0.92), 0.9, 14.0, false)
+	# the pods: four desks back to back, partitions, monitors, chairs pushed out where people got up
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value + 1201
+	var pod_x := [-28.0, -21.0, -14.0, -7.0, 0.0]
+	var pod_z := [-177.0, -170.0, -163.0]
+	var screen_on := Vector2i(2, 1)
+	var phone_at := Vector2i(1, 2)
+	var fabric := Color(0.4, 0.43, 0.48)
+	for i in pod_x.size():
+		for j in pod_z.size():
+			var px: float = pod_x[i]
+			var pz: float = pod_z[j]
+			box(Vector3(px, 0.62, pz), Vector3(4.1, 1.24, 0.05), fabric, true, 0.0, "fabric")
+			box(Vector3(px, 1.255, pz), Vector3(4.12, 0.03, 0.07), Color(0.7, 0.7, 0.72), false, 0.0, "metal")
+			for sx in [-1.0, 1.0]:
+				box(Vector3(px + sx * 2.06, 0.62, pz), Vector3(0.05, 1.24, 1.9), fabric, true, 0.0, "fabric")
+				box(Vector3(px + sx * 2.06, 1.255, pz), Vector3(0.07, 0.03, 1.92), Color(0.7, 0.7, 0.72), false, 0.0, "metal")
+			for dx in [-1.0, 1.0]:
+				for side in [-1.0, 1.0]:
+					var yaw := 0.0 if side > 0 else 180.0
+					var dp := Vector3(px + dx * 1.0, 0, pz + side * 0.47)
+					var b := Basis(Vector3.UP, deg_to_rad(yaw))
+					_thing("desk_long", dp, yaw, Vector3(1.96, 0.775, 0.88), Color(0.6, 0.55, 0.47))
+					if rng.randf() < 0.85:
+						var mp: Vector3 = dp + b * Vector3(0.1, 0.775, -0.25)
+						scatter_prop("monitor_wide", mp, yaw, 1.0, false)
+						if Vector2i(i, j) == screen_on and dx > 0 and side > 0:
+							part("box", mp + b * Vector3(0, 0.37, 0.035), Vector3(0.84, 0.5, 0.004), Color(0.35, 0.5, 0.85), null, Vector3(0, yaw, 0), 1.6)
+							var lb := label(mp + b * Vector3(0, 0.4, 0.04), yaw, "SESSION LOCKED\n03:12", 0.045, Color(0.9, 0.95, 1.0))
+							lb.pixel_size = 0.045 / 64.0
+						box(dp + b * Vector3(0.05, 0.785, 0.12), Vector3(0.46, 0.02, 0.15), Color(0.16, 0.16, 0.17), false, yaw, "metal")   # keyboard
+					if rng.randf() < 0.5:
+						var cup := "coffee_cup" if rng.randf() < 0.5 else "mug"
+						prop(cup, dp + b * Vector3(rng.randf_range(-0.8, -0.4), 0.775, rng.randf_range(-0.1, 0.2)), rng.randf() * 360.0)
+					if rng.randf() < 0.6:
+						part("box", dp + b * Vector3(rng.randf_range(-0.7, 0.3), 0.779, rng.randf_range(0.0, 0.25)), Vector3(0.21, 0.004, 0.297),
+							Color(0.94, 0.93, 0.88), null, Vector3(0, yaw + rng.randf_range(-25, 25), 0))
+					if Vector2i(i, j) == phone_at and dx < 0 and side < 0:
+						_desk_phone = dp + b * Vector3(-0.6, 0.775, 0.0)
+						box(_desk_phone + Vector3(0, 0.04, 0), Vector3(0.22, 0.08, 0.2), Color(0.2, 0.2, 0.21), false, yaw)
+						box(_desk_phone + Vector3(0, 0.1, -0.03), Vector3(0.2, 0.05, 0.06), Color(0.15, 0.15, 0.16), false, yaw)
+						interactable(_desk_phone + Vector3(0, 0.15, 0), Vector3(0.5, 0.4, 0.5),
+							func(): return "Answer the phone" if _desk_state == 1 else "A desk phone",
+							func(): _answer_desk_phone())
+					# the chair, where somebody pushed it back
+					var cp: Vector3 = dp + b * Vector3(rng.randf_range(-0.4, 0.4), 0, rng.randf_range(0.75, 1.15))
+					var cyaw := yaw + 180.0 + rng.randf_range(-45.0, 45.0)
+					_thing("office_chair", cp, cyaw, Vector3(0.55, 0.95, 0.55), Color(0.15, 0.15, 0.17))
+	# the north side: reception, a kitchenette, the printer, the notice board
+	_thing("reception_desk", Vector3(-3.0, 0, -154.6), 180.0, Vector3(3.0, 1.1, 0.7), Color(0.55, 0.5, 0.42))
+	furnish("office_chair", Vector3(-3.0, 0, -153.6), 190.0, Vector3(0.55, 0.95, 0.55), Vector3(0, 0.47, 0))
+	label(Vector3(-3.0, 2.15, OFF_Z1 - 0.16), 180.0, "HALCYON  &  PARTNERS", 0.16, Color(0.62, 0.6, 0.55), false)
+	_thing("waiting_chairs", Vector3(3.9, 0, -158.0), -90.0, Vector3(1.8, 0.8, 0.6))
+	_thing("waiting_chairs", Vector3(3.9, 0, -161.0), -90.0, Vector3(1.8, 0.8, 0.6))
+	prop("potted_plant", Vector3(3.9, 0, -155.2), 30.0)
+	prop("potted_plant", Vector3(OFF_X1 - 0.6, 0, OFF_Z0 + 0.6), 80.0)
+	prop("potted_plant", Vector3(-17.4, 0, OFF_Z1 - 0.6), 10.0)
+	prop("coat_rack", Vector3(-12.4, 0, OFF_Z1 - 0.5), 0.0)
+	# kitchenette (north-west)
+	for k in 3:
+		_thing("kitchen_cabinet", Vector3(-33.8 + k * 1.24, 0, OFF_Z1 - 0.47), 180.0, Vector3(1.2, 0.9, 0.6), Color(0.85, 0.85, 0.82))
+	_thing("fridge", Vector3(-29.4, 0, OFF_Z1 - 0.5), 180.0, Vector3(0.7, 1.8, 0.68), Color(0.92, 0.92, 0.9))
+	ambient("hum", Vector3(-29.4, 1.0, OFF_Z1 - 0.6), true, -14.0, 9.0)
+	prop("kettle", Vector3(-32.6, 0.92, OFF_Z1 - 0.5), 200.0)
+	for k in 3:
+		prop("mug", Vector3(-33.9 + k * 0.16, 0.92, OFF_Z1 - 0.62), k * 50.0)
+	_thing("water_cooler", Vector3(OFF_X0 + 0.5, 0, -156.0), 90.0, Vector3(0.4, 1.4, 0.4), Color(0.85, 0.85, 0.82))
+	label(Vector3(-31.0, 1.6, OFF_Z1 - 0.16), 180.0, "PLEASE WASH YOUR OWN MUG", 0.05, Color(0.2, 0.2, 0.2), false)
+	# the printer, still warm
+	box(Vector3(-10.0, 0.4, -156.5), Vector3(0.7, 0.8, 0.6), Color(0.45, 0.45, 0.46), true, 0.0, "metal")
+	box(Vector3(-10.0, 0.95, -156.5), Vector3(0.62, 0.3, 0.52), Color(0.86, 0.85, 0.8), true)
+	box(Vector3(-10.0, 1.11, -156.3), Vector3(0.5, 0.02, 0.4), Color(0.25, 0.25, 0.26), false)
+	var sheet := part("box", Vector3(-10.0, 0.83, -156.15), Vector3(0.21, 0.003, 0.297), Color(0.96, 0.96, 0.93))
+	sheet.visible = false
+	interactable(Vector3(-10.0, 1.0, -156.5), Vector3(0.9, 0.8, 0.9),
+		func(): return "The printer" if not sheet.visible else "Read the page",
+		func():
+			if not sheet.visible:
+				Sfx.play_at("motor", self, Vector3(-10.0, 1.0, -156.5), -8.0, 12.0)
+				Sfx.play_at("page", self, Vector3(-10.0, 1.0, -156.5), -2.0, 10.0)
+				sheet.visible = true
+				Game.hud.show_thought("It's warm. It wakes up, and prints one page.", 3.0)
+			else:
+				Game.hud.show_thought("Blank, except one line, in the middle: THANK YOU FOR WAITING.", 4.0))
+	# the notice board
+	if prop("notice_board", Vector3(-22.0, 1.55, OFF_Z1 - 0.15), 180.0) == null:
+		box(Vector3(-22.0, 1.55, OFF_Z1 - 0.17), Vector3(1.2, 0.9, 0.03), Color(0.6, 0.45, 0.3), false)
+	for k in 5:
+		part("box", Vector3(-22.4 + (k % 3) * 0.38, 1.7 - int(k / 3) * 0.36, OFF_Z1 - 0.19), Vector3(0.21, 0.28, 0.004),
+			Color(0.96, 0.95, 0.85) if k % 2 == 0 else Color(0.95, 0.9, 0.6), null, Vector3(0, 0, k * 4.0 - 8.0))
+	interactable(Vector3(-22.0, 1.55, OFF_Z1 - 0.4), Vector3(1.3, 1.0, 0.4), func(): return "Notice board",
+		func(): Game.hud.show_thought("FIRE DRILL THURSDAY.  Has anyone seen my mug (blue, WORLD'S OKAYEST)?  PLEASE DON'T PROP THE DOORS OPEN.  Lift out of order - use the stairs.  The stairs are out of order.", 7.0))
+	# the clock over the way out, stopped
+	box(Vector3(C1_X, 2.75, OFF_Z1 - 0.17), Vector3(0.5, 0.2, 0.03), Color(0.05, 0.05, 0.05), false)
+	label(Vector3(C1_X, 2.75, OFF_Z1 - 0.19), 180.0, "03:12", 0.12, Color(1.0, 0.2, 0.15))
+	# the glass doors, propped open (someone didn't read the notice)
+	for side in [-1.0, 1.0]:
+		var hinge := Vector3(C1_X + side * 1.02, 0, OFF_Z1 - 0.2)
+		var g := group(hinge, side * -100.0)
+		part("box", Vector3(-side * 0.5, 1.15, 0), Vector3(0.98, 2.28, 0.012), Color(0.75, 0.85, 0.85), g, Vector3.ZERO, 0.0, "glass")
+		part("box", Vector3(-side * 0.5, 1.0, 0.03), Vector3(0.4, 0.03, 0.03), Color(0.7, 0.7, 0.72), g, Vector3.ZERO, 0.0, "metal")
+	if not prop("exit_sign", Vector3(C1_X + 1.6, 2.45, OFF_Z1 - 0.15), 180.0):
+		part("box", Vector3(C1_X + 1.6, 2.45, OFF_Z1 - 0.18), Vector3(0.36, 0.16, 0.04), Color(0.2, 1.0, 0.4), null, Vector3.ZERO, 3.0)
+
+
+func _answer_desk_phone() -> void:
+	if _desk_state != 1:
+		Game.hud.show_thought("A desk phone. Line four is blinking.", 2.5)
+		return
+	_desk_state = 2
+	Sfx.play("static_burst", -10.0)
+	Game.hud.show_thought("...Nobody. Just the hum - the same hum as in here. Like they're in the next room. Then the line goes.", 5.0)
+	Game.player.dread.add_fear(3.0, "the phone")
+
+
+# ---- the corridor of doors
+
+func _corridor_of_doors() -> void:
+	var x0 := C1_X - 1.2
+	var x1 := C1_X + 1.2
+	var room := [OFF_Z1 + 19.5, OFF_Z1 + 20.5, 2.1]       # room 207 stands open
+	_room(x0, x1, OFF_Z1, HALL_Z0, COR_H, "we", {"w": [room]}, C1_WALL, Color(0.38, 0.36, 0.3))
+	var n := 0
+	for k in 7:
+		var z := OFF_Z1 + 5.0 + k * 5.0
+		for side in [-1, 1]:
+			n += 1
+			var num := 200 + (k * 2 + (1 if side < 0 else 2))
+			var wx := x0 + 0.17 if side < 0 else x1 - 0.17
+			var d := door(Vector3(wx, 0, z), 90.0 if side < 0 else -90.0, Color(0.55, 0.42, 0.3), 0.92, 2.05)
+			label(Vector3(wx + (0.02 if side < 0 else -0.02), 2.25, z), 90.0 if side < 0 else -90.0, str(num), 0.08, Color(0.85, 0.72, 0.4), false)
+			if num == 207:
+				open_door(d, -95.0, 0.01)
+				continue
+			var spooky := num == 210
+			interactable(Vector3(wx + (0.15 if side < 0 else -0.15), 1.05, z), Vector3(0.3, 2.0, 1.0), func(): return "Room %d" % num,
+				func():
+					Sfx.play_at("knock", self, Vector3(wx, 1.0, z), -14.0, 8.0, 1.6)
+					if spooky and _door_tries >= 0:
+						_door_tries = -1
+						await get_tree().create_timer(0.8, false).timeout
+						Sfx.play_at("knock", self, Vector3(wx - side * 0.5, 1.0, z), -6.0, 10.0, 0.9)
+						Game.hud.show_thought("Locked. ...Someone on the other side just let go of the handle.", 4.0)
+						Game.player.dread.add_fear(5.0, "the handle")
+					else:
+						Game.hud.show_thought("Locked.", 1.5))
+	_troffers(C1_X, C1_X, OFF_Z1 + 2.5, HALL_Z0 - 2.5, 4.0, COR_H,
+		func(p: Vector3): return absf(p.z - (OFF_Z1 + 6.5)) < 0.6 or absf(p.z - (OFF_Z1 + 22.5)) < 0.6 or absf(p.z - (OFF_Z1 + 34.5)) < 0.6)
+	for z in [OFF_Z1 + 6.5, OFF_Z1 + 22.5, OFF_Z1 + 34.5]:
+		_walk_light(Vector3(C1_X, 0, z), COR_H, 0.9, 9.0, Color(1.0, 0.95, 0.82))
+	# room 207: a storeroom. A mop, a chair facing the corner, and a radio playing a song you know
+	var rx0 := x0 - 4.2
+	_room(rx0, x0, OFF_Z1 + 17.8, OFF_Z1 + 22.2, COR_H, "w", {}, C1_WALL.darkened(0.08), Color(0.36, 0.34, 0.29))
+	for wz in [OFF_Z1 + 17.8, OFF_Z1 + 22.2]:      # (ending inside the corridor's wall: no faces in the same plane)
+		_wall_run(Vector3(rx0 - 0.15, 0, wz), Vector3(x0, 0, wz), COR_H, [], C1_WALL.darkened(0.08))
+	var rc := Vector3(rx0 + 2.1, 0, OFF_Z1 + 20.0)
+	if not prop("ceiling_bulb", rc + Vector3(0, COR_H, 0), 0.0):
+		part("sphere", rc + Vector3(0, COR_H - 0.3, 0), Vector3.ONE * 0.09, Color(1.0, 0.9, 0.7), null, Vector3.ZERO, 3.0)
+	omni(rc + Vector3(0, COR_H - 0.5, 0), Color(1.0, 0.85, 0.6), 0.8, 6.0, false)
+	furnish("chair_wood", rc + Vector3(-1.5, 0, -1.6), 225.0, Vector3(0.45, 0.9, 0.45), Vector3(0, 0.45, 0))
+	_thing("step_stool", rc + Vector3(1.4, 0, 1.6), 20.0, Vector3(0.4, 0.5, 0.4))
+	if not prop("radio_old", rc + Vector3(1.4, 0.5, 1.6), 200.0):
+		box(rc + Vector3(1.4, 0.63, 1.6), Vector3(0.4, 0.26, 0.18), Color(0.45, 0.3, 0.18), false)
+	shape_at("cylinder", rc + Vector3(-1.4, 0.17, 1.5), Vector3(0.36, 0.34, 0.36), Color(0.75, 0.6, 0.15), true)       # mop bucket
+	shape_at("cylinder", rc + Vector3(-1.35, 0.8, 1.45), Vector3(0.03, 1.3, 0.03), Color(0.55, 0.42, 0.28), false, Vector3(8, 0, 6), "wood")
+	_radio = AudioStreamPlayer3D.new()
+	_radio.max_distance = 18.0
+	_radio.unit_size = 2.5
+	_radio.volume_db = -4.0
+	_radio.attenuation_filter_cutoff_hz = 2800.0
+	_radio.position = rc + Vector3(1.4, 0.65, 1.6)
+	add_child(_radio)
+	interactable(rc + Vector3(1.4, 0.7, 1.6), Vector3(0.6, 0.5, 0.5),
+		func(): return "Turn the radio off" if _radio.playing else "The radio",
+		func():
+			if _radio.playing:
+				_radio.stop()
+				_radio_off_t = 0.0
+				Sfx.play("switch", -10.0)
+				Game.hud.show_thought("Quiet. ...I know that song. I don't know where from.", 3.5)
+			else:
+				Game.hud.show_thought("Off. The dial's still warm.", 2.0))
+
+
+# ---- the hall
+
+func _hall() -> void:
+	_room(HALL_X0, HALL_X1, HALL_Z0, HALL_Z1, HALL_H, "nswe",
+		{"s": [[C1_X - 1.05, C1_X + 1.05, COR_H]], "n": [[C2_X - ENTRY_HALF, C2_X + ENTRY_HALF, COR_H]]}, WALL_A, CARPET)
+	var keep := [Vector3(C1_X, 0, HALL_Z0), Vector3(C2_X, 0, HALL_Z1), PUDDLE, SKY_WALL, LONE_DOOR, Vector3(-20, 0, -76), Vector3(50, 0, -94), Vector3(-6.75, 0, -104)]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value + 1301
+	var x := HALL_X0 + 4.0
+	while x < HALL_X1 - 1.0:
+		var z := HALL_Z0 + 4.0
+		while z < HALL_Z1 - 1.0:
+			var p := Vector3(x, 0, z)
+			if not (PHONE.distance_to(p) < 1.0) and keep.any(func(k): return Vector2(k.x - x, k.z - z).length() < 4.2):
+				z += 8.0
+				continue
+			box(p + Vector3(0, HALL_H * 0.5, 0), Vector3(0.9, HALL_H, 0.9), WALL_A if rng.randf() < 0.7 else WALL_B, true, 0.0, "wallpaper")
+			box(p + Vector3(0, 0.06, 0), Vector3(0.96, 0.12, 0.96), BASEBOARD, false)
+			var r := rng.randf()
+			if r < 0.06:
+				prop("fire_extinguisher", p + Vector3(0.62, 0, 0), 0.0)
+			elif r < 0.1:
+				prop("potted_plant", p + Vector3(-0.8, 0, 0.6), rng.randf() * 360.0)
+			elif r < 0.16:
+				box(p + Vector3(0, 0.35, 0.46), Vector3(0.08, 0.12, 0.012), Color(0.92, 0.9, 0.84), false)      # a socket
+			z += 8.0
+		x += 8.0
+	# light: rows of troffers; lamps every 16 m; far over in the north-east the lights are out
+	var dead := func(p: Vector3): return p.x > 41.0 and p.z > -74.0
+	var lamp_x := [-20.0, -4.0, 12.0, 28.0, 44.0, 60.0]
+	var lamp_z := [-100.0, -84.0, -68.0, -52.0]
+	_troffers(HALL_X0 + 2.0, HALL_X1 - 2.0, HALL_Z0 + 2.0, HALL_Z1 - 2.0, 4.0, HALL_H, func(p: Vector3):
+		if dead.call(p):
+			box(p - Vector3(0, 0.02, 0), Vector3(1.2, 0.03, 0.5), Color(0.42, 0.41, 0.36), false)
+			return true
+		return lamp_x.any(func(lx): return absf(lx - p.x) < 0.5) and lamp_z.any(func(lz): return absf(lz - p.z) < 0.5))
+	for lx in lamp_x:
+		for lz in lamp_z:
+			var p := Vector3(lx, 0, lz)
+			if not dead.call(p):
+				_walk_light(p, HALL_H, 1.25, 16.0)
+	# a tube that won't settle, over the way on
+	var fp := Vector3(C2_X + 4.0, 0, HALL_Z1 + 6.0)
+	var fpanel := part("box", Vector3(fp.x, HALL_H - 0.02, fp.z), Vector3(1.2, 0.03, 0.6), PANEL, null, Vector3.ZERO, 3.0)
+	var fl := omni(Vector3(fp.x, HALL_H - 0.35, fp.z), LIGHT, 1.0, 10.0, false)
+	_flicker.append([fl, fpanel, 1.0])
+	ambient("buzz", fp + Vector3(0, HALL_H - 0.3, 0), true, -10.0, 14.0)
+	# the way on: an EXIT sign over it (and two more, over nothing at all)
+	for sg in [[Vector3(C2_X, 2.95, HALL_Z1 - 0.16), 180.0], [Vector3(HALL_X1 - 0.16, 2.4, -60.0), -90.0], [Vector3(HALL_X0 + 0.16, 2.4, -88.0), 90.0]]:
+		if not prop("exit_sign", sg[0], sg[1]):
+			part("box", sg[0], Vector3(0.36, 0.16, 0.04), Color(0.2, 1.0, 0.4), null, Vector3(0, sg[1], 0), 3.0)
+		omni(sg[0] + Basis(Vector3.UP, deg_to_rad(sg[1])) * Vector3(0, -0.2, 0.4), Color(0.3, 1.0, 0.5), 0.35, 3.5, false)
+	_hall_chairs()
+	_hall_door()
+	_hall_stairs()
+	_hall_sky_wall()
+	_hall_puddle()
+	_hall_vending()
+	_hall_phone()
+	_hall_tv()
+
+
+## A row of chairs facing the way you came in, as if for a meeting nobody came to.
+func _hall_chairs() -> void:
+	for k in 8:
+		var p := Vector3(-12.0 + k * 1.5, 0, -104.0)
+		var ch := prop("office_chair", p, 180.0)
+		if ch == null:
+			ch = group(p, 180.0)
+			part("box", Vector3(0, 0.48, 0), Vector3(0.48, 0.07, 0.48), Color(0.12, 0.12, 0.14), ch)
+			part("box", Vector3(0, 0.82, -0.22), Vector3(0.44, 0.55, 0.06), Color(0.12, 0.12, 0.14), ch)
+		_chairs_row.append(ch)
+		blocker(p + Vector3(0, 0.45, 0), Vector3(0.55, 0.9, 0.55))
+	interactable(Vector3(-6.75, 0.8, -104.0), Vector3(12.0, 1.2, 1.0),
+		func(): return "The chairs",
+		func():
+			if _chairs_turned:
+				Game.hud.show_thought("They were facing the door. ...They were. Now they're facing me.", 4.0)
+			else:
+				Game.hud.show_thought("Eight chairs in a row, facing the way I came in. Waiting for something.", 3.5))
+
+
+## A door, in its frame, standing on its own in the middle of the floor.
+func _hall_door() -> void:
+	var p := LONE_DOOR
+	box(p + Vector3(-0.56, 1.06, 0), Vector3(0.12, 2.16, 0.2), Color(0.85, 0.83, 0.76), true, 0.0, "wood")
+	box(p + Vector3(0.56, 1.06, 0), Vector3(0.12, 2.16, 0.2), Color(0.85, 0.83, 0.76), true, 0.0, "wood")
+	box(p + Vector3(0, 2.18, 0), Vector3(1.24, 0.12, 0.2), Color(0.85, 0.83, 0.76), true, 0.0, "wood")
+	_lone_door = door(p, 180.0, Color(0.62, 0.5, 0.36), 0.92, 2.05)
+	var shut := solid_box(p + Vector3(0, 1.03, 0), Vector3(0.96, 2.06, 0.08), Color(0, 0, 0, 0))
+	shut.get_child(1).visible = false
+	interactable(p + Vector3(0, 1.05, 0), Vector3(1.0, 2.0, 0.5),
+		func(): return "Open the door" if not _lone_open else "",
+		func():
+			_lone_open = true
+			shut.get_child(0).disabled = true
+			Sfx.play_at("door_creak", self, p + Vector3(0, 1, 0), -4.0, 20.0)
+			open_door(_lone_door, -95.0, 1.4)
+			Game.hud.show_thought("...The hall. The same hall, on the other side. It's just a door.", 3.5),
+		func(): return not _lone_open)
+	# walk through it, and when you look back it has closed itself (it never makes a sound)
+	trigger(p + Vector3(0, 1.0, 1.6), Vector3(3.0, 2.0, 1.0), func(): _lone_through = _lone_open, false)
+	trigger(p + Vector3(0, 1.0, -1.6), Vector3(3.0, 2.0, 1.0), func(): _lone_through = _lone_open, false)
+	set_meta("lone_shut", shut)
+
+
+func _hall_stairs() -> void:
+	# a staircase going up into the ceiling, and stopping there
+	var base := Vector3(-20.0, 0, -79.0)
+	var rise := HALL_H / 12.0
+	for k in 12:
+		var y := rise * (k + 1)
+		box(base + Vector3(0, y * 0.5, k * 0.3 + 0.15), Vector3(1.3, y, 0.3), Color(0.55, 0.5, 0.42), true, 0.0, "wood")
+		box(base + Vector3(0, y + 0.01, k * 0.3 + 0.02), Vector3(1.32, 0.02, 0.05), Color(0.35, 0.33, 0.3), false, 0.0, "metal")
+	for side in [-1.0, 1.0]:
+		var a := base + Vector3(side * 0.7, 0.95, 0.0)
+		var b := base + Vector3(side * 0.7, HALL_H + 0.9, 3.6)
+		var mid := (a + b) * 0.5
+		var len := a.distance_to(b)
+		var dir := (b - a).normalized()
+		var bas := Basis(Vector3.RIGHT, -asin(dir.y)) * Basis.from_scale(Vector3(0.05, 0.05, len))
+		add_shape("box", Transform3D(bas, mid), Color(0.3, 0.3, 0.32), false, "metal")
+		for k in [0, 4, 8]:
+			var q := base + Vector3(side * 0.7, rise * (k + 1), k * 0.3 + 0.15)
+			box(q + Vector3(0, 0.47, 0), Vector3(0.04, 0.94, 0.04), Color(0.3, 0.3, 0.32), false, 0.0, "metal")
+	trigger(base + Vector3(0, 2.0, 1.9), Vector3(1.3, 1.6, 1.0), func():
+		Game.hud.show_thought("It just... stops. Into the ceiling tiles. Somebody built a staircase to nowhere.", 4.0))
+
+
+func _hall_sky_wall() -> void:
+	# a piece of wall, floor to ceiling, with two windows onto a summer sky. Behind it: the hall.
+	var p := SKY_WALL
+	box(p + Vector3(0, HALL_H * 0.5, 0), Vector3(7.0, HALL_H, 0.3), WALL_A, true, 0.0, "wallpaper")
+	box(p + Vector3(0, 0.06, 0), Vector3(7.0, 0.12, 0.33), BASEBOARD, false)
+	for wx in [-1.6, 1.6]:
+		var c := p + Vector3(wx, 1.65, -0.16)
+		part("box", c, Vector3(1.8, 1.4, 0.01), Color(0.5, 0.72, 0.98), null, Vector3.ZERO, 1.3)
+		for k in 3:
+			var cl := group(c + Vector3(-0.6 + k * 0.55, 0.15 + (k % 2) * 0.28, -0.004))
+			part("sphere", Vector3.ZERO, Vector3(0.42, 0.13, 0.01), Color(1, 1, 1), cl, Vector3.ZERO, 1.6)
+			part("sphere", Vector3(0.14, 0.04, 0), Vector3(0.26, 0.12, 0.01), Color(1, 1, 1), cl, Vector3.ZERO, 1.6)
+			_clouds.append(cl)
+		for fr in [[Vector3(0, 0.72, 0), Vector3(1.92, 0.06, 0.06)], [Vector3(0, -0.72, 0), Vector3(1.92, 0.06, 0.06)],
+				[Vector3(-0.93, 0, 0), Vector3(0.06, 1.5, 0.06)], [Vector3(0.93, 0, 0), Vector3(0.06, 1.5, 0.06)], [Vector3(0, 0, 0), Vector3(0.04, 1.4, 0.05)]]:
+			box(c + fr[0] + Vector3(0, 0, -0.02), fr[1], Color(0.92, 0.92, 0.9), false, 0.0, "wood")
+		box(c + Vector3(0, -0.76, -0.08), Vector3(1.96, 0.04, 0.16), Color(0.92, 0.92, 0.9), false, 0.0, "wood")
+	omni(p + Vector3(0, 1.6, -1.6), Color(0.75, 0.85, 1.0), 0.7, 7.0, false)
+	ambient("wind", p + Vector3(0, 1.6, -0.5), true, -22.0, 9.0)
+	interactable(p + Vector3(0, 1.6, -0.4), Vector3(6.0, 1.6, 0.5), func(): return "Look out of the window",
+		func(): Game.hud.show_thought("Sky. A summer sky, clouds going over. ...I can hear the wind.", 3.5))
+	trigger(p + Vector3(0, 1.2, 1.6), Vector3(7.0, 2.4, 2.0), func():
+		Game.hud.show_thought("There's nothing behind it. Just wall. Just the hall. Where's the sky coming from?", 4.5))
+
+
+func _hall_puddle() -> void:
+	var p := PUDDLE
+	if not prop("wet_floor_sign", p + Vector3(-2.6, 0, -1.4), 30.0):
+		box(p + Vector3(-2.6, 0.3, -1.4), Vector3(0.3, 0.6, 0.3), Color(1.0, 0.85, 0.1), false)
+
+
+func _hall_vending() -> void:
+	var p := Vector3(50.0, 0, -94.0)
+	_thing("vending_machine", p, -90.0, Vector3(0.9, 1.84, 0.8), Color(0.7, 0.15, 0.12))
+	omni(p + Vector3(-1.0, 1.4, 0), Color(0.9, 0.95, 1.0), 0.6, 5.0, false)
+	ambient("buzz", p + Vector3(0, 1.0, 0), true, -16.0, 10.0)
+	var cable_a := p + Vector3(0.45, 0.02, 0.2)
+	for k in 4:
+		var a := cable_a + Vector3(0.6 * k + 0.3, 0, sin(k * 1.3) * 0.25)
+		box(a, Vector3(0.62, 0.02, 0.02), Color(0.08, 0.08, 0.08), false, rad_to_deg(cos(k * 1.3) * 0.3))
+	box(cable_a + Vector3(2.7, 0.03, 0.1), Vector3(0.08, 0.05, 0.05), Color(0.15, 0.15, 0.15), false)
+	interactable(p + Vector3(-0.5, 1.0, 0), Vector3(0.4, 1.8, 1.0), func(): return "Vending machine",
+		func(): Game.hud.show_thought("Every row is the same orange drink. ...It isn't plugged in. It's humming anyway.", 4.0))
+
+
+func _hall_phone() -> void:
+	if not prop("payphone", PHONE, 180.0):
+		box(PHONE + Vector3(0, 1.4, -0.05), Vector3(0.36, 0.62, 0.16), Color(0.5, 0.5, 0.52), false, 0.0, "metal")
+	interactable(PHONE + Vector3(0, 1.4, -0.2), Vector3(0.6, 0.8, 0.5),
+		func(): return "Answer the phone" if _phone_state == 1 else "Payphone",
+		func():
+			if _phone_state == 1:
+				_phone_state = 2
+				Sfx.play("static_burst", -14.0)
+				Game.hud.show_thought("...Children. A playground, far away, and a swing creaking. Somebody laughing. ...Then the dial tone.", 6.0)
+			elif _phone_state == 2:
+				Game.hud.show_thought("The cord's been cut. ...It was ringing.", 3.0)
+			else:
+				Game.hud.show_thought("A payphone, bolted to a pillar. No coins in the slot.", 2.5))
+
+
+func _hall_tv() -> void:
+	# a television on a desk, on, showing static
+	var p := Vector3(-14.0, 0, -50.0)
+	_thing("desk_wood", p, 160.0, Vector3(1.2, 0.76, 0.6), Color(0.5, 0.4, 0.3))
+	var b := Basis(Vector3.UP, deg_to_rad(160.0))
+	if not prop("tv_crt", p + Vector3(0, 0.76, 0), 160.0):
+		box(p + Vector3(0, 1.0, 0), Vector3(0.5, 0.45, 0.45), Color(0.12, 0.11, 0.1), false, 160.0)
+	_tv_screen = part("box", p + b * Vector3(0, 1.0, 0.235), Vector3(0.4, 0.3, 0.004), Color(0.6, 0.62, 0.65), null, Vector3(0, 160, 0))
+	var tm := StandardMaterial3D.new()
+	tm.albedo_color = Color(0.6, 0.62, 0.65)
+	tm.emission_enabled = true
+	tm.emission = Color(0.7, 0.72, 0.76)
+	tm.emission_energy_multiplier = 1.4
+	_tv_screen.material_override = tm
+	ambient("static", p + Vector3(0, 1.0, 0), true, -22.0, 9.0)
+	omni(p + b * Vector3(0, 1.0, 0.8), Color(0.7, 0.75, 0.85), 0.4, 4.0, false)
+	interactable(p + Vector3(0, 1.0, 0), Vector3(0.8, 0.6, 0.8), func(): return "The television",
+		func():
+			Game.hud.show_thought("Static. ...For a second - a bedroom. Mine. From up in a corner, like a camera. Someone asleep in my bed.", 5.0)
+			Game.player.dread.add_fear(4.0, "the tv"))
+
+
+# ---- the last corridor, and the way into the rooms
+
+func _last_corridor() -> void:
+	var x0 := C2_X - 1.1
+	var x1 := C2_X + 1.1
+	box(Vector3(C2_X, -0.05, (HALL_Z1 - 0.5 * CELL - 1.0) * 0.5), Vector3(2.2, 0.1, absf(HALL_Z1 - (-0.5 * CELL - 1.0))), CARPET, true, 0.0, "carpet")
+	box(Vector3(C2_X, COR_H + 0.05, (HALL_Z1 - 0.5 * CELL - THICK * 0.5) * 0.5), Vector3(2.2, 0.1, absf(HALL_Z1 + 0.5 * CELL + THICK * 0.5)), CEILING, true, 0.0, "tiles_ceiling")
+	for wx in [x0, x1]:
+		_wall_run(Vector3(wx, 0, HALL_Z1 + 0.15), Vector3(wx, 0, -0.5 * CELL - THICK * 0.5), COR_H, [], WALL_A)
+	_troffers(C2_X, C2_X, HALL_Z1 + 2.0, -6.0, 4.0, COR_H, func(p: Vector3): return absf(p.z - (-34.0)) < 0.6 or absf(p.z - (-18.0)) < 0.6)
+	_walk_light(Vector3(C2_X, 0, -34.0), COR_H, 0.9, 10.0)
+	var fpanel := part("box", Vector3(C2_X, COR_H - 0.02, -18.0), Vector3(1.2, 0.03, 0.6), PANEL, null, Vector3.ZERO, 3.0)
+	var fl := omni(Vector3(C2_X, COR_H - 0.35, -18.0), LIGHT, 0.9, 10.0, false)
+	_flicker.append([fl, fpanel, 0.9])
+	ambient("buzz", Vector3(C2_X, COR_H - 0.3, -18.0), true, -8.0, 12.0)
+
+
+func _entry() -> void:
+	# the entry cell's south wall: a doorway as wide as the corridor
+	var center := Vector3(ENTRY_CELL.x * CELL, 0, -0.5 * CELL)
+	var length := CELL - PILLAR + 0.04
+	var side_len := length * 0.5 - ENTRY_HALF
+	for s in [-1.0, 1.0]:
+		_wall(center + Vector3(s * (ENTRY_HALF + side_len * 0.5), 0, 0), false, side_len, WALL_A)
+	box(center + Vector3(0, COR_H + (WALL_H - COR_H) * 0.5, 0), Vector3(ENTRY_HALF * 2.0, WALL_H - COR_H, THICK), WALL_A, true, 0.0, "wallpaper")
+	# and the wall that won't be a doorway any more, once you're through
+	_entry_wall = solid_box(center + Vector3(0, COR_H * 0.5, 0), Vector3(ENTRY_HALF * 2.0, COR_H, THICK), WALL_A, null, "wallpaper")
+	part("box", Vector3(0, 0.06 - COR_H * 0.5, 0), Vector3(ENTRY_HALF * 2.0, 0.12, THICK + 0.03), BASEBOARD, _entry_wall)
+	_entry_wall.visible = false
+	_entry_wall.get_child(0).disabled = true
+
+
+func _seal_entry() -> void:
+	if _entry_sealed:
+		return
+	_entry_sealed = true
+	_entry_wall.visible = true
+	_entry_wall.get_child(0).disabled = false
+
+
+func _update_way_in(delta: float) -> void:
+	var pl: Player = Game.player
+	if pl == null:
+		return
+	var p := pl.global_position
+	# which part of the walk you're in: the hum gets louder the further in you go
+	var sec := "rooms"
+	if p.z < OFF_Z1:
+		sec = "office"
+	elif p.z < HALL_Z0:
+		sec = "doors"
+	elif p.z < HALL_Z1:
+		sec = "hall"
+	elif p.z < -0.5 * CELL:
+		sec = "last"
+	_section = sec
+	var hum_to: float = {"office": -30.0, "doors": -24.0, "hall": -19.0, "last": -14.0, "rooms": -18.0}[sec]
+	_hum_base = move_toward(_hum_base, hum_to, 4.0 * delta)
+	# behind you, the doorway into the rooms closes up
+	var door_at := Vector3(ENTRY_CELL.x * CELL, 1.3, -0.5 * CELL)
+	if not _entry_sealed and _in_grid(p) and p.distance_to(door_at) > 5.0 and not Observation.is_observed(door_at, 1.2):
+		_seal_entry()
+	if _entry_sealed and not _seal_noticed and p.distance_to(door_at) < 12.0 and Observation.is_observed(door_at, 0.6) and not _chase_on and not _hunting:
+		_seal_noticed = true
+		Game.hud.show_thought("The doorway. ...It was right there. I came in through there.", 4.0)
+		pl.dread.add_fear(5.0, "no way back")
+	# the radio: playing whatever Sfx calls muzak, quietly, until you turn it off (and then, later, again)
+	if _radio:
+		if not _radio.playing and _radio_off_t < 0.0 and Sfx.music.has("muzak"):
+			_radio.stream = Sfx.music["muzak"]
+			_radio.play()
+		if _radio_off_t >= 0.0:
+			_radio_off_t += delta
+			if _radio_off_t > 20.0 and _radio.global_position.distance_to(p) > 9.0:
+				_radio_off_t = -2.0
+				_radio.volume_db = -9.0
+				_radio.play()
+	# the desk phone rings once you've had a moment to look around; the payphone, when you're halfway across
+	if _desk_state == 0 and _t > 22.0 and sec == "office":
+		_desk_state = 1
+		_desk_t = 0.0
+	if _desk_state == 1:
+		_desk_t -= delta
+		if _desk_t <= 0.0:
+			_desk_t = 3.2
+			Sfx.play_at("ring", self, _desk_phone + Vector3(0, 0.1, 0), -2.0, 30.0)
+		if sec != "office":
+			_desk_state = 3      # (gone quiet behind you)
+	if _phone_state == 0 and sec == "hall" and p.z > -84.0:
+		_phone_state = 1
+		_phone_t = 0.0
+	if _phone_state == 1:
+		_phone_t -= delta
+		if _phone_t <= 0.0:
+			_phone_t = 3.2
+			Sfx.play_at("ring", self, PHONE + Vector3(0, 1.4, -0.2), 2.0, 60.0, 0.94)
+		if sec == "last" or sec == "rooms":
+			_phone_state = 3
+	# drips, into the wet patch
+	if sec == "hall" and p.distance_to(PUDDLE) < 26.0:
+		_drip_t -= delta
+		if _drip_t <= 0.0:
+			_drip_t = randf_range(1.4, 4.0)
+			Sfx.play_at("drip", self, PUDDLE + Vector3(randf_range(-0.6, 0.6), 0.05, randf_range(-0.4, 0.4)), -6.0, 22.0)
+	# the clouds in the window go over
+	for i in _clouds.size():
+		var c := _clouds[i]
+		c.position.x += delta * 0.04
+		var home := SKY_WALL.x + (-1.6 if i < 3 else 1.6)
+		if c.position.x > home + 0.75:
+			c.position.x = home - 0.75
+	# the static on the TV
+	if _tv_screen and sec == "hall" and Engine.get_frames_drawn() % 3 == 0:
+		(_tv_screen.material_override as StandardMaterial3D).emission_energy_multiplier = randf_range(0.7, 1.8)
+	# the door that closes itself behind you
+	if _lone_through and _lone_open and not Observation.is_observed(LONE_DOOR + Vector3(0, 1.0, 0), 1.0) and p.distance_to(LONE_DOOR) > 3.0:
+		_lone_open = false
+		_lone_through = false
+		open_door(_lone_door, 0.0, 0.01)
+		var shut: StaticBody3D = get_meta("lone_shut")
+		shut.get_child(0).disabled = false
+	# the tubes that won't settle
+	_flick_t -= delta
+	for f in _flicker:
+		if _flick_t <= 0.0:
+			var on := 1.0 if randf() < 0.6 else randf_range(0.0, 0.5)
+			(f[0] as OmniLight3D).light_energy = float(f[2]) * lerpf(1.0, on, clampf(Settings.visual(), 0.0, 1.0))
+	if _flick_t <= 0.0:
+		_flick_t = randf_range(0.05, 0.6)
+
+
+func surface_at(p: Vector3) -> String:
+	if Vector2(p.x - PUDDLE.x, p.z - PUDDLE.z).length() < 1.4:
+		return "wet"
+	return floor_surface()
+
+
+func saved_checkpoint() -> Variant:
+	# the chase keeps its own checkpoint (where it began)
+	if Game.has_flag("maze_chase") and not Game.has_flag("maze_escaped") and not (Game.counters.get("chase", {}) as Dictionary).is_empty():
+		return null
+	return super()
+
+
+# ------------------------------------------------------------------ stains
+# The carpet and the ceiling tiles are clean textures; the damp is laid over them, patch by patch, so it never
+# repeats: coffee rings in the office, tide lines on the ceiling of the hall, and the rooms, soaked.
+
+static var _stain_tex: ImageTexture
+var _stain_lists := {}      # "floor"/"ceiling"/"wet" -> [[Transform3D, Color], ...]
+
+
+static func _stain_texture() -> ImageTexture:
+	if _stain_tex:
+		return _stain_tex
+	var n := 128
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	var noise := FastNoiseLite.new()
+	noise.seed = 11
+	noise.frequency = 0.03
+	noise.fractal_octaves = 4
+	for y in n:
+		for x in n:
+			var dx := (x - n * 0.5) / (n * 0.5)
+			var dy := (y - n * 0.5) / (n * 0.5)
+			var r := sqrt(dx * dx + dy * dy)
+			var v := 0.85 - r + noise.get_noise_2d(x, y) * 0.6
+			var inside := clampf(v / 0.3, 0.0, 1.0)
+			var rim := clampf(1.0 - absf(v - 0.03) / 0.045, 0.0, 1.0) * 0.45      # the tide line, where it dried
+			var a := clampf(inside * 0.6 + rim, 0.0, 1.0) * clampf((1.0 - r) / 0.1, 0.0, 1.0)
+			img.set_pixel(x, y, Color(1, 1, 1, a))
+	img.generate_mipmaps()
+	_stain_tex = ImageTexture.create_from_image(img)
+	return _stain_tex
+
+
+func _stain(kind: String, at: Vector3, size: float, col: Color, rng: RandomNumberGenerator) -> void:
+	var sc := Vector3(size * rng.randf_range(0.7, 1.3), 1.0, size * rng.randf_range(0.7, 1.3))
+	var b := Basis(Vector3.UP, rng.randf() * TAU) * Basis.from_scale(sc)
+	if kind == "ceiling":
+		b = Basis(Vector3.RIGHT, PI) * b
+	if not _stain_lists.has(kind):
+		_stain_lists[kind] = []
+	_stain_lists[kind].append([Transform3D(b, at), col])
+
+
+## A scatter of stains over a rectangle of floor (y = 0) or ceiling (y = h).
+func _stains_in(x0: float, x1: float, z0: float, z1: float, h: float, floor_n: int, ceil_n: int, floor_size: Vector2,
+		ceil_size: Vector2, rng: RandomNumberGenerator, floor_col := Color(0.2, 0.16, 0.08, 0.5)) -> void:
+	for k in floor_n:
+		_stain("floor", Vector3(rng.randf_range(x0, x1), 0.004 + k * 0.00002, rng.randf_range(z0, z1)), rng.randf_range(floor_size.x, floor_size.y),
+			Color(floor_col, floor_col.a * rng.randf_range(0.5, 1.0)), rng)
+	for k in ceil_n:
+		_stain("ceiling", Vector3(rng.randf_range(x0, x1), h - 0.004 - k * 0.00002, rng.randf_range(z0, z1)), rng.randf_range(ceil_size.x, ceil_size.y),
+			Color(0.42, 0.33, 0.14, rng.randf_range(0.3, 0.6)), rng)
+
+
+func _stains() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value + 1777
+	# the office: coffee, here and there, and one or two on the ceiling
+	_stains_in(OFF_X0 + 1, OFF_X1 - 1, OFF_Z0 + 1, OFF_Z1 - 1, OFF_H, 10, 3, Vector2(0.15, 0.45), Vector2(0.5, 1.1), rng, Color(0.18, 0.12, 0.06, 0.45))
+	_stains_in(C1_X - 1.0, C1_X + 1.0, OFF_Z1 + 1, HALL_Z0 - 1, COR_H, 5, 2, Vector2(0.4, 1.0), Vector2(0.4, 0.9), rng)
+	_stains_in(HALL_X0 + 1, HALL_X1 - 1, HALL_Z0 + 1, HALL_Z1 - 1, HALL_H, 55, 34, Vector2(0.8, 3.2), Vector2(0.7, 2.6), rng)
+	_stains_in(C2_X - 0.9, C2_X + 0.9, HALL_Z1 + 1, -4.5, COR_H, 7, 5, Vector2(0.6, 1.6), Vector2(0.5, 1.2), rng)
+	_stains_in(-0.5 * CELL, (W - 0.5) * CELL, -0.5 * CELL, (H - 0.5) * CELL, WALL_H, 170, 120, Vector2(0.8, 3.4), Vector2(0.6, 2.4), rng, Color(0.22, 0.17, 0.07, 0.55))
+	# the wet patch in the hall: soaked through, and shining
+	for k in 5:
+		_stain("floor", PUDDLE + Vector3(rng.randf_range(-1.2, 1.2), 0.0045 + k * 0.00002, rng.randf_range(-0.8, 0.8)), rng.randf_range(1.6, 2.8), Color(0.12, 0.09, 0.03, 0.75), rng)
+	_stain("wet", PUDDLE + Vector3(0.3, 0.006, 0.2), 1.9, Color(0.1, 0.09, 0.06, 0.85), rng)
+	_stain("wet", PUDDLE + Vector3(-0.5, 0.0062, -0.3), 1.1, Color(0.1, 0.09, 0.06, 0.8), rng)
+	for k in 3:
+		_stain("ceiling", PUDDLE + Vector3(rng.randf_range(-0.8, 0.8), HALL_H - 0.005 - k * 0.00002, rng.randf_range(-0.6, 0.6)), rng.randf_range(1.5, 2.8), Color(0.38, 0.28, 0.1, 0.7), rng)
+	var quad := PlaneMesh.new()
+	quad.size = Vector2.ONE
+	for kind in _stain_lists:
+		var m := StandardMaterial3D.new()
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.vertex_color_use_as_albedo = true
+		m.albedo_texture = _stain_texture()
+		m.roughness = 0.08 if kind == "wet" else 0.95
+		if kind == "wet":
+			m.metallic_specular = 0.8
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		var cells := {}
+		for it in _stain_lists[kind]:
+			var o: Vector3 = (it[0] as Transform3D).origin
+			var key := Vector2i(floori(o.x / 40.0), floori(o.z / 40.0))
+			if not cells.has(key):
+				cells[key] = []
+			cells[key].append(it)
+		for key in cells:
+			var list: Array = cells[key]
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.use_colors = true
+			mm.mesh = quad
+			mm.instance_count = list.size()
+			for i in list.size():
+				mm.set_instance_transform(i, list[i][0])
+				mm.set_instance_color(i, list[i][1])
+			var mmi := MultiMeshInstance3D.new()
+			mmi.multimesh = mm
+			mmi.material_override = m
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mmi.visibility_range_end = 70.0
+			mmi.visibility_range_end_margin = 10.0
+			add_child(mmi)
+	_stain_lists.clear()

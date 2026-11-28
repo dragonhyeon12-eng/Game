@@ -140,8 +140,12 @@ func _run() -> void:
 	check(ok and not Game.in_sequence and mz._in_grid(Game.player.global_position), "ran through the shutter and the service passage, back into the maze")
 	check(mz._hunting, "and it's coming")
 	var d0: float = mz._stalker.global_position.distance_to(Game.player.global_position)
-	await wait(1.0)        # (not long: the chase has started, and it's fast)
-	var through: bool = mz._in_grid(mz._stalker.global_position) or (wx.affine_inverse() * mz._stalker.global_position).z * sd > 3.0 or Game.in_sequence
+	var through := false
+	var tf := 0.0
+	while tf < 4.0 and not through:
+		await wait(0.1)
+		tf += 0.1
+		through = mz._in_grid(mz._stalker.global_position) or (wx.affine_inverse() * mz._stalker.global_position).z * sd > 3.0 or Game.in_sequence
 	check(through, "it followed you the way you went (stalker at %s, was %.1f m away)" % [wx.affine_inverse() * mz._stalker.global_position, d0])
 	print("== BACKROOMS: the chase - the maze closes down to one route to the lift")
 	check(mz._chase_on and mz._chase_path.size() > 1, "the chase began (%d cells to the lift)" % mz._chase_path.size())

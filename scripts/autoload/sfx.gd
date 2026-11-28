@@ -398,6 +398,7 @@ func _build_all() -> void:
 	streams["water_lap"] = _to_wav(_water_lap(5.0), true)
 	streams["gurgle"] = _to_wav(_gurgle(3.0), true)
 	streams["drip"] = _to_wav(_drip(), false)
+	streams["ring"] = _to_wav(_ring(), false)
 	streams["splash"] = _to_wav(_splash(), false)
 	streams["wind"] = _to_wav(_wind(8.0), true)
 	streams["grind"] = _to_wav(_grind(2.0), true)
@@ -742,6 +743,27 @@ func _gurgle(sec: float) -> PackedFloat32Array:
 		var b := sin(TAU * bubble_f * (1.0 + t * 0.0) * bubble_t * 6.0) * exp(-bubble_t * 4.0)
 		s[i] = lp * 2.0 + b * 0.15
 	_seam(s, 2000)
+	return s
+
+
+## An office desk phone: a soft electronic trill, twice, then quiet (2.6 s: play it again for the next ring).
+func _ring() -> PackedFloat32Array:
+	var n := int(2.6 * RATE)
+	var s := PackedFloat32Array()
+	s.resize(n)
+	var ph := 0.0
+	var lp := 0.0
+	for i in n:
+		var t := float(i) / RATE
+		var x := 0.0
+		if t < 0.9 or (t > 1.15 and t < 2.05):
+			var f := 1180.0 if int(t * 22.0) % 2 == 0 else 940.0
+			ph += TAU * f / RATE
+			var tt := t if t < 1.0 else t - 1.15
+			var env := minf(1.0, tt * 80.0) * minf(1.0, (0.9 - tt) * 80.0)
+			x = (sin(ph) * 0.6 + sin(ph * 2.0) * 0.1) * 0.3 * env
+		lp += (x - lp) * 0.35      # (a small, plastic speaker)
+		s[i] = lp
 	return s
 
 

@@ -140,12 +140,9 @@ func _blackout() -> void:
 	await wait(0.4)
 	check(Game.has_flag("bo_inside"), "inside number 9")
 	check(use("Switch on the lamp"), "the living-room lamp")
-	check(use("Back door") or true, "the back door (padlocked)")
-	check(not z._key.visible, "no key, with the light off")
 	check(use("Pull the cord"), "the red bulb")
 	await wait(0.2)
-	check(z._key.visible, "under the red light, a key")
-	check(use("Take the key") and Game.has_flag("bo_key"), "took the key")
+	check(Game.has_flag("bo_key") and not z._key.visible, "no key to hunt for: you already have it")
 	check(use("Unlock the padlock") and Game.has_flag("bo_backyard"), "out the back door")
 	print("== BLACKOUT: the gardens")
 	check(use("Open the gate"), "the garden gate")
@@ -354,12 +351,11 @@ func _pattern() -> void:
 	check(reached, "down the long corridor to the middle")
 	print("== PATTERN: the rings")
 	place(PatternZone.CORE + Vector3(0, 0.05, -1.6), 0.0)
-	var turns := {"outer": 4, "middle": 2, "inner": 5}
-	for n in turns:
-		for k in turns[n]:
-			use("Turn the %s ring" % n)
-			await wait(0.5)
-	check(Game.has_flag("pt_rings"), "the rings line up; the round door rolls aside")
+	var tr := 0.0
+	while tr < 12.0 and not Game.has_flag("pt_rings"):
+		await wait(0.2)
+		tr += 0.2
+	check(Game.has_flag("pt_rings"), "the rings turn by themselves and line up; the round door rolls aside (%.1f s)" % tr)
 	await wait(3.0)
 	place(PatternZone.CORE + PatternZone.door_dir(0) * 7.0 + Vector3(0, 0.05, 0), 0.0)
 	await wait(0.3)
@@ -398,7 +394,6 @@ func _quiet() -> void:
 	calm()
 	p = await walk(4.0)
 	check(Game.has_flag("q_garden") and p.x > 6.0, "out into the garden on foot (x=%.1f)" % p.x)
-	check(use("The gate"), "the gate: locked")
 	z._halvorsen.interact()
 	await wait(0.3)
 	await talk([4])

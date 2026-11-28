@@ -564,7 +564,7 @@ func on_player_entered(from_save: bool) -> void:
 	if not from_save:
 		Notebook.reveal_on_next_open("deep_watch")
 	lever_pulled = Game.has_flag("deep_lever")
-	_lever_arm.visible = lever_pulled
+	_lever_arm.visible = true      # (the handle is already on it)
 	if Game.has_flag("deep_handle"):
 		_handle_pickup.visible = false
 	if Game.has_flag("deep_key"):
