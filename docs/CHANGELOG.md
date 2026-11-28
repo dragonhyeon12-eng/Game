@@ -2,6 +2,15 @@
 
 Every update has a name. The newest is at the top, and the title screen shows the current one.
 
+## Update 8: "Pore Decisions"
+PATTERN, rebuilt. The hexagons and the six-door puzzle are gone. It's a walk now, and what makes it frightening is the holes.
+- **The holes are real holes.** Each one is a little cup: a dark wet throat inside a raised rim that catches the light. They come in every size, packed rim to rim on pale swellings growing out of the tiles. They breathe, slowly opening and closing, out of step with each other.
+- **A station, end to end.** Halcyon Road platform at night, with a train standing there doors shut and the last train long gone. Then a 45 m tiled passage under the tubes, the holes thickening as you go: first in the grout, then behind a peeling poster, then a whole poster bulging off the wall. Then the ticket hall, barriers open and overgrown: pillars, walls, ceiling, and porous columns grown up through the floor. A dead departures board shows one line, WARD 6, DUE.
+- **It spreads while you aren't looking.** Turn round and somewhere that was clean isn't.
+- **Staring makes your skin crawl.** The screen grains and shivers at the edges, something ticks in your ears, and the fear climbs. Look away and it eases. Eyes on the signs.
+- **No wrong doors and no puzzle.** The way is always forward, signed WAY OUT. The rings in the last chamber still turn by themselves.
+- The visual-intensity setting turns down the breathing and the skin-crawl.
+
 ## Update 7: "Mind the Gap"
 An emergency fix: walls had gone missing in places, and you could walk off the edge of the world.
 - **THE DEEP**: the lobby and the changing rooms had their street-side walls on the wrong side. You could walk straight out of the lobby into nothing. Fixed, street doors and all.
@@ -59,6 +68,6 @@ Each realm now has one general aim ("find a way out") and no checklists.
 - Everything is wider and more open, except COMPRESSION and the tenement, which are meant to be tight.
 
 ## Coming up
-- **"Way Too Many Maps"**: STILL LIFE, OPEN SPACE, PATTERN and THE QUIET get their long walks, and every realm in the game is a long walk.
+- **"Way Too Many Maps"**: STILL LIFE, OPEN SPACE and THE QUIET get their long walks, and every realm in the game is a long walk.
 - **"Really Graphic Update"**: the next pass on how everything looks.
 - **"Termination"**: bugs and lag hunted down and killed.

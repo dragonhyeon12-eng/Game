@@ -303,11 +303,16 @@ func _process(delta: float) -> void:
 	_card_box.modulate.a = _card_alpha
 
 
+## A zone's own layer on top of whatever the dread is doing to the screen (vignette, grain, desat, fringe):
+## PATTERN's skin-crawl when you stare at the holes. Zones set it each frame they want it, and zero it after.
+var post_extra := Vector4.ZERO
+
+
 func set_post(vignette: float, grain: float, desat: float, fringe: float) -> void:
-	_post_mat.set_shader_parameter("vignette", vignette)
-	_post_mat.set_shader_parameter("grain", grain)
-	_post_mat.set_shader_parameter("desat", desat)
-	_post_mat.set_shader_parameter("fringe", fringe)
+	_post_mat.set_shader_parameter("vignette", vignette + post_extra.x)
+	_post_mat.set_shader_parameter("grain", grain + post_extra.y)
+	_post_mat.set_shader_parameter("desat", desat + post_extra.z)
+	_post_mat.set_shader_parameter("fringe", fringe + post_extra.w)
 
 
 var _item_bar: HBoxContainer

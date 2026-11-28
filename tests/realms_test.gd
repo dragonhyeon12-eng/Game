@@ -320,40 +320,29 @@ func walk_to(target: Vector3, done: Callable, timeout := 8.0) -> bool:
 func _pattern() -> void:
 	print("== PATTERN: the platform")
 	var z: PatternZone = Game.zone
-	z.no_swarm_death = true
-	place(Vector3(-3.4, 0.05, -6.0), 90.0)
-	check(use("Read the map") and Game.has_flag("pt_map"), "the network map")
-	print("== PATTERN: the hive (walking it)")
+	place(Vector3(-3.4, 0.05, -2.0), 90.0)
+	check(use("The timetable"), "the timetable: last train 00:47")
+	print("== PATTERN: the passage and the ticket hall (walking them)")
 	place(Vector3(0, 0.05, -17.0), 0.0)
 	calm()
-	var inside := await walk_to(PatternZone.C, func(): return z._in_hive, 8.0)
-	check(inside and Game.has_flag("pt_hive"), "into the hive; the way back's gone")
-	# one wrong door, on purpose
-	var wrong: int = (z._true_door + 1) % 6
-	if wrong == z._entry:
-		wrong = (wrong + 1) % 6
-	var sw: int = z._swarm
-	await walk_to(PatternZone.door_point(wrong) + PatternZone.door_dir(wrong) * 4.0, func(): return z._swarm > sw, 8.0)
-	check(z._swarm == sw + 1 and z._depth == 0, "a wrong door: back in the same room, and more holes (swarm %d)" % z._swarm)
-	for k in 4:
-		calm()
-		var d: int = z._depth
-		var td: int = z._true_door
-		await walk_to(PatternZone.C, func(): return (Game.player.global_position - PatternZone.C).length() < 2.0, 6.0)
-		print("    true door %d, entry %d, swarm %d, player %s" % [z._true_door, z._entry, z._swarm, Game.player.global_position.snapped(Vector3.ONE * 0.1)])
-		var sw2: int = z._swarm
-		var front: Vector3 = PatternZone.door_point(z._true_door) - PatternZone.door_dir(z._true_door) * 1.2
-		await walk_to(front, func(): return Vector2(Game.player.global_position.x - front.x, Game.player.global_position.z - front.z).length() < 0.4, 5.0)
-		var ok := await walk_to(PatternZone.door_point(z._true_door) + PatternZone.door_dir(z._true_door) * 4.0, func(): return z._depth > d or z._swarm > sw2, 8.0)
-		print("    -> depth %d, swarm %d, true now %d, player %s" % [z._depth, z._swarm, z._true_door, Game.player.global_position.snapped(Vector3.ONE * 0.1)])
-		ok = z._depth > d
-		check(ok, "through the clean doorway (%d), deeper: %d" % [td, z._depth])
-	check(Game.has_flag("pt_deep") and z._true_door == 0, "four rooms deep: a corridor behind the clean door")
-	await walk_to(PatternZone.C, func(): return (Game.player.global_position - PatternZone.C).length() < 2.0, 6.0)
-	var f0: Vector3 = PatternZone.door_point(0) - PatternZone.door_dir(0) * 1.2
-	await walk_to(f0, func(): return Vector2(Game.player.global_position.x - f0.x, Game.player.global_position.z - f0.z).length() < 0.4, 5.0)
+	var p := await walk(19.5)
+	check(p.z < PatternZone.HALL_Z0 - 2.0 and Game.has_flag("pt_hive"), "down the passage on foot, into the ticket hall (z=%.1f)" % p.z)
+	check(z._grown > 0, "and behind you, while you weren't looking, it spread (%d)" % z._grown)
+	# stare at a patch, close up: the screen crawls
+	var pt: Array = z._all_patches.filter(func(q): return (q[2] as Node).get_parent() == z._crust and (q[0] as Vector3).z < -75.0 and (q[0] as Vector3).y > 0.5).front()
+	var at: Vector3 = pt[0]
+	place(at + Vector3(0, -at.y + 0.05, 0) + (Vector3(1.4, 0, 0) if at.x < 0 else Vector3(-1.4, 0, 0)), -90.0 if at.x < 0 else 90.0)
+	look_at_point(at)
+	await wait(1.5)
+	var peak: float = z._stare
+	check(peak > 0.2 and Game.hud.post_extra.y > 0.05, "staring at them makes your skin crawl (%.2f)" % peak)
+	look_at_point(Game.player.global_position + Vector3(0, 1.6, 0) - (at - Game.player.global_position).normalized() * 5.0)
+	await wait(3.0)
+	check(z._stare < peak * 0.6, "look away and it eases (%.2f -> %.2f; in here, there's always some in view)" % [peak, z._stare])
+	calm()
+	place(Vector3(0, 0.05, PatternZone.HALL_Z1 + 3.0), 0.0)
 	var reached := await walk_to(PatternZone.CORE, func(): return Game.has_flag("pt_core"), 16.0)
-	check(reached, "down the long corridor to the middle")
+	check(reached, "through the hall and down the corridor to the middle")
 	print("== PATTERN: the rings")
 	place(PatternZone.CORE + Vector3(0, 0.05, -1.6), 0.0)
 	var tr := 0.0

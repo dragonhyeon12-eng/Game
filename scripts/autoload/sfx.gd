@@ -399,6 +399,7 @@ func _build_all() -> void:
 	streams["gurgle"] = _to_wav(_gurgle(3.0), true)
 	streams["drip"] = _to_wav(_drip(), false)
 	streams["ring"] = _to_wav(_ring(), false)
+	streams["itch"] = _to_wav(_itch(3.0), true)
 	streams["splash"] = _to_wav(_splash(), false)
 	streams["wind"] = _to_wav(_wind(8.0), true)
 	streams["grind"] = _to_wav(_grind(2.0), true)
@@ -743,6 +744,27 @@ func _gurgle(sec: float) -> PackedFloat32Array:
 		var b := sin(TAU * bubble_f * (1.0 + t * 0.0) * bubble_t * 6.0) * exp(-bubble_t * 4.0)
 		s[i] = lp * 2.0 + b * 0.15
 	_seam(s, 2000)
+	return s
+
+
+## Skin crawling: a dry, wet-edged ticking - tiny clicks, hundreds of them, close to the ear (a loop).
+func _itch(seconds: float) -> PackedFloat32Array:
+	var n := int(seconds * RATE)
+	var s := PackedFloat32Array()
+	s.resize(n)
+	var hp := 0.0
+	var prev := 0.0
+	var env := 0.0
+	for i in n:
+		if _rng.randf() < 0.0035:
+			env = _rng.randf_range(0.3, 1.0)
+		env *= 0.985
+		var x := _noise() * env
+		hp = 0.92 * (hp + x - prev)     # (thin: high-passed)
+		prev = x
+		var swell := 0.6 + 0.4 * sin(TAU * float(i) / n * 3.0)
+		s[i] = hp * 0.35 * swell
+	_seam(s, int(0.05 * RATE))
 	return s
 
 

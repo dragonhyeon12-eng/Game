@@ -72,6 +72,12 @@ const SETS := {
 		["blackout", Vector3(-64.0, 0.05, 37.5), 180.0, -4.0, "bo03_shop"], ["blackout", Vector3(-40.0, 0.05, 13.0), -90.0, 2.0, "bo04_road"],
 		["blackout", Vector3(-22.0, 0.05, 21.0), 180.0, -4.0, "bo05_launderette"], ["blackout", Vector3(-8.0, 0.05, 13.0), -60.0, 0.0, "bo06_shelter"],
 		["blackout", Vector3(0.0, 0.05, 12.0), 0.0, 0.0, "bo07_lane"]],
+	"pattern2": [["pattern", Vector3(0, 0.05, -1.0), 0.0, 0.0, "p01_platform"], ["pattern", Vector3(-3.0, 0.05, -12.3), 90.0, -14.0, "p02_grout"],
+		["pattern", Vector3(0, 0.05, -24.0), 0.0, 0.0, "p03_passage"], ["pattern", Vector3(0.6, 0.05, -57.0), -90.0, -2.0, "p04_poster"],
+		["pattern", Vector3(0, 0.05, -48.0), 0.0, 0.0, "p05_passage_end"], ["pattern", Vector3(0, 0.05, -64.0), 0.0, 4.0, "p06_hall"],
+		["pattern", Vector3(-4.6, 0.05, -71.0), 90.0, 6.0, "p07_pillar"], ["pattern", Vector3(-8.6, 0.05, -76.0), 90.0, 10.0, "p08_column"],
+		["pattern", Vector3(0, 0.05, -86.0), 0.0, 10.0, "p09_board"], ["pattern", Vector3(0, 0.05, -106.0), 0.0, 4.0, "p10_core"],
+		["pattern", Vector3(1.0, 0.05, -57.4), -90.0, -2.0, "p11_closeup"]],
 	"cave": [["seabed", Vector3(2, 0.05, -128.0), 0.0, 4.0, "cave_mouth"], ["seabed", Vector3(2.5, 0.05, -150.0), 0.0, 0.0, "cave_tunnel"],
 		["seabed", Vector3(2, 0.05, -172.0), 0.0, 3.0, "cave_chamber"]],
 }
