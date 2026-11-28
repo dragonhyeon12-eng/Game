@@ -706,6 +706,16 @@ func _bus_arrives() -> void:
 	head.position = Vector3(5.6, 0.9, 0)
 	head.rotation_degrees.y = -90
 	_bus.add_child(head)
+	# solid: a moving body, so it shoves you rather than drives through you
+	var hull := AnimatableBody3D.new()
+	hull.collision_layer = 1
+	var hs := CollisionShape3D.new()
+	var hb := BoxShape3D.new()
+	hb.size = Vector3(11.0, 2.9, 2.5)
+	hs.shape = hb
+	hs.position = Vector3(0, 1.7, 0)
+	hull.add_child(hs)
+	_bus.add_child(hull)
 	create_tween().tween_property(_bus, "position:x", BUS_DOOR.x, 3.0).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	Sfx.play("motor", -2.0, 0.7)
 	_bus_light = _fixed_light(BUS_DOOR + Vector3(0, 0, -0.5), 4.5, Color(1.0, 0.9, 0.7), 1.5)

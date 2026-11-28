@@ -649,7 +649,7 @@ func open_title(has_save: bool) -> void:
 	items.append({"label": "PROTOTYPE: THE SHIFT (WIP)", "action": Game.start_prototype})
 	if not OS.has_feature("web"):   # a browser tab can't quit itself
 		items.append({"label": "QUIT", "action": Game.quit_game})
-	_set_menu(DPMenu.create("DREAM PROTOCOL", "a lucid dream", items, "Vertical slice - work in progress"))
+	_set_menu(DPMenu.create("DREAM PROTOCOL", "a lucid dream", items, "Update %d  -  \"%s\"" % [Game.UPDATE_NUMBER, Game.UPDATE_NAME]))
 
 
 func open_pause(corrupted: bool, may_self_unpause: bool) -> void:

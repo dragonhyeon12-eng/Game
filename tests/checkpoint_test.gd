@@ -91,6 +91,7 @@ func _world_checks(z: String, id: String) -> void:
 			if id != "stairs":
 				check(zone._floor_num == 7 and not is_instance_valid(zone._exit_block), "floor 7, its door open")
 		"blackout":
-			check(zone._living_light.on, "number 9's lamp is still on")
+			if id != "lane":       # (the lane comes before number 9)
+				check(zone._living_light.on, "number 9's lamp is still on")
 			if id == "garden":
 				check(zone._back_block == null, "the back door is still unlocked")
