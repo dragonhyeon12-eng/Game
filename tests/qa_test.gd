@@ -167,31 +167,28 @@ func _run() -> void:
 	place(Vector3(9.5, 0.05, -44.5), -90.0)
 	walked = await run_to([Vector3(17.0, 0, -44.5)], false, 6.0)
 	check(not walked, "...and no way round the house: the garage wall is solid")
-	print("== STILL LIFE: look away, and it's there")
+	print("== STILL LIFE: look away, and it has changed - but it's still where it was")
 	await zone("stilllife")
 	var sz: StillLifeZone = Game.zone
-	var hunter: Mannequin = sz._figures[0]
+	var still: Mannequin = sz._figures[0]
 	place(Vector3(-2.0, 0.05, -12.0), 0.0)           # facing -z
-	hunter.global_position = Vector3(-2.0, 0.12, -6.5)  # behind you
-	hunter.hunting = true
+	still.global_position = Vector3(-2.0, 0.12, -6.5)  # behind you
+	still.hunting = true
+	var hp0: Vector3 = still.global_position
+	var pose0: String = still.pose
 	calm()
 	var tq := 0.0
-	while tq < 8.0 and not Game.in_sequence:
+	while tq < 8.0 and still.pose == pose0:
 		await wait(0.1)
 		tq += 0.1
-	check(Game.in_sequence, "it came up behind you (%.1f s)" % tq)
-	await wait(1.0)
-	Game._cancel_sequences()
-	await zone("stilllife")
-	sz = Game.zone
-	hunter = sz._figures[0]
+	check(still.pose != pose0 and still.global_position.distance_to(hp0) < 0.01 and not Game.in_sequence,
+		"behind you, it changed its stance (%s -> %s) and never stepped off (%.1f s)" % [pose0, still.pose, tq])
 	place(Vector3(-2.0, 0.05, -12.0), 180.0)         # facing it
-	hunter.global_position = Vector3(-2.0, 0.12, -6.5)
-	hunter.hunting = true
-	var hp: Vector3 = hunter.global_position
+	await wait(0.4)
+	var pose1: String = still.pose
 	await wait(3.0)
-	check(hunter.global_position.distance_to(hp) < 0.01 and not Game.in_sequence, "watched, it doesn't move")
-	hunter.hunting = false
+	check(still.pose == pose1 and not Game.in_sequence, "watched, it doesn't change")
+	still.hunting = false
 	print("== THE DEEP: through the one door that works, into the next room")
 	await zone("abyss")
 	var best: Interactable = null

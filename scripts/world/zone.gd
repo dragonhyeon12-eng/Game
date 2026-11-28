@@ -812,3 +812,55 @@ func checkpoint_at(id: String) -> void:
 ## A checkpoint you walk into.
 func checkpoint_zone(id: String, center: Vector3, size: Vector3, spawn: Vector3, yaw_deg := 0.0) -> void:
 	trigger(center, size, func(): checkpoint(id, spawn, yaw_deg))
+
+
+# ------------------------------------------------------------------ rooms
+## An axis-aligned wall from a to b (the same z, or the same x), standing on y = a.y, h high, with openings
+## [from, to, top] or [from, to, top, sill] along it: a lintel from `top` up to h, and below a window, wall
+## up to its sill. With a `base` colour (alpha > 0), a skirting board along the bottom.
+func wall_run(a: Vector3, b: Vector3, h: float, openings: Array, col: Color, surface := "plaster", t := 0.3, base := Color(0, 0, 0, 0)) -> void:
+	var along_x := absf(b.x - a.x) >= absf(b.z - a.z)
+	var lo := minf(a.x, b.x) if along_x else minf(a.z, b.z)
+	var hi := maxf(a.x, b.x) if along_x else maxf(a.z, b.z)
+	var fixed := a.z if along_x else a.x
+	var cuts := openings.duplicate()
+	cuts.sort_custom(func(p, q): return p[0] < q[0])
+	var at := lo
+	for o in cuts:
+		_wall_bit(at, o[0], a.y, a.y + h, fixed, along_x, col, surface, t, base)
+		_wall_bit(o[0], o[1], a.y + o[2], a.y + h, fixed, along_x, col, surface, t, Color(0, 0, 0, 0))
+		if o.size() > 3:
+			_wall_bit(o[0], o[1], a.y, a.y + o[3], fixed, along_x, col, surface, t, base)
+		at = o[1]
+	_wall_bit(at, hi, a.y, a.y + h, fixed, along_x, col, surface, t, base)
+
+
+func _wall_bit(p0: float, p1: float, y0: float, y1: float, fixed: float, along_x: bool, col: Color, surface: String, t: float, base: Color) -> void:
+	if p1 - p0 < 0.01 or y1 - y0 < 0.01:
+		return
+	var c := (p0 + p1) * 0.5
+	var y := (y0 + y1) * 0.5
+	box(Vector3(c, y, fixed) if along_x else Vector3(fixed, y, c), Vector3(p1 - p0, y1 - y0, t) if along_x else Vector3(t, y1 - y0, p1 - p0), col, true, 0.0, surface)
+	if base.a > 0.0:
+		box(Vector3(c, y0 + 0.06, fixed) if along_x else Vector3(fixed, y0 + 0.06, c), Vector3(p1 - p0, 0.12, t + 0.03) if along_x else Vector3(t + 0.03, 0.12, p1 - p0), base, false)
+
+
+## Floor, ceiling and the walls named in `sides` ("s" z0, "n" z1, "w" x0, "e" x1) of a box room on y = 0.
+## Walls along x run the full width (past the corners); walls along z fit between them. openings: {side: [...]}.
+## opts: floor_s, wall_s, ceil_s, ceil_c, base (skirting colour), floor (false: no floor), t (wall thickness).
+func room_shell(x0: float, x1: float, z0: float, z1: float, h: float, sides: String, openings: Dictionary, wall_c: Color,
+		floor_c: Color, opts := {}) -> void:
+	var t: float = opts.get("t", 0.3)
+	var ws: String = opts.get("wall_s", "plaster")
+	var base: Color = opts.get("base", Color(0, 0, 0, 0))
+	if opts.get("floor", true):
+		box(Vector3((x0 + x1) * 0.5, -0.05, (z0 + z1) * 0.5), Vector3(x1 - x0, 0.1, z1 - z0), floor_c, true, 0.0, opts.get("floor_s", "tiles_floor"))
+	box(Vector3((x0 + x1) * 0.5, h + 0.05, (z0 + z1) * 0.5), Vector3(x1 - x0, 0.1, z1 - z0), opts.get("ceil_c", Color(0.86, 0.86, 0.84)), true, 0.0, opts.get("ceil_s", "tiles_ceiling"))
+	if sides.contains("s"):
+		wall_run(Vector3(x0 - t * 0.5, 0, z0), Vector3(x1 + t * 0.5, 0, z0), h, openings.get("s", []), wall_c, ws, t, base)
+	if sides.contains("n"):
+		wall_run(Vector3(x0 - t * 0.5, 0, z1), Vector3(x1 + t * 0.5, 0, z1), h, openings.get("n", []), wall_c, ws, t, base)
+	if sides.contains("w"):
+		wall_run(Vector3(x0, 0, z0 + t * 0.5), Vector3(x0, 0, z1 - t * 0.5), h, openings.get("w", []), wall_c, ws, t, base)
+	if sides.contains("e"):
+		wall_run(Vector3(x1, 0, z0 + t * 0.5), Vector3(x1, 0, z1 - t * 0.5), h, openings.get("e", []), wall_c, ws, t, base)

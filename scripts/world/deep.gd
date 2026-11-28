@@ -65,6 +65,8 @@ var _locker_door: Node3D
 var _gate: StaticBody3D
 var _gate_hint := false
 const GATE_POS := Vector3(11.5, 0, 0)
+const VIEW_X := 0.5                 # the lobby's window onto the pool hall
+const HALL_DOOR_Z := -14.5          # the door in from the pool rooms, in the hall's west wall
 
 
 func zone_id() -> String: return "deep"
@@ -78,8 +80,8 @@ func anomaly_pacing() -> Vector2: return Vector2(30, 6)
 
 
 func player_start() -> Transform3D:
-	# by the entrance doors, south side, looking out over the main pool
-	return Transform3D(Basis(Vector3.UP, deg_to_rad(15)), Vector3(-6, 0.05, 15))
+	# in the leisure centre's lobby, by the turnstiles, at night
+	return Transform3D(Basis(Vector3.UP, deg_to_rad(10)), Vector3(-7.0, 0.05, 30.5))
 
 
 # ------------------------------------------------------------------ water queries (used by the player)
@@ -93,6 +95,9 @@ func water_level_at(p: Vector3) -> float:
 		return well_level
 	if p.x < MAIN.position.x and p.x > -26.5 and absf(p.z) < 0.7 and p.y < -0.6:
 		return 0.0  # the flooded tunnel
+	for pr in _pools:
+		if (pr[0] as Rect2).has_point(Vector2(p.x, p.z)) and p.y > -float(pr[2]) - 1.0 and p.y < 2.0:
+			return float(pr[1])
 	return -INF
 
 
@@ -123,6 +128,7 @@ static func _in_rect(r: Rect2, p: Vector3) -> bool:
 
 func build() -> void:
 	_hall()
+	_way_in()
 	_main_pool()
 	_tunnel()
 	_well()
@@ -156,11 +162,18 @@ func _hall() -> void:
 		box(c + Vector3(-r.size.x * 0.5 - 0.15, 0, 0), Vector3(0.3, 0.06, r.size.y), Color(0.92, 0.92, 0.9), false)
 		box(c + Vector3(r.size.x * 0.5 + 0.15, 0, 0), Vector3(0.3, 0.06, r.size.y), Color(0.92, 0.92, 0.9), false)
 	# walls: tiled to 2.4 m, painted above
+	box(Vector3(0, 1.2, -HALL_Z), Vector3(HALL_X * 2, 2.4, 0.3), TILE.lightened(0.3), true, 0.0, "tiles_pool")
+	# the south wall has the lobby's viewing window in it; the west wall, the door in from the pool rooms
+	wall_run(Vector3(-HALL_X, 0, HALL_Z), Vector3(HALL_X, 0, HALL_Z), 2.4, [[VIEW_X - 2.5, VIEW_X + 2.5, 2.2, 0.55]], TILE.lightened(0.3), "tiles_pool")
 	for side in [-1.0, 1.0]:
-		box(Vector3(0, 1.2, HALL_Z * side), Vector3(HALL_X * 2, 2.4, 0.3), TILE.lightened(0.3), true, 0.0, "tiles_pool")
 		box(Vector3(0, 6.2, HALL_Z * side), Vector3(HALL_X * 2, 7.6, 0.3), WALL, true, 0.0, "plaster")
-	box(Vector3(-HALL_X, 1.2, 0), Vector3(0.3, 2.4, HALL_Z * 2), TILE.lightened(0.3), true, 0.0, "tiles_pool")
+	wall_run(Vector3(-HALL_X, 0, -HALL_Z), Vector3(-HALL_X, 0, HALL_Z), 2.4, [[HALL_DOOR_Z - 1.35, HALL_DOOR_Z + 1.35, 2.3]], TILE.lightened(0.3), "tiles_pool")
 	box(Vector3(-HALL_X, 6.2, 0), Vector3(0.3, 7.6, HALL_Z * 2), WALL, true, 0.0, "plaster")
+	var view := solid_box(Vector3(VIEW_X, 1.375, HALL_Z), Vector3(5.0, 1.65, 0.04), Color(0.6, 0.75, 0.8), null, "glass")
+	view.collision_layer = 4
+	(view.get_child(1) as MeshInstance3D).material_override = _clear_glass()
+	var hd := door(Vector3(-HALL_X + 0.17, 0, HALL_DOOR_Z), 90.0, Color(0.85, 0.88, 0.88), 1.2, 2.25, "metal")
+	open_door(hd, 95.0, 0.01)
 	# east wall, with a window (z -4..0, y 1..2.4) and a door (z 2.5..3.5) into the pump room
 	var ex := HALL_X
 	box(Vector3(ex, 5.0, 0), Vector3(0.3, 10, 0.01), WALL, false)  # (keeps the batch non-empty)
@@ -184,7 +197,7 @@ func _hall() -> void:
 	# entrance doors behind the start (locked: the dream has no way back)
 	door(Vector3(-6, 0, HALL_Z - 0.17), 180, Color(0.35, 0.45, 0.5), 1.6, 2.3, "metal")
 	interactable(Vector3(-6, 1.1, HALL_Z - 0.3), Vector3(1.8, 2.2, 0.3), func(): return "Entrance doors",
-		func(): Game.hud.show_thought("They don't open. There's only water on the other side of the glass anyway.", 3.5))
+		func(): Game.hud.show_thought("Locked from this side. The lobby's through there. ...I came the long way round.", 3.5))
 
 
 func _basin(r: Rect2, depth: float, hole := false, has_floor := true) -> void:
@@ -589,6 +602,7 @@ func _process(delta: float) -> void:
 	_update_drain(delta)
 	if Game.player == null:
 		return
+	_update_way_in(delta)
 	_update_sea(delta)
 	if Game.in_sequence:
 		return
@@ -606,7 +620,8 @@ func _process(delta: float) -> void:
 		Sfx.play_at("drip", self, p + Vector3(randf_range(-12, 12), randf_range(3, 8), randf_range(-12, 12)), -8.0, 25.0)
 
 	_hints()
-	_update_observers(delta)
+	if _section == "hall":
+		_update_observers(delta)
 
 
 func _update_sea(delta: float) -> void:
@@ -615,9 +630,11 @@ func _update_sea(delta: float) -> void:
 	var in_sea := cam_y < OCEAN_TOP
 	if in_sea != _in_ocean:
 		_in_ocean = in_sea
-		_world_env.environment = _env_ocean if in_sea else _env_hall
 		if in_sea:
 			Game.hud.show_thought("I can breathe. I shouldn't be able to breathe.", 4.0)
+	var want: Environment = _env_ocean if in_sea else (_env_rooms if _section == "rooms" else _env_hall)
+	if _world_env.environment != want:
+		_world_env.environment = want
 	if not in_sea or Game.in_sequence:
 		return
 	# looking down into the abyss: DREAD climbs fast
@@ -651,7 +668,7 @@ func _hints() -> void:
 		_gate_hint = true
 		Game.hud.show_thought("Something red is lying at the bottom of the pool.", 3.5)
 	if _hint == 0 and _t > 2.0:
-		Game.hud.show_thought("A swimming pool. At night. Who leaves the lights on in the water?", 4.5)
+		Game.hud.show_thought("A leisure centre. At night. ...It smells of chlorine.", 4.5)
 		_hint = 1
 	elif _hint == 1 and _t > 9.0:
 		Game.hud.show_hint("Find a way out.\nIn water: Space swim up   C dive   (watch your breath)", 9.0)
@@ -660,10 +677,10 @@ func _hints() -> void:
 		_saw_well = true
 		Game.set_flag("deep_saw_gate")
 		Game.hud.show_thought("There's no bottom. There has to be a bottom.", 3.5)
-	elif _hint == 2 and _t > 120.0 and not lever_pulled:
+	elif _hint == 2 and _hall_t > 120.0 and not lever_pulled:
 		Game.hud.show_thought("The pump room door is jammed... there has to be another way in.", 4.0)
 		_hint = 3
-	elif _hint == 3 and _t > 220.0 and not lever_pulled:
+	elif _hint == 3 and _hall_t > 220.0 and not lever_pulled:
 		Game.hud.show_thought("There's a dark square in the wall of the shallow end. Under the water.", 4.0)
 		_hint = 4
 
@@ -862,3 +879,534 @@ func _sea_life() -> void:
 	if manta:
 		add_child(manta)
 		manta.orbit(OCEAN_CENTER + Vector3(0, -75, 0), 38.0, -3.0, 5.0)
+
+
+# ------------------------------------------------------------------ the way in
+# Before the pool hall, a walk through the whole leisure centre. The lobby at night (the street doors hold
+# back the sea; the pool glows through a viewing window); the changing rooms (a shower left running, the
+# foot bath); then not the pool at all: rooms of white tile and shallow water, lit by daylight in the middle
+# of the night - a corridor with a channel down it and portholes onto the sky - a hall so big its far wall
+# isn't there, and the shallow water just goes on, out to the horizon. Then a corridor where the daylight
+# gives out, and a door into the pool hall, at night, as it should be.
+
+const LOBBY_H := 3.2
+const CHANGE_H := 2.8
+const PR1 := Rect2(-90, 6, 44, 28)          # the shallows: x -90..-46, z 6..34
+const PR1_POOL := Rect2(-84, 10, 32, 20)
+const PR1_H := 6.0
+const PR2_X := -68.0                        # the channel: x -70..-66, z -34..6
+const PR2_H := 3.4
+const PR3 := Rect2(-96, -66, 62, 32)        # the big room: x -96..-34, z -66..-34, open at its west end
+const PR3_A := Rect2(-96, -60, 30, 20)      # shallow, and running out through the missing wall
+const PR3_B := Rect2(-62, -60, 20, 20)      # deep
+const PR3_H := 9.0
+const PR4_H := 3.0
+const OUTSIDE := Rect2(-112, -61, 16, 22)   # how far out into it you can wade
+const ROOMS_TILE := Color(0.9, 0.94, 0.95)
+const DAY := Color(1.0, 0.98, 0.93)
+const SKYLIGHT := Color(0.85, 0.93, 1.0)
+
+var _pools: Array = []           # [Rect2, water level, depth]
+var _env_rooms: Environment
+var _section := "lobby"
+var _hall_t := 0.0
+var _ring: Node3D
+var _ball: Node3D
+var _ball_v := Vector3(0.35, 0, 0.12)
+var _whistle_t := 30.0
+var _bubbles: CPUParticles3D
+
+
+func _way_in() -> void:
+	_lobby()
+	_changing()
+	_shallows()
+	_channel()
+	_big_room()
+	_last_corridor()
+	checkpoint_zone("rooms", Vector3(-48.5, 1.3, 28.0), Vector3(2.0, 2.6, 2.4), Vector3(-48.5, 0.05, 28.0), 90.0)
+	checkpoint_zone("hall", Vector3(-30.6, 1.3, HALL_DOOR_Z), Vector3(1.4, 2.6, 2.4), Vector3(-30.6, 0.05, HALL_DOOR_Z), -90.0)
+	_rooms_env()
+
+
+func _tile_wall_c(k: float) -> Color:
+	return ROOMS_TILE.lerp(Color(0.3, 0.42, 0.46), k)
+
+
+## A pool: a tiled floor `depth` down and tiled sides (all but those in `open`), coping round the top.
+func _pool(r: Rect2, depth: float, open := "", water := true) -> void:
+	var c := Vector3(r.position.x + r.size.x * 0.5, 0, r.position.y + r.size.y * 0.5)
+	box(Vector3(c.x, -depth - 0.1, c.z), Vector3(r.size.x, 0.2, r.size.y), TILE, true, 0.0, "tiles_pool")
+	var y := -depth * 0.5
+	if not open.contains("s"):
+		box(Vector3(c.x, y, r.position.y - 0.1), Vector3(r.size.x + 0.4, depth, 0.2), TILE, true, 0.0, "tiles_pool")
+		box(Vector3(c.x, 0.015, r.position.y - 0.15), Vector3(r.size.x + 0.4, 0.03, 0.3), Color(0.95, 0.95, 0.93), false)
+	if not open.contains("n"):
+		box(Vector3(c.x, y, r.end.y + 0.1), Vector3(r.size.x + 0.4, depth, 0.2), TILE, true, 0.0, "tiles_pool")
+		box(Vector3(c.x, 0.015, r.end.y + 0.15), Vector3(r.size.x + 0.4, 0.03, 0.3), Color(0.95, 0.95, 0.93), false)
+	if not open.contains("w"):
+		box(Vector3(r.position.x - 0.1, y, c.z), Vector3(0.2, depth, r.size.y), TILE, true, 0.0, "tiles_pool")
+		box(Vector3(r.position.x - 0.15, 0.015, c.z), Vector3(0.3, 0.03, r.size.y), Color(0.95, 0.95, 0.93), false)
+	if not open.contains("e"):
+		box(Vector3(r.end.x + 0.1, y, c.z), Vector3(0.2, depth, r.size.y), TILE, true, 0.0, "tiles_pool")
+		box(Vector3(r.end.x + 0.15, 0.015, c.z), Vector3(0.3, 0.03, r.size.y), Color(0.95, 0.95, 0.93), false)
+	if water:
+		_water(r, -0.06)
+		_caustics(r, -depth + 0.015)
+	_pools.append([r, -0.06, depth])
+
+
+## Floor (y = 0) over the rectangle `room`, except where the rectangles in `holes` are (pools).
+func _deck(room: Rect2, holes: Array, col: Color, surface := "tiles_floor") -> void:
+	# cut the room into strips along x at every hole edge, then along z within each strip
+	var xs := [room.position.x, room.end.x]
+	for h in holes:
+		xs.append(clampf(h.position.x, room.position.x, room.end.x))
+		xs.append(clampf(h.end.x, room.position.x, room.end.x))
+	xs.sort()
+	for i in xs.size() - 1:
+		var x0: float = xs[i]
+		var x1: float = xs[i + 1]
+		if x1 - x0 < 0.01:
+			continue
+		var mx := (x0 + x1) * 0.5
+		var zs := [room.position.y, room.end.y]
+		var cut := []
+		for h in holes:
+			if mx > h.position.x and mx < h.end.x:
+				cut.append(h)
+		var z := room.position.y
+		cut.sort_custom(func(a, b): return a.position.y < b.position.y)
+		for h in cut:
+			if h.position.y > z + 0.01:
+				box(Vector3(mx, -0.05, (z + h.position.y) * 0.5), Vector3(x1 - x0, 0.1, h.position.y - z), col, true, 0.0, surface)
+			z = maxf(z, h.end.y)
+		if room.end.y > z + 0.01:
+			box(Vector3(mx, -0.05, (z + room.end.y) * 0.5), Vector3(x1 - x0, 0.1, room.end.y - z), col, true, 0.0, surface)
+
+
+func _skylight(c: Vector3, size: Vector2, h: float, energy := 1.6, rng := 16.0) -> void:
+	part("box", Vector3(c.x, h - 0.03, c.z), Vector3(size.x, 0.04, size.y), SKYLIGHT, null, Vector3.ZERO, 1.9)
+	for sx in [-1.0, 1.0]:
+		box(Vector3(c.x + sx * (size.x * 0.5 + 0.06), h - 0.08, c.z), Vector3(0.12, 0.16, size.y + 0.24), Color(0.9, 0.9, 0.88), false, 0.0, "metal")
+		box(Vector3(c.x, h - 0.08, c.z + sx * (size.y * 0.5 + 0.06)), Vector3(size.x, 0.16, 0.12), Color(0.9, 0.9, 0.88), false, 0.0, "metal")
+	omni(Vector3(c.x, h - 1.2, c.z), DAY, energy * 0.75, rng, false)
+
+
+# ---- the lobby
+
+func _lobby() -> void:
+	var wall := Color(0.82, 0.84, 0.8)
+	room_shell(-16, 4, HALL_Z, 34, LOBBY_H, "swe", {"w": [[24.0, 26.4, 2.4]], "s": [[-9.0, -3.0, 2.6]]}, wall, Color(0.62, 0.64, 0.62),
+		{"floor_s": "tiles_floor", "base": Color(0.3, 0.32, 0.33)})
+	# the street doors, and the sea pressed up against them
+	for k in 2:
+		var x := -7.5 + k * 3.0
+		part("box", Vector3(x, 1.3, 34.0), Vector3(2.9, 2.6, 0.05), Color.WHITE).material_override = _clear_glass()
+		box(Vector3(x, 1.3, 33.96), Vector3(0.06, 2.6, 0.07), Color(0.6, 0.6, 0.62), false, 0.0, "metal")
+		box(Vector3(x + 1.2, 1.0, 33.9), Vector3(0.05, 0.4, 0.05), Color(0.7, 0.7, 0.72), false, 0.0, "metal")
+	blocker(Vector3(-6.0, 1.3, 34.0), Vector3(6.0, 2.6, 0.2))
+	part("box", Vector3(-6.0, 1.3, 34.9), Vector3(6.2, 2.7, 0.02), Color(0.01, 0.06, 0.09), null, Vector3.ZERO, 0.5)
+	for k in 6:       # the sea's floor, out there, and weed moving in it
+		shape_at("cone", Vector3(-8.6 + k * 1.0, 0.25 + (k % 3) * 0.1, 34.7), Vector3(0.12, 0.6 + (k % 2) * 0.4, 0.12), Color(0.04, 0.12, 0.1), false)
+	omni(Vector3(-6.0, 1.4, 33.0), Color(0.2, 0.55, 0.7), 0.6, 6.0, false)
+	_bubbles = CPUParticles3D.new()
+	_bubbles.position = Vector3(-6.0, 0.1, 34.4)
+	_bubbles.amount = 40
+	_bubbles.lifetime = 5.0
+	_bubbles.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	_bubbles.emission_box_extents = Vector3(2.9, 0.05, 0.25)
+	_bubbles.direction = Vector3.UP
+	_bubbles.spread = 6.0
+	_bubbles.gravity = Vector3(0, 0.25, 0)
+	_bubbles.initial_velocity_min = 0.2
+	_bubbles.initial_velocity_max = 0.45
+	var bq := SphereMesh.new()
+	bq.radius = 0.02
+	bq.height = 0.04
+	bq.material = Shapes.material(Color(0.7, 0.9, 1.0), 0.1, 0.8)
+	_bubbles.mesh = bq
+	add_child(_bubbles)
+	ambient("underwater", Vector3(-6.0, 1.3, 34.4), true, -14.0, 9.0)
+	interactable(Vector3(-6.0, 1.3, 33.7), Vector3(6.0, 2.6, 0.4), func(): return "The front doors",
+		func(): Game.hud.show_thought("Water. Right up against the glass, all the way up. The street outside is under the sea.", 4.5))
+	label(Vector3(-6.0, 2.85, 33.83), 180.0, "THANK YOU FOR SWIMMING WITH US", 0.09, Color(0.15, 0.3, 0.45), false)
+	# the doors to the pool (locked: through the changing rooms, like everybody else) and the window beside them
+	var pd := door(Vector3(-6.0, 0, HALL_Z + 0.17), 0.0, Color(0.35, 0.45, 0.5), 1.6, 2.3, "metal")
+	label(Vector3(-6.0, 2.62, HALL_Z + 0.17), 0.0, "POOL", 0.14, Color(0.15, 0.3, 0.45), false)
+	interactable(Vector3(-6.0, 1.1, HALL_Z + 0.35), Vector3(1.8, 2.2, 0.3), func(): return "The pool doors",
+		func(): Game.hud.show_thought("Locked. 'PLEASE USE THE CHANGING ROOMS.' ...Through the window, the pool. The lights are on in the water.", 4.5))
+	box(Vector3(VIEW_X, 0.52, HALL_Z + 0.22), Vector3(5.2, 0.06, 0.16), Color(0.85, 0.85, 0.83), false, 0.0, "wood")
+	trigger(Vector3(VIEW_X, 1.2, HALL_Z + 1.4), Vector3(5.0, 2.4, 1.6), func():
+		Game.hud.show_thought("The pool. Dark, and the lights on under the water. Nobody in it. ...Nobody I can see.", 4.0))
+	# reception, the turnstiles, the things a lobby has
+	_lobby_things()
+	for z in [22.0, 26.0, 30.0]:
+		for x in [-12.0, -6.0, 0.0]:
+			if not scatter_prop("ceiling_troffer", Vector3(x, LOBBY_H, z), 0.0, 1.0, false):
+				part("box", Vector3(x, LOBBY_H - 0.02, z), Vector3(1.2, 0.03, 0.5), Color(1, 1, 0.97), null, Vector3.ZERO, 2.5)
+	omni(Vector3(-9.0, LOBBY_H - 0.4, 24.0), Color(0.92, 0.97, 1.0), 1.0, 11.0, false)
+	omni(Vector3(-2.0, LOBBY_H - 0.4, 30.0), Color(0.92, 0.97, 1.0), 1.0, 11.0, false)
+
+
+func _lobby_things() -> void:
+	if not furnish("reception_desk", Vector3(1.6, 0, 27.5), -90.0, Vector3(3.0, 1.1, 0.7), Vector3(0, 0.55, 0)):
+		box(Vector3(1.6, 0.55, 27.5), Vector3(0.7, 1.1, 3.0), Color(0.55, 0.5, 0.42), true, 0.0, "wood")
+	furnish("office_chair", Vector3(2.8, 0, 27.5), -80.0, Vector3(0.55, 0.95, 0.55), Vector3(0, 0.47, 0))
+	label(Vector3(3.84, 2.55, 27.5), -90.0, "RECEPTION", 0.12, Color(0.15, 0.3, 0.45), false)
+	box(Vector3(3.84, 2.2, 25.0), Vector3(0.03, 0.22, 0.5), Color(0.05, 0.05, 0.05), false)
+	label(Vector3(3.82, 2.2, 25.0), -90.0, "03:12", 0.1, Color(1.0, 0.25, 0.15))
+	# the turnstiles into the changing rooms
+	for z in [24.0, 26.4]:
+		box(Vector3(-15.2, 0.5, z), Vector3(1.4, 1.0, 0.16), Color(0.78, 0.8, 0.82), true, 0.0, "metal")
+	var arm := group(Vector3(-15.0, 0.9, 24.15))
+	part("cylinder", Vector3(0, 0, 0.5), Vector3(0.04, 1.0, 0.04), Color(0.8, 0.82, 0.84), arm, Vector3(90, 0, 0), 0.0, "metal")
+	arm.rotation_degrees.y = -70.0      # (swung open: somebody left it like that)
+	label(Vector3(-15.84, 2.4, 25.2), 90.0, "CHANGING ROOMS  ->", 0.08, Color(0.15, 0.3, 0.45), false)
+	_lobby_furniture()
+
+
+func _lobby_furniture() -> void:
+	if not furnish("vending_machine", Vector3(3.4, 0, 31.6), -90.0, Vector3(0.9, 1.84, 0.8), Vector3(0, 0.92, 0)):
+		box(Vector3(3.4, 0.92, 31.6), Vector3(0.8, 1.84, 0.9), Color(0.7, 0.15, 0.12), true)
+	omni(Vector3(2.6, 1.3, 31.6), Color(0.9, 0.95, 1.0), 0.4, 3.5, false)
+	# the trophy cabinet
+	var tc := Vector3(3.55, 0, 21.0)
+	box(tc + Vector3(0, 0.45, 0), Vector3(0.5, 0.9, 2.2), Color(0.45, 0.32, 0.2), true, 0.0, "wood")
+	box(tc + Vector3(0, 1.45, 0), Vector3(0.5, 1.1, 2.2), Color(0.6, 0.72, 0.75), true, 0.0, "glass")
+	for k in 5:
+		shape_at("cylinder", tc + Vector3(0, 1.05 + (k % 2) * 0.45, -0.8 + k * 0.4), Vector3(0.1, 0.22, 0.1), Color(0.85, 0.68, 0.25), false, Vector3.ZERO, "metal")
+	interactable(tc + Vector3(-0.3, 1.2, 0), Vector3(0.4, 1.0, 2.2), func(): return "The trophy cabinet",
+		func(): Game.hud.show_thought("Junior gala, 1994. Relay, 1997. ...One of the little cups has my name on it. I never swam here.", 4.5))
+	_thing_chairs()
+	label(Vector3(-15.84, 1.7, 30.5), 90.0, "NO RUNNING\nNO DIVING\nNO BOMBING\nNO PETTING", 0.09, Color(0.75, 0.15, 0.12), false)
+	label(Vector3(-11.0, 2.2, 33.83), 180.0, "SWIMMING LESSONS - ALL AGES - ASK AT RECEPTION", 0.06, Color(0.2, 0.2, 0.2), false)
+	if not prop("wet_floor_sign", Vector3(-4.0, 0, 26.5), 40.0):
+		box(Vector3(-4.0, 0.3, 26.5), Vector3(0.3, 0.6, 0.3), Color(1.0, 0.85, 0.1), false)
+	if not prop("crate", Vector3(-14.8, 0, 32.8), 10.0):
+		box(Vector3(-14.8, 0.25, 32.8), Vector3(0.6, 0.5, 0.45), Color(0.5, 0.4, 0.25), true, 10.0, "wood")
+	box(Vector3(-14.8, 0.52, 32.75), Vector3(0.5, 0.06, 0.35), Color(0.95, 0.45, 0.55), false, 25.0, "fabric")
+	label(Vector3(-14.8, 0.8, 33.83), 180.0, "LOST PROPERTY", 0.05, Color(0.2, 0.2, 0.2), false)
+
+
+func _thing_chairs() -> void:
+	for k in 2:
+		if not furnish("waiting_chairs", Vector3(-11.5 + k * 2.2, 0, 33.3), 180.0, Vector3(1.8, 0.8, 0.6), Vector3(0, 0.4, 0)):
+			box(Vector3(-11.5 + k * 2.2, 0.4, 33.3), Vector3(1.8, 0.8, 0.6), Color(0.3, 0.4, 0.6), true)
+	prop("potted_plant", Vector3(-15.4, 0, 19.0), 20.0)
+	prop("potted_plant", Vector3(3.4, 0, 33.4), 70.0)
+
+
+# ---- the changing rooms
+
+func _changing() -> void:
+	var wall := Color(0.78, 0.86, 0.88)
+	room_shell(-46, -16, HALL_Z, 34, CHANGE_H, "s", {}, wall, Color(0.66, 0.74, 0.76), {"floor_s": "tiles_floor", "wall_s": "tiles_pool"})
+	wall_run(Vector3(-46.15, 0, HALL_Z), Vector3(-HALL_X - 0.15, 0, HALL_Z), CHANGE_H, [], wall, "tiles_pool")
+	# lockers along the south wall, benches down the middle
+	for k in 26:
+		var x := -38.6 + k * 0.6
+		if not furnish("locker", Vector3(x, 0, 33.55), 180.0, Vector3(0.55, 2.0, 0.57), Vector3(0, 1.0, 0)):
+			box(Vector3(x, 1.0, 33.55), Vector3(0.55, 2.0, 0.57), Color(0.3, 0.45, 0.55), true, 0.0, "metal")
+	for k in 3:
+		var bx := -36.0 + k * 6.0
+		box(Vector3(bx, 0.43, 29.6), Vector3(3.2, 0.05, 0.42), Color(0.62, 0.46, 0.3), true, 0.0, "wood")
+		for lx in [-1.4, 1.4]:
+			box(Vector3(bx + lx, 0.21, 29.6), Vector3(0.06, 0.42, 0.36), Color(0.7, 0.72, 0.74), false, 0.0, "metal")
+	box(Vector3(-30.0, 0.45, 29.6), Vector3(0.5, 0.05, 0.3), Color(0.95, 0.95, 0.95), false, 20.0, "fabric")     # a towel
+	box(Vector3(-24.6, 0.47, 29.5), Vector3(0.14, 0.04, 0.08), Color(0.2, 0.45, 0.9), false, -30.0)               # goggles
+	# cubicles along the north wall (the west end)
+	for k in 7:
+		var x := -45.6 + k * 1.3
+		box(Vector3(x, 1.1, HALL_Z + 0.85), Vector3(0.04, 1.8, 1.4), Color(0.85, 0.85, 0.88), true, 0.0, "plain")
+		if k < 6:
+			var open := k == 2 or k == 5
+			box(Vector3(x + 0.65 + (0.35 if open else 0.0), 1.1, HALL_Z + 1.55 + (0.3 if open else 0.0)), Vector3(1.2 if not open else 0.04, 1.8, 0.04 if not open else 0.9),
+				Color(0.4, 0.62, 0.72), not open)
+	# sinks and mirrors by the turnstiles
+	for k in 3:
+		var sx := -20.0 + k * 1.2
+		if not prop("sink_basin", Vector3(sx, 0, 33.7), 180.0):
+			box(Vector3(sx, 0.82, 33.6), Vector3(0.5, 0.15, 0.4), Color(0.95, 0.95, 0.95), true)
+		part("box", Vector3(sx, 1.55, 33.83), Vector3(0.6, 0.8, 0.01), Color(0.75, 0.8, 0.82), null, Vector3.ZERO, 0.0, "glass")
+	# the showers, one of them left running
+	for k in 3:
+		var sx := -30.0 + k * 2.2
+		if not prop("shower_head", Vector3(sx, 1.95, HALL_Z + 0.16), 0.0):
+			shape_at("cylinder", Vector3(sx, 2.0, HALL_Z + 0.3), Vector3(0.12, 0.05, 0.12), Color(0.8, 0.82, 0.85), false, Vector3(90, 0, 0), "metal")
+	var spray := CPUParticles3D.new()
+	spray.position = Vector3(-27.8, 1.95, HALL_Z + 0.4)
+	spray.amount = 60
+	spray.lifetime = 0.6
+	spray.direction = Vector3(0, -1, 0.2)
+	spray.spread = 8.0
+	spray.gravity = Vector3(0, -9.8, 0)
+	spray.initial_velocity_min = 1.0
+	spray.initial_velocity_max = 1.6
+	var sq := BoxMesh.new()
+	sq.size = Vector3(0.006, 0.08, 0.006)
+	sq.material = Shapes.material(Color(0.8, 0.9, 1.0, 0.6), 0.05, 0.3)
+	spray.mesh = sq
+	add_child(spray)
+	ambient("water", Vector3(-27.8, 1.0, HALL_Z + 0.5), true, -8.0, 14.0)
+	_pools.append([Rect2(-31.0, HALL_Z, 6.0, 2.6), 0.005, 0.0])         # (wet underfoot)
+	label(Vector3(-44.0, 1.6, 33.83), 180.0, "NO OUTDOOR SHOES\nBEYOND THIS POINT", 0.07, Color(0.2, 0.2, 0.2), false)
+	label(Vector3(-45.84, 2.3, 30.6), 90.0, "TO POOL  ->", 0.09, Color(0.15, 0.3, 0.45), false)
+	# the foot bath, on the way to the pool
+	var fb := Rect2(-45.85, 26.7, 3.4, 2.6)
+	box(Vector3(fb.position.x + fb.size.x * 0.5, 0.06, fb.position.y - 0.06), Vector3(fb.size.x, 0.12, 0.12), Color(0.85, 0.88, 0.88), true, 0.0, "tiles_pool")
+	box(Vector3(fb.position.x + fb.size.x * 0.5, 0.06, fb.end.y + 0.06), Vector3(fb.size.x, 0.12, 0.12), Color(0.85, 0.88, 0.88), true, 0.0, "tiles_pool")
+	var fw := _water(fb, 0.07)
+	fw.get_child(0).material_override.set_shader_parameter("clarity", 0.9)
+	_pools.append([fb, 0.07, 0.1])
+	for x in [-40.0, -32.0, -24.0]:
+		for z in [21.0, 26.0, 31.0]:
+			if not scatter_prop("ceiling_troffer", Vector3(x, CHANGE_H, z), 0.0, 1.0, false):
+				part("box", Vector3(x, CHANGE_H - 0.02, z), Vector3(1.2, 0.03, 0.5), Color(1, 1, 0.97), null, Vector3.ZERO, 2.5)
+	omni(Vector3(-40.0, CHANGE_H - 0.4, 26.0), Color(0.92, 0.97, 1.0), 0.9, 10.0, false)
+	omni(Vector3(-28.0, CHANGE_H - 0.4, 24.0), Color(0.92, 0.97, 1.0), 0.9, 10.0, false)
+	omni(Vector3(-20.0, CHANGE_H - 0.4, 30.0), Color(0.92, 0.97, 1.0), 0.8, 9.0, false)
+
+
+# ---- the shallows
+
+func _shallows() -> void:
+	var x0 := PR1.position.x
+	var x1 := PR1.end.x
+	var z0 := PR1.position.y
+	var z1 := PR1.end.y
+	room_shell(x0, x1, z0, z1, PR1_H, "nswe", {"e": [[27.0, 29.0, 2.6]], "s": [[PR2_X - 1.85, PR2_X + 1.85, PR2_H]]},
+		_tile_wall_c(0.0), ROOMS_TILE, {"floor": false, "wall_s": "tiles_pool", "ceil_s": "tiles_pool", "ceil_c": ROOMS_TILE})
+	_deck(PR1, [PR1_POOL], ROOMS_TILE.darkened(0.05), "tiles_pool")
+	_pool(PR1_POOL, 0.45)
+	for p in [Vector3(-74, 0, 16), Vector3(-62, 0, 16), Vector3(-74, 0, 24), Vector3(-62, 0, 24)]:
+		box(p + Vector3(0, (PR1_H - 0.45) * 0.5, 0), Vector3(1.2, PR1_H + 0.45, 1.2), ROOMS_TILE, true, 0.0, "tiles_pool")
+	for c in [Vector3(-79, 0, 20), Vector3(-68, 0, 20), Vector3(-57, 0, 20)]:
+		_skylight(c, Vector2(5.0, 3.0), PR1_H, 1.5, 18.0)
+	omni(Vector3(-50.0, PR1_H - 1.0, 28.0), DAY, 0.9, 12.0, false)
+	omni(Vector3(-86.0, PR1_H - 1.0, 12.0), DAY, 0.9, 12.0, false)
+	if not prop("lifeguard_chair", Vector3(-49.0, 0, 18.0), -90.0):
+		box(Vector3(-49.0, 1.0, 18.0), Vector3(0.9, 2.0, 0.7), Color(0.92, 0.92, 0.9), true)
+	for k in 3:
+		prop("deckchair", Vector3(-86.0 + k * 1.6, 0, 32.4), 180.0 + k * 6.0)
+	label(Vector3(x0 + 0.17, 2.2, 20.0), 90.0, "SHALLOW END  0.4 m", 0.14, Color(0.15, 0.3, 0.45), false)
+	label(Vector3(-60.0, 2.4, z1 - 0.17), 180.0, "NO DIVING", 0.16, Color(0.75, 0.15, 0.12), false)
+	# a ring, drifting; a beach ball, rolling slowly across the deck with nothing pushing it
+	_ring = group(Vector3(-70.0, -0.04, 20.0))
+	var tm := MeshInstance3D.new()
+	var tor := TorusMesh.new()
+	tor.inner_radius = 0.22
+	tor.outer_radius = 0.42
+	tm.mesh = tor
+	tm.material_override = Shapes.material(Color(1.0, 0.45, 0.2), 0.35)
+	_ring.add_child(tm)
+	_ball = group(Vector3(-80.0, 0.22, 32.0))
+	part("sphere", Vector3.ZERO, Vector3.ONE * 0.44, Color(0.95, 0.95, 0.95), _ball, Vector3.ZERO, 0.0, 0.4)
+	part("sphere", Vector3(0.0, 0.0, 0.0), Vector3(0.445, 0.445, 0.14), Color(0.9, 0.2, 0.2), _ball, Vector3.ZERO, 0.0, 0.4)
+	part("sphere", Vector3(0.0, 0.0, 0.0), Vector3(0.14, 0.445, 0.445), Color(0.2, 0.4, 0.9), _ball, Vector3.ZERO, 0.0, 0.4)
+	ambient("water_lap", Vector3(-68.0, 0.2, 20.0), true, -8.0, 30.0)
+	trigger(Vector3(-48.5, 1.3, 28.0), Vector3(1.0, 2.6, 2.4), func():
+		Game.hud.show_thought("...This isn't the pool. It's daylight in here. It's the middle of the night.", 4.5))
+
+
+# ---- the channel
+
+func _channel() -> void:
+	var x0 := PR2_X - 2.0
+	var x1 := PR2_X + 2.0
+	var z0 := -34.0
+	var z1 := 6.0
+	room_shell(x0, x1, z0, z1, PR2_H, "we", {}, _tile_wall_c(0.05), ROOMS_TILE, {"floor": false, "wall_s": "tiles_pool", "ceil_s": "tiles_pool", "ceil_c": ROOMS_TILE})
+	var ch := Rect2(PR2_X - 0.6, z0, 1.2, z1 - z0)
+	_deck(Rect2(x0, z0, x1 - x0, z1 - z0), [ch], ROOMS_TILE.darkened(0.05), "tiles_pool")
+	_pool(ch, 0.3, "ns")
+	# portholes onto the sky, down the west wall
+	for k in 7:
+		var z := z0 + 3.0 + k * 5.5
+		var c := Vector3(x0 + 0.16, 1.6, z)
+		part("sphere", c, Vector3(0.02, 0.62, 0.62), Color(0.55, 0.78, 1.0), null, Vector3.ZERO, 1.6)
+		part("cylinder", c + Vector3(0.01, 0, 0), Vector3(0.74, 0.05, 0.74), Color(0.75, 0.78, 0.8), null, Vector3(0, 0, 90), 0.0, "metal")
+		if k % 2 == 0:
+			omni(c + Vector3(1.0, 0, 0), Color(0.75, 0.88, 1.0), 0.6, 4.0, false)
+	part("box", Vector3(PR2_X, PR2_H - 0.03, (z0 + z1) * 0.5), Vector3(0.5, 0.04, z1 - z0 - 1.0), DAY, null, Vector3.ZERO, 2.0)
+	for z in [-26.0, -14.0, -2.0]:
+		omni(Vector3(PR2_X, PR2_H - 0.5, z), DAY, 0.9, 9.0, false)
+	ambient("water", Vector3(PR2_X, 0.0, -14.0), true, -20.0, 16.0)
+	interactable(Vector3(x0 + 0.3, 1.6, z0 + 3.0 + 3 * 5.5), Vector3(0.4, 0.8, 0.8), func(): return "Look through the porthole",
+		func(): Game.hud.show_thought("Sky. Blue, a long way down as well as up. ...We're underground. We were.", 4.0))
+
+
+# ---- the big room
+
+func _big_room() -> void:
+	var x0 := PR3.position.x
+	var x1 := PR3.end.x
+	var z0 := PR3.position.y
+	var z1 := PR3.end.y
+	room_shell(x0, x1, z0, z1, PR3_H, "nse", {"n": [[PR2_X - 1.85, PR2_X + 1.85, PR2_H], [-37.85, -35.15, PR4_H]]},
+		_tile_wall_c(0.0), ROOMS_TILE, {"floor": false, "wall_s": "tiles_pool", "ceil_s": "tiles_pool", "ceil_c": ROOMS_TILE})
+	# the west wall isn't there: a lintel high up, and under it, the water going on to the sky
+	wall_run(Vector3(x0, 0, z0 + 0.15), Vector3(x0, 0, z1 - 0.15), PR3_H, [[PR3_A.position.y - 1.0, PR3_A.end.y + 1.0, 7.0]], _tile_wall_c(0.0), "tiles_pool")
+	_deck(PR3, [PR3_A, PR3_B], ROOMS_TILE.darkened(0.05), "tiles_pool")
+	_pool(PR3_A, 0.45, "w")
+	_pool(PR3_B, 2.2)
+	# outside: the pool floor goes on, under a few inches of water, to the horizon
+	box(Vector3(-600.0 * 0.5 + x0 * 0.5, -0.55, -50.0), Vector3(600.0 + x0, 0.2, 700.0), TILE, false, 0.0, "tiles_pool")
+	var sea := _water(Rect2(-600.0, -400.0, 600.0 + x0, 700.0), -0.06)
+	sea.get_child(0).material_override.set_shader_parameter("clarity", 0.85)
+	_pools.append([OUTSIDE, -0.06, 0.45])
+	blocker(Vector3(OUTSIDE.position.x - 0.3, 1.5, -50.0), Vector3(0.6, 3.0, 26.0))
+	blocker(Vector3(OUTSIDE.position.x + OUTSIDE.size.x * 0.5, 1.5, OUTSIDE.position.y - 0.3), Vector3(OUTSIDE.size.x, 3.0, 0.6))
+	blocker(Vector3(OUTSIDE.position.x + OUTSIDE.size.x * 0.5, 1.5, OUTSIDE.end.y + 0.3), Vector3(OUTSIDE.size.x, 3.0, 0.6))
+	box(Vector3(OUTSIDE.position.x + OUTSIDE.size.x * 0.5, -0.4, -50.0), Vector3(OUTSIDE.size.x, 0.1, OUTSIDE.size.y), TILE, true, 0.0, "tiles_pool")
+	ambient("wind", Vector3(x0 - 2.0, 1.5, -50.0), true, -16.0, 30.0)
+	trigger(Vector3(x0 - 8.0, 1.0, -50.0), Vector3(4.0, 2.0, 22.0), func():
+		Game.hud.show_thought("It just goes on. A few inches deep, all the way out to where the sky starts.", 4.5))
+	trigger(Vector3(x0 + 6.0, 1.3, -50.0), Vector3(3.0, 2.6, 20.0), func():
+		Game.hud.show_thought("There's no wall. ...Water, and sky, and the tiles going on under it forever.", 4.5))
+	# arches over the walkway between the pools
+	for z in [-56.0, -50.0, -44.0]:
+		for x in [PR3_A.end.x + 0.5, PR3_B.position.x - 0.5]:
+			box(Vector3(x, 2.25, z), Vector3(0.7, 4.5, 0.7), ROOMS_TILE, true, 0.0, "tiles_pool")
+		box(Vector3((PR3_A.end.x + PR3_B.position.x) * 0.5, 4.75, z), Vector3(4.7, 0.5, 0.7), ROOMS_TILE, false, 0.0, "tiles_pool")
+	# a slide, out of a hole in the ceiling, into the deep end
+	var top := Vector3(-45.0, PR3_H - 0.1, -64.0)
+	var bot := Vector3(-49.5, 0.35, -57.5)
+	box(Vector3(top.x, PR3_H - 0.02, top.z), Vector3(1.4, 0.06, 1.4), Color(0.02, 0.03, 0.04), false)
+	var dir := (bot - top).normalized()
+	var mid := (top + bot) * 0.5
+	var bas := Basis.looking_at(dir, Vector3.UP)
+	var len := top.distance_to(bot)
+	add_shape("box", Transform3D(bas * Basis.from_scale(Vector3(0.9, 0.06, len)), mid), Color(0.25, 0.55, 0.85), false, "plain@0.2")
+	for sd in [-1.0, 1.0]:
+		add_shape("box", Transform3D(bas * Basis.from_scale(Vector3(0.06, 0.35, len)), mid + bas * Vector3(sd * 0.45, 0.17, 0)), Color(0.25, 0.55, 0.85), false, "plain@0.2")
+	for k in 3:
+		var q := top.lerp(bot, 0.2 + k * 0.3)
+		box(Vector3(q.x, q.y * 0.5 - 0.2, q.z), Vector3(0.12, q.y + 0.4, 0.12), Color(0.8, 0.82, 0.85), false, 0.0, "metal")
+	ambient("water", bot + Vector3(0, 0.3, 0), true, -16.0, 14.0)
+	# a strip of skylight down the length of the room
+	part("box", Vector3(-65.0, PR3_H - 0.03, -50.0), Vector3(48.0, 0.04, 3.0), SKYLIGHT, null, Vector3.ZERO, 2.2)
+	for x in [-84.0, -70.0, -56.0, -42.0]:
+		omni(Vector3(x, PR3_H - 1.5, -50.0), DAY, 1.2, 20.0, false)
+	for k in 4:
+		prop("deckchair", Vector3(-86.0 + k * 2.0, 0, -63.6), -90.0 + k * 4.0)
+	if not prop("lifeguard_chair", Vector3(-40.5, 0, -50.0), -90.0):
+		box(Vector3(-40.5, 1.0, -50.0), Vector3(0.9, 2.0, 0.7), Color(0.92, 0.92, 0.9), true)
+	label(Vector3(x1 - 0.17, 3.0, -46.0), -90.0, "DEEP END  2.2 m", 0.16, Color(0.15, 0.3, 0.45), false)
+	box(Vector3(x1 - 0.17, 4.6, -56.0), Vector3(0.03, 0.4, 1.2), Color(0.05, 0.05, 0.05), false)
+	label(Vector3(x1 - 0.19, 4.6, -56.0), -90.0, "03:12", 0.25, Color(1.0, 0.25, 0.15))
+	label(Vector3(-36.5, 2.4, z1 - 0.17), 180.0, "POOL HALL  ->", 0.08, Color(0.15, 0.3, 0.45), false)
+	ambient("water_lap", Vector3(-70.0, 0.2, -50.0), true, -6.0, 40.0)
+
+
+# ---- the last corridor: the daylight gives out
+
+func _last_corridor() -> void:
+	var dark := Color(0.38, 0.48, 0.5)
+	box(Vector3(-36.5, -0.05, -23.5), Vector3(3.0, 0.1, 21.0), ROOMS_TILE.darkened(0.2), true, 0.0, "tiles_pool")
+	box(Vector3(-33.5, -0.05, -14.5), Vector3(3.0, 0.1, 3.0), dark, true, 0.0, "tiles_pool")
+	box(Vector3(-36.5, PR4_H + 0.05, -23.5), Vector3(3.0, 0.1, 21.0), ROOMS_TILE.darkened(0.2), true, 0.0, "tiles_pool")
+	box(Vector3(-33.5, PR4_H + 0.05, -14.5), Vector3(3.0, 0.1, 3.0), dark, true, 0.0, "tiles_pool")
+	wall_run(Vector3(-38.0, 0, -33.85), Vector3(-38.0, 0, -13.15), PR4_H, [], _tile_wall_c(0.3), "tiles_pool")
+	wall_run(Vector3(-35.0, 0, -33.85), Vector3(-35.0, 0, -16.15), PR4_H, [], _tile_wall_c(0.3), "tiles_pool")
+	wall_run(Vector3(-38.15, 0, -13.0), Vector3(-HALL_X - 0.15, 0, -13.0), PR4_H, [], dark, "tiles_pool")
+	wall_run(Vector3(-35.15, 0, -16.0), Vector3(-HALL_X - 0.15, 0, -16.0), PR4_H, [], dark, "tiles_pool")
+	omni(Vector3(-36.5, PR4_H - 0.4, -30.0), DAY, 0.8, 7.0, false)
+	part("box", Vector3(-36.5, PR4_H - 0.02, -30.0), Vector3(1.0, 0.03, 0.5), DAY, null, Vector3.ZERO, 2.0)
+	part("box", Vector3(-36.5, PR4_H - 0.02, -24.0), Vector3(1.0, 0.03, 0.5), Color(0.3, 0.3, 0.3))     # dead
+	omni(Vector3(-36.5, PR4_H - 0.4, -17.0), Color(0.45, 0.6, 0.75), 0.4, 6.0, false)
+	trigger(Vector3(-36.5, 1.3, -21.0), Vector3(3.0, 2.6, 1.0), func():
+		Game.hud.show_thought("The daylight's gone. ...It's night again, this side.", 3.5))
+	trigger(Vector3(-30.6, 1.3, HALL_DOOR_Z), Vector3(1.0, 2.6, 2.4), func():
+		_hall_arrived())
+
+
+func _hall_arrived() -> void:
+	if Game.has_flag("deep_hall"):
+		return
+	Game.set_flag("deep_hall")
+	Game.hud.show_thought("A swimming pool. At night. Who leaves the lights on in the water?", 4.5)
+
+
+func _rooms_env() -> void:
+	var env := make_env(Color(0.86, 0.92, 0.96), 0.58)
+	var sky_mat := ShaderMaterial.new()
+	sky_mat.shader = load("res://scripts/world/sky.gdshader")
+	for kv in [["zenith", Color(0.3, 0.52, 0.85)], ["horizon", Color(0.82, 0.9, 0.97)], ["ground", Color(0.75, 0.84, 0.9)]]:
+		sky_mat.set_shader_parameter(kv[0], kv[1])
+	sky_mat.set_shader_parameter("cloud_cover", 0.35)
+	var sky := Sky.new()
+	sky.sky_material = sky_mat
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
+	env.fog_enabled = true
+	env.fog_light_color = Color(0.85, 0.91, 0.96)
+	env.fog_density = 0.003
+	env.fog_sky_affect = 0.2
+	env.glow_intensity = 0.7
+	env.glow_bloom = 0.08
+	if Settings.quality >= 1:
+		env.ssr_enabled = true
+		env.ssr_max_steps = 48
+	_env_rooms = env
+
+
+func _section_of(p: Vector3) -> String:
+	if p.x > -HALL_X - 0.2 and absf(p.z) < HALL_Z:
+		return "hall"
+	if p.z > HALL_Z and p.x > -16.0:
+		return "lobby"
+	if p.z > HALL_Z and p.x > -46.0:
+		return "changing"
+	if p.x > -38.2 and p.z > -21.0:
+		return "night"           # the end of the last corridor
+	return "rooms"
+
+
+func _update_way_in(delta: float) -> void:
+	var p: Vector3 = Game.player.global_position
+	_section = _section_of(p)
+	if _section == "hall":
+		_hall_t += delta
+		if not Game.has_flag("deep_hall"):
+			_hall_arrived()
+	# the ring turns on the water; the ball rolls along the deck, and back, with nothing pushing it
+	if _ring:
+		_ring.rotation.y += delta * 0.15
+		_ring.position.y = -0.04 + sin(_t * 1.1) * 0.015
+	if _ball and _section == "rooms":
+		var np := _ball.position + _ball_v * delta
+		if np.x < PR1.position.x + 0.5 or np.x > PR1_POOL.end.x - 0.5 or np.z > PR1.end.y - 0.5 or np.z < PR1_POOL.end.y + 0.6:
+			_ball_v = -_ball_v.rotated(Vector3.UP, randf_range(-0.4, 0.4))
+		else:
+			_ball.position = np
+			_ball.rotate(_ball_v.cross(Vector3.UP).normalized(), -_ball_v.length() * delta / 0.22)
+	# a lifeguard's whistle, a long way off, now and then
+	if _section == "rooms":
+		_whistle_t -= delta
+		if _whistle_t <= 0.0:
+			_whistle_t = randf_range(40.0, 80.0)
+			Sfx.play_at("chime", self, p + Vector3(randf_range(-40, 40), 3.0, randf_range(-40, 40)), -18.0, 80.0, 2.2)
+
+
+func surface_at(p: Vector3) -> String:
+	for pr in _pools:
+		if (pr[0] as Rect2).has_point(Vector2(p.x, p.z)) and p.y < float(pr[1]) + 0.3:
+			return "wet"
+	return floor_surface()
+
+
+
+static var _glass_clear: StandardMaterial3D
+
+
+## Glass you can actually see through.
+static func _clear_glass() -> StandardMaterial3D:
+	if _glass_clear == null:
+		_glass_clear = StandardMaterial3D.new()
+		_glass_clear.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_glass_clear.albedo_color = Color(0.75, 0.88, 0.92, 0.14)
+		_glass_clear.roughness = 0.04
+		_glass_clear.metallic_specular = 0.9
+		_glass_clear.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return _glass_clear
