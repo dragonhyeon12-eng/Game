@@ -63,6 +63,11 @@ const SETS := {
 		["deep", Vector3(-30.0, 0.05, -14.5), -90.0, -4.0, "d15_hall"]],
 	"deepfix": [["deep", Vector3(-6.0, 0.05, 31.0), 180.0, 2.0, "d02_doors"], ["deep", Vector3(0.5, 0.05, 20.6), 0.0, -4.0, "d03_window"],
 		["deep", Vector3(-88.0, 0.05, 32.5), -45.0, -6.0, "d07_shallows2"], ["deep", Vector3(-68.0, 0.05, -36.0), 20.0, 2.0, "d09_bigroom"]],
+	"hotel": [["above", Vector3(-12.6, -3.55, 34.0), -90.0, 0.0, "a01_lobby"], ["above", Vector3(-4.0, -3.55, 34.0), -90.0, 0.0, "a02_corridor"],
+		["above", Vector3(2.8, -3.55, 37.0), 180.0, -4.0, "a03_room"], ["above", Vector3(15.0, -3.55, 31.0), 0.0, 14.0, "a04_stairs"],
+		["above", Vector3(13.0, 0.05, 31.0), 180.0, 0.0, "a05_roofhut"], ["above", Vector3(-1.0, 0.05, 33.0), 135.0, 0.0, "a06_terrace"],
+		["above", Vector3(8.0, 0.05, 35.4), 180.0, -10.0, "a07_pool"], ["above", Vector3(5.0, 0.05, 23.0), 0.0, -4.0, "a08_bridge"],
+		["above", Vector3(0.0, 0.05, 44.8), 180.0, -12.0, "a09_view"]],
 	"cave": [["seabed", Vector3(2, 0.05, -128.0), 0.0, 4.0, "cave_mouth"], ["seabed", Vector3(2.5, 0.05, -150.0), 0.0, 0.0, "cave_tunnel"],
 		["seabed", Vector3(2, 0.05, -172.0), 0.0, 3.0, "cave_chamber"]],
 }

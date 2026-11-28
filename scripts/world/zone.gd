@@ -864,3 +864,51 @@ func room_shell(x0: float, x1: float, z0: float, z1: float, h: float, sides: Str
 		wall_run(Vector3(x0, 0, z0 + t * 0.5), Vector3(x0, 0, z1 - t * 0.5), h, openings.get("w", []), wall_c, ws, t, base)
 	if sides.contains("e"):
 		wall_run(Vector3(x1, 0, z0 + t * 0.5), Vector3(x1, 0, z1 - t * 0.5), h, openings.get("e", []), wall_c, ws, t, base)
+
+
+static var _clear_glass_mat: StandardMaterial3D
+
+
+## Glass you can see through (windows you look out of).
+static func clear_glass() -> StandardMaterial3D:
+	if _clear_glass_mat == null:
+		_clear_glass_mat = StandardMaterial3D.new()
+		_clear_glass_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_clear_glass_mat.albedo_color = Color(0.75, 0.86, 0.92, 0.12)
+		_clear_glass_mat.roughness = 0.04
+		_clear_glass_mat.metallic_specular = 0.9
+		_clear_glass_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return _clear_glass_mat
+
+
+## A sheet of that glass, solid to walk into.
+func glass_pane(center: Vector3, size: Vector3) -> void:
+	part("box", center, size, Color.WHITE).material_override = clear_glass()
+	blocker(center, size)
+
+
+## A slab over `room` (top at y_top, `thick` deep) with the rectangles in `holes` left open (pools, stairwells).
+func slab_with_holes(room: Rect2, holes: Array, y_top: float, thick: float, col: Color, surface := "concrete") -> void:
+	var xs := [room.position.x, room.end.x]
+	for h in holes:
+		xs.append(clampf(h.position.x, room.position.x, room.end.x))
+		xs.append(clampf(h.end.x, room.position.x, room.end.x))
+	xs.sort()
+	for i in xs.size() - 1:
+		var x0: float = xs[i]
+		var x1: float = xs[i + 1]
+		if x1 - x0 < 0.01:
+			continue
+		var mx := (x0 + x1) * 0.5
+		var cut := []
+		for h in holes:
+			if mx > h.position.x and mx < h.end.x:
+				cut.append(h)
+		cut.sort_custom(func(a, b): return a.position.y < b.position.y)
+		var z := room.position.y
+		for h in cut:
+			if h.position.y > z + 0.01:
+				box(Vector3(mx, y_top - thick * 0.5, (z + h.position.y) * 0.5), Vector3(x1 - x0, thick, h.position.y - z), col, true, 0.0, surface)
+			z = maxf(z, h.end.y)
+		if room.end.y > z + 0.01:
+			box(Vector3(mx, y_top - thick * 0.5, (z + room.end.y) * 0.5), Vector3(x1 - x0, thick, room.end.y - z), col, true, 0.0, surface)

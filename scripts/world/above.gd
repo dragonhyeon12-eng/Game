@@ -92,13 +92,28 @@ func max_fall_at(_p: Vector3) -> float: return 40.0
 
 
 func player_start() -> Transform3D:
-	return Transform3D(Basis(), Vector3(0, 0.05, 5.4))
+	# out of the freight lift, onto the hotel's sixty-first floor
+	return Transform3D(Basis(Vector3.UP, -PI * 0.5), Vector3(-12.6, FL + 0.05, 34.0))
+
+
+func water_level_at(p: Vector3) -> float:
+	if ROOF_POOL.has_point(Vector2(p.x, p.z)) and p.y > -1.6 and p.y < 1.5:
+		return -0.08
+	return -INF
+
+
+func surface_at(p: Vector3) -> String:
+	if ROOF_POOL.has_point(Vector2(p.x, p.z)) and p.y < 0.0:
+		return "wet"
+	if _in_hotel(p) and absf(p.y - FL) < 0.3 and not (p.x > 10.0 and p.z < CORR_Z0):
+		return "carpet"
+	return floor_surface()
 
 
 ## Wind pushes you (Player adds it to its movement unless crouched).
 func wind_at(p: Vector3) -> Vector3:
 	# gusts belong to the first rooftops and the beam; past roof C the paths are too narrow to be fair
-	if _gust_phase != 2 or _in_hut(p) or p.y < -6.0 or _in_skyway(p) or p.z < -30.0:
+	if _gust_phase != 2 or _in_hut(p) or p.y < -6.0 or _in_skyway(p) or p.z < -30.0 or _in_hotel(p) or _in_roof_hut(p):
 		return Vector3.ZERO
 	return _gust_dir * _gust_strength
 
@@ -112,6 +127,7 @@ func _in_hut(p: Vector3) -> bool:
 func build() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7171
+	_hotel()
 	_tower(TOWER_A, 0.0, Color(0.36, 0.36, 0.38))
 	_tower(TOWER_B, 0.0, Color(0.33, 0.33, 0.36))
 	_tower(TOWER_C, 0.0, Color(0.3, 0.3, 0.33))
@@ -162,7 +178,8 @@ func _rims() -> void:
 	var col := Color(0.42, 0.42, 0.44)
 	# tower A: gaps west (plank, z -3) and east (beam, z 0)
 	box(Vector3(0, 0.15, -6.9), Vector3(14, 0.3, 0.2), col, true, 0.0, "concrete")
-	box(Vector3(0, 0.15, 6.9), Vector3(14, 0.3, 0.2), col, true, 0.0, "concrete")
+	box(Vector3(-1.4, 0.15, 6.9), Vector3(11.2, 0.3, 0.2), col, true, 0.0, "concrete")       # (a gap for the footbridge, x 4.2..5.8)
+	box(Vector3(6.4, 0.15, 6.9), Vector3(1.2, 0.3, 0.2), col, true, 0.0, "concrete")
 	box(Vector3(-6.9, 0.15, -5.3), Vector3(0.2, 0.3, 3.4), col, true, 0.0, "concrete")
 	box(Vector3(-6.9, 0.15, 2.6), Vector3(0.2, 0.3, 8.8), col, true, 0.0, "concrete")
 	box(Vector3(6.9, 0.15, -3.75), Vector3(0.2, 0.3, 6.5), col, true, 0.0, "concrete")
@@ -370,6 +387,8 @@ func _skyline(rng: RandomNumberGenerator) -> void:
 		var top := rng.randf_range(-70.0, 25.0)
 		if c.x > -5.0 and c.x < 50.0 and c.z < -30.0 and c.z > -200.0:
 			continue
+		if c.x > HOTEL.position.x - w * 0.5 - 6.0 and c.x < HOTEL.end.x + w * 0.5 + 6.0 and c.z > HOTEL.position.y - w * 0.5 - 6.0 and c.z < HOTEL.end.y + w * 0.5 + 6.0:
+			continue      # (not through the hotel)
 		box(c + Vector3(0, top - 150, 0), Vector3(w, 300, w), Color(0.2, 0.21, 0.24).lightened(rng.randf_range(0, 0.08)), false, rng.randf_range(0, 90), "concrete")
 		if dist < 110.0 and top > -30.0:
 			_roofs.append(c + Vector3(rng.randf_range(-w * 0.3, w * 0.3), top, rng.randf_range(-w * 0.3, w * 0.3)))
@@ -690,7 +709,7 @@ func _hints(p: Vector3) -> void:
 	if _hint == 0 and _t > 2.0:
 		_hint = 1
 		Game.hud.show_thought("...Up. It went up. How far up did it go?", 4.0)
-	elif _hint == 1 and _t > 7.0 and not _in_hut(p):
+	elif _hint == 1 and _t > 7.0 and not _in_hut(p) and p.y > -0.5 and not _in_roof_hut(p):
 		_hint = 2
 		Game.hud.show_thought("There's a light. On the mast, over there. I need to get to that light.", 4.5)
 
@@ -1159,3 +1178,313 @@ func _rearrange() -> void:
 	interactable(door_p + Vector3(0, 1.05, 0.3), Vector3(1.2, 2.1, 0.4), func(): return "Step through", func(): Game.on_above_exit())
 	Sfx.play("chime", -2.0, 0.6)
 	Game.hud.show_thought("A path. And a door. In the sky.", 3.0)
+
+
+# ------------------------------------------------------------------ the hotel
+# The freight lift doesn't open onto the roof any more. It opens onto the 61st floor of a hotel, at night:
+# a carpeted corridor of numbered doors, the ice machine humming, a room-service tray nobody collected, one
+# room standing open (the bed turned down; the window nothing but cloud). Stairs up to the hotel's roof
+# terrace - water tanks, the air-conditioning droning, a bar under strings of bulbs, a lit pool above the
+# clouds - and a footbridge with railings over to the first of the rooftops.
+
+const HOTEL := Rect2(-14, 22, 30, 24)        # x -14..16, z 22..46
+const FL := -3.6                             # the 61st floor
+const HOTEL_CEIL := -0.9
+const CORR_Z0 := 32.8                        # the corridor: z 32.8..35.2
+const CORR_Z1 := 35.2
+const STAIR_HOLE := Rect2(11.6, 23.5, 2.8, 4.2)
+const ROOF_POOL := Rect2(3, 37, 10, 6.5)
+const BRIDGE_X := 5.0
+const HOTEL_WALL := Color(0.8, 0.73, 0.6)
+const HOTEL_CARPET := Color(0.36, 0.1, 0.12)
+
+var _hotel_lamps: Array[OmniLight3D] = []
+
+
+func _in_hotel(p: Vector3) -> bool:
+	return HOTEL.has_point(Vector2(p.x, p.z)) and p.y < -0.4
+
+
+func _in_roof_hut(p: Vector3) -> bool:
+	return p.x > 11.3 and p.x < 14.7 and p.z > 23.2 and p.z < 30.1 and p.y > -0.5
+
+
+func _hotel() -> void:
+	var c := Vector3(HOTEL.position.x + HOTEL.size.x * 0.5, 0, HOTEL.position.y + HOTEL.size.y * 0.5)
+	var x0 := HOTEL.position.x
+	var x1 := HOTEL.end.x
+	var z0 := HOTEL.position.y
+	var z1 := HOTEL.end.y
+	var stone := Color(0.34, 0.33, 0.35)
+	# the tower under the top floor, all the way down
+	box(c + Vector3(0, FL - 150.0, 0), Vector3(HOTEL.size.x, 300.0, HOTEL.size.y), stone, true, 0.0, "concrete")
+	# the roof slab, with the stairwell's hole in it
+	slab_with_holes(HOTEL, [STAIR_HOLE, ROOF_POOL], 0.0, 0.3, stone.lightened(0.08), "concrete")
+	# the ceiling of the floor (not over the stairwell)
+	for r in [Rect2(x0, z0, 10.0 - x0, z1 - z0), Rect2(10.0, CORR_Z0, x1 - 10.0, z1 - CORR_Z0)]:
+		box(Vector3(r.position.x + r.size.x * 0.5, HOTEL_CEIL + 0.05, r.position.y + r.size.y * 0.5), Vector3(r.size.x, 0.1, r.size.y), Color(0.9, 0.88, 0.82), true, 0.0, "plaster")
+	# the outside walls: windows into the rooms, one tall one at the end of the corridor
+	var rooms_x := [-5.5, -0.5, 4.5, 9.5, 14.0]
+	var wins_s := rooms_x.map(func(x): return [x - 1.1, x + 1.1, FL + 2.4 - FL, 0.7])
+	var wins_n := [-5.5, -0.5, 4.5, 8.5].map(func(x): return [x - 1.1, x + 1.1, 2.4, 0.7])
+	wall_run(Vector3(x0 - 0.15, FL, z1), Vector3(x1 + 0.15, FL, z1), -FL, wins_s, stone, "concrete")
+	wall_run(Vector3(x0 - 0.15, FL, z0), Vector3(x1 + 0.15, FL, z0), -FL, wins_n, stone, "concrete")
+	wall_run(Vector3(x1, FL, z0 + 0.15), Vector3(x1, FL, z1 - 0.15), -FL, [[CORR_Z0 + 0.2, CORR_Z1 - 0.2, 2.5, 0.25]], stone, "concrete")
+	wall_run(Vector3(x0, FL, z0 + 0.15), Vector3(x0, FL, z1 - 0.15), -FL, [], stone, "concrete")
+	for w in wins_s:
+		glass_pane(Vector3((w[0] + w[1]) * 0.5, FL + 1.55, z1), Vector3(w[1] - w[0], 1.7, 0.03))
+	for w in wins_n:
+		glass_pane(Vector3((w[0] + w[1]) * 0.5, FL + 1.55, z0), Vector3(w[1] - w[0], 1.7, 0.03))
+	glass_pane(Vector3(x1, FL + 1.375, (CORR_Z0 + CORR_Z1) * 0.5), Vector3(0.03, 2.25, CORR_Z1 - CORR_Z0 - 0.4))
+	_hotel_floor()
+	_hotel_room()
+	_hotel_stairs()
+	_hotel_roof()
+	_footbridge()
+
+
+func _hotel_floor() -> void:
+	var x0 := HOTEL.position.x
+	var x1 := HOTEL.end.x
+	var z0 := HOTEL.position.y
+	var z1 := HOTEL.end.y
+	var hh := HOTEL_CEIL - FL
+	# carpet: the corridor's patterned red, the rooms' plain
+	box(Vector3((x0 + x1) * 0.5, FL + 0.01, (CORR_Z0 + CORR_Z1) * 0.5), Vector3(x1 - x0, 0.02, CORR_Z1 - CORR_Z0), HOTEL_CARPET, false, 0.0, "carpet")
+	box(Vector3(-10.9, FL + 0.01, 34.0), Vector3(5.8, 0.02, 12.0), HOTEL_CARPET, false, 0.0, "carpet")
+	# the corridor's walls: doors along both sides, all shut but one (6114, south side)
+	var open_room := [2.3, 3.3, 2.1]
+	wall_run(Vector3(-8.0, FL, CORR_Z0), Vector3(10.0, FL, CORR_Z0), hh, [], HOTEL_WALL, "wallpaper", 0.2, Color(0.3, 0.22, 0.15))
+	wall_run(Vector3(-8.0, FL, CORR_Z1), Vector3(x1 - 0.15, FL, CORR_Z1), hh, [open_room], HOTEL_WALL, "wallpaper", 0.2, Color(0.3, 0.22, 0.15))
+	# the lift lobby at the west end (x -13.85..-8, z 28..40), and its walls
+	wall_run(Vector3(x0 + 0.15, FL, 28.0), Vector3(-8.0, FL, 28.0), hh, [], HOTEL_WALL, "wallpaper", 0.2, Color(0.3, 0.22, 0.15))
+	wall_run(Vector3(x0 + 0.15, FL, 40.0), Vector3(-8.0, FL, 40.0), hh, [], HOTEL_WALL, "wallpaper", 0.2, Color(0.3, 0.22, 0.15))
+	wall_run(Vector3(-8.0, FL, 28.0), Vector3(-8.0, FL, CORR_Z0), hh, [], HOTEL_WALL, "wallpaper", 0.2, Color(0.3, 0.22, 0.15))
+	wall_run(Vector3(-8.0, FL, CORR_Z1), Vector3(-8.0, FL, 40.0), hh, [], HOTEL_WALL, "wallpaper", 0.2, Color(0.3, 0.22, 0.15))
+	# partitions between the rooms (behind the doors: never seen, but the windows look into them)
+	for x in [-3.0, 2.0, 7.0]:
+		wall_run(Vector3(x, FL, z0 + 0.15), Vector3(x, FL, CORR_Z0 - 0.1), hh, [], HOTEL_WALL.darkened(0.1), "plaster", 0.15)
+	for x in [-3.0, 2.0, 7.0, 12.0]:
+		wall_run(Vector3(x, FL, CORR_Z1 + 0.1), Vector3(x, FL, z1 - 0.15), hh, [], HOTEL_WALL.darkened(0.1), "plaster", 0.15)
+	wall_run(Vector3(-8.0, FL, z0 + 0.15), Vector3(-8.0, FL, 28.0), hh, [], HOTEL_WALL.darkened(0.1), "plaster", 0.15)
+	wall_run(Vector3(-8.0, FL, 40.0), Vector3(-8.0, FL, z1 - 0.15), hh, [], HOTEL_WALL.darkened(0.1), "plaster", 0.15)
+	# the doors, numbered
+	var n := 0
+	for k in 6:
+		var dx := -7.0 + k * 4.4
+		for side in [-1, 1]:
+			n += 1
+			var num := 6100 + n
+			if side > 0 and absf(dx - 2.6) < 1.0:
+				continue      # (6114 is the open one)
+			if side < 0 and dx > 9.5:
+				continue      # (the stairwell's there)
+			var wz := CORR_Z0 + 0.11 if side < 0 else CORR_Z1 - 0.11
+			var d := door(Vector3(dx + 0.5, FL, wz), 0.0 if side < 0 else 180.0, Color(0.42, 0.28, 0.18), 0.92, 2.1)
+			label(Vector3(dx + 1.25, FL + 1.55, wz + (0.02 if side < 0 else -0.02)), 0.0 if side < 0 else 180.0, str(num), 0.06, Color(0.85, 0.72, 0.4), false)
+			if num % 5 == 2:     # DO NOT DISTURB
+				part("box", Vector3(dx + 0.9, FL + 0.95, wz + (0.06 if side < 0 else -0.06)), Vector3(0.09, 0.2, 0.005), Color(0.85, 0.15, 0.12))
+			interactable(Vector3(dx + 0.5, FL + 1.05, wz + (0.15 if side < 0 else -0.15)), Vector3(1.0, 2.0, 0.3), func(): return "Room %d" % num,
+				func():
+					Sfx.play_at("knock", self, Vector3(dx + 0.5, FL + 1.2, wz), -10.0, 10.0)
+					Game.hud.show_thought(["Locked.", "Nobody answers.", "Locked. A television's on in there, very quietly."][num % 3], 2.5))
+	# the corridor's own things: sconces, the room-service tray, the ice machine, the window at the end
+	for k in 8:
+		var x := -6.0 + k * 3.0
+		for zz in [CORR_Z0 + 0.12, CORR_Z1 - 0.12]:
+			part("box", Vector3(x, FL + 1.9, zz), Vector3(0.18, 0.26, 0.06), Color(1.0, 0.85, 0.6), null, Vector3.ZERO, 1.8)
+		if k % 2 == 0:
+			var l := omni(Vector3(x, FL + 2.1, 34.0), Color(1.0, 0.82, 0.6), 0.55, 6.0, false)
+			_hotel_lamps.append(l)
+	var tray := Vector3(-1.2, FL, CORR_Z0 + 0.45)
+	box(tray + Vector3(0, 0.02, 0), Vector3(0.5, 0.03, 0.36), Color(0.75, 0.75, 0.76), false, 8.0, "metal")
+	shape_at("sphere", tray + Vector3(-0.08, 0.08, 0), Vector3(0.28, 0.16, 0.28), Color(0.85, 0.85, 0.86), false, Vector3.ZERO, "metal")
+	shape_at("cylinder", tray + Vector3(0.16, 0.08, 0.08), Vector3(0.07, 0.12, 0.07), Color(0.8, 0.3, 0.3), false)
+	interactable(tray + Vector3(0, 0.15, 0), Vector3(0.6, 0.4, 0.5), func(): return "Room service tray",
+		func(): Game.hud.show_thought("Under the lid: a slice of birthday cake. One candle, never lit.", 3.5))
+	ambient("hum", Vector3(-11.0, FL + 1.0, 43.0), true, -12.0, 10.0)
+	label(Vector3(-11.0, FL + 2.0, 40.11), 0.0, "ICE", 0.1, Color(0.2, 0.25, 0.3), false)
+	box(Vector3(-11.0, FL + 0.7, 44.6), Vector3(0.9, 1.4, 0.7), Color(0.82, 0.83, 0.84), true, 0.0, "metal")
+	# the lift lobby: the doors you came out of, a table, a vase of flowers, the floor number
+	for side in [-1.0, 1.0]:
+		part("box", Vector3(x0 + 0.17, FL + 1.15, 34.0 + side * 0.55), Vector3(0.04, 2.3, 1.08), Color(0.6, 0.55, 0.45), null, Vector3.ZERO, 0.0, "metal")
+	box(Vector3(x0 + 0.17, FL + 2.45, 34.0), Vector3(0.05, 0.2, 2.4), Color(0.5, 0.42, 0.3), false, 0.0, "metal")
+	label(Vector3(x0 + 0.21, FL + 2.75, 34.0), 90.0, "61", 0.16, Color(0.85, 0.72, 0.4), false)
+	box(Vector3(-8.6, FL + 0.4, 30.5), Vector3(0.45, 0.8, 1.6), Color(0.35, 0.22, 0.14), true, 0.0, "wood")
+	prop("flower_vase", Vector3(-8.6, FL + 0.8, 30.5), 0.0)
+	prop("table_lamp", Vector3(-8.6, FL + 0.8, 31.0), 0.0)
+	omni(Vector3(-9.2, FL + 1.3, 31.0), Color(1.0, 0.8, 0.55), 0.6, 5.0, false)
+	omni(Vector3(-11.0, FL + 2.3, 34.0), Color(1.0, 0.85, 0.65), 0.7, 8.0, false)
+	label(Vector3(-8.11, FL + 1.7, 37.6), 90.0, "ROOMS 6101 - 6120  ->\nROOF TERRACE  ->", 0.06, Color(0.85, 0.72, 0.4), false)
+	trigger(Vector3(-6.0, FL + 1.3, 34.0), Vector3(1.0, 2.6, 2.4), func():
+		Game.hud.show_thought("A hotel. The sixty-first floor. ...It's so quiet I can hear the lights.", 4.0))
+
+
+func _hotel_room() -> void:
+	# 6114: standing open. The bed turned down. The window: cloud, as far as there is.
+	var rx0 := 2.0
+	var rx1 := 7.0
+	var rz0 := CORR_Z1
+	var rz1 := HOTEL.end.y
+	box(Vector3((rx0 + rx1) * 0.5, FL + 0.01, (rz0 + rz1) * 0.5), Vector3(rx1 - rx0, 0.02, rz1 - rz0), Color(0.55, 0.5, 0.42), false, 0.0, "carpet")
+	var d := door(Vector3(2.8, FL, CORR_Z1 - 0.11), 180.0, Color(0.42, 0.28, 0.18), 0.92, 2.1)
+	open_door(d, -100.0, 0.01)
+	label(Vector3(3.55, FL + 1.55, CORR_Z1 - 0.13), 180.0, "6114", 0.06, Color(0.85, 0.72, 0.4), false)
+	if not furnish("bed_white", Vector3(4.5, FL, 41.0), 90.0, Vector3(2.0, 0.6, 1.6), Vector3(0, 0.3, 0)):
+		box(Vector3(4.5, FL + 0.3, 41.0), Vector3(1.6, 0.6, 2.0), Color(0.95, 0.95, 0.93), true, 0.0, "fabric")
+	prop("nightstand", Vector3(6.4, FL, 39.6), -90.0)
+	prop("table_lamp", Vector3(6.4, FL + 0.55, 39.6), 0.0)
+	omni(Vector3(6.2, FL + 1.0, 39.6), Color(1.0, 0.78, 0.5), 0.6, 5.0, false)
+	prop("armchair", Vector3(2.8, FL, 44.6), 140.0)
+	prop("curtain", Vector3(3.2, FL + 2.4, HOTEL.end.y - 0.2), 180.0)
+	interactable(Vector3(4.5, FL + 0.7, 41.0), Vector3(1.8, 0.6, 2.0), func(): return "The bed",
+		func(): Game.hud.show_thought("Turned down. A chocolate on the pillow. Nobody's checked in. ...It's been waiting for somebody.", 4.5))
+	interactable(Vector3(4.5, FL + 1.5, HOTEL.end.y - 0.4), Vector3(2.2, 1.6, 0.4), func(): return "Look out of the window",
+		func(): Game.hud.show_thought("Cloud. All the way down, as far as it goes. Nothing under it. Nothing built on it but these.", 4.5))
+	trigger(Vector3(2.8, FL + 1.3, 36.4), Vector3(1.2, 2.6, 1.0), func():
+		Game.hud.show_thought("Room 6114. The door was open. ...The bed's turned down.", 3.5))
+
+
+func _hotel_stairs() -> void:
+	# the stairwell (x 10..15.85, z 22.15..32.8): concrete, painted, the door from the corridor at its east end
+	var grey := Color(0.62, 0.63, 0.6)
+	wall_run(Vector3(10.0, FL, CORR_Z0), Vector3(HOTEL.end.x - 0.15, FL, CORR_Z0), -FL - 0.3, [[14.45, 15.6, 2.15]], grey, "concrete", 0.2)
+	wall_run(Vector3(10.0, FL, HOTEL.position.y + 0.15), Vector3(10.0, FL, CORR_Z0), -FL - 0.3, [], grey, "concrete", 0.2)
+	var sd := door(Vector3(15.0, FL, CORR_Z0 + 0.11), 0.0, Color(0.5, 0.52, 0.5), 0.92, 2.05, "metal")
+	open_door(sd, 100.0, 0.01)
+	label(Vector3(15.0, FL + 2.3, CORR_Z0 + 0.12), 0.0, "ROOF", 0.07, Color(0.85, 0.2, 0.15), false)
+	var rise := -FL / 13.0
+	for k in 13:
+		var top := FL + (k + 1) * rise
+		box(Vector3(STAIR_HOLE.position.x + STAIR_HOLE.size.x * 0.5, (FL + top) * 0.5, 23.95 + k * 0.3), Vector3(2.6, top - FL, 0.3), grey.darkened(0.1), true, 0.0, "concrete")
+	omni(Vector3(15.0, FL + 2.6, 26.0), Color(0.9, 0.95, 1.0), 0.5, 7.0, false)
+	part("box", Vector3(15.0, FL + 2.9, 27.0), Vector3(0.3, 0.1, 0.15), Color(0.3, 1.0, 0.5), null, Vector3.ZERO, 2.0)
+	# the hut on the roof over the top of the stairs, its door facing south over the terrace
+	var hc := Color(0.5, 0.48, 0.44)
+	wall_run(Vector3(11.4, 0, 23.3), Vector3(14.6, 0, 23.3), 2.5, [], hc, "plaster", 0.2)
+	wall_run(Vector3(11.4, 0, 30.0), Vector3(14.6, 0, 30.0), 2.5, [[12.4, 13.6, 2.1]], hc, "plaster", 0.2)
+	wall_run(Vector3(11.4, 0, 23.4), Vector3(11.4, 0, 29.9), 2.5, [], hc, "plaster", 0.2)
+	wall_run(Vector3(14.6, 0, 23.4), Vector3(14.6, 0, 29.9), 2.5, [], hc, "plaster", 0.2)
+	box(Vector3(13.0, 2.55, 26.65), Vector3(3.4, 0.1, 6.9), hc.darkened(0.2), true, 0.0, "concrete")
+	omni(Vector3(13.0, 2.2, 28.8), Color(1.0, 0.85, 0.6), 0.5, 4.0, false)
+	label(Vector3(13.0, 2.3, 30.11), 0.0, "ROOF TERRACE", 0.07, Color(0.85, 0.72, 0.4), false)
+	trigger(Vector3(13.0, 1.2, 31.0), Vector3(2.0, 2.4, 1.2), func():
+		Game.hud.show_thought("Clouds. A floor of cloud, lit by the moon - and nothing standing on it but towers.", 4.5))
+
+
+func _hotel_roof() -> void:
+	var x0 := HOTEL.position.x
+	var x1 := HOTEL.end.x
+	var z0 := HOTEL.position.y
+	var z1 := HOTEL.end.y
+	var par := Color(0.42, 0.42, 0.44)
+	# a parapet you can lean on (a gap in it for the footbridge, north)
+	wall_run(Vector3(x0, 0, z1 - 0.15), Vector3(x1, 0, z1 - 0.15), 1.1, [], par, "concrete", 0.3)
+	wall_run(Vector3(x0, 0, z0 + 0.15), Vector3(x1, 0, z0 + 0.15), 1.1, [[BRIDGE_X - 0.8, BRIDGE_X + 0.8, 1.1]], par, "concrete", 0.3)
+	wall_run(Vector3(x0 + 0.15, 0, z0 + 0.3), Vector3(x0 + 0.15, 0, z1 - 0.3), 1.1, [], par, "concrete", 0.3)
+	wall_run(Vector3(x1 - 0.15, 0, z0 + 0.3), Vector3(x1 - 0.15, 0, z1 - 0.3), 1.1, [], par, "concrete", 0.3)
+	# water tanks on legs; the air-conditioning, droning
+	for tank in [Vector3(-10.5, 0, 25.5), Vector3(-6.5, 0, 25.5)]:
+		for x in [-0.8, 0.8]:
+			for z in [-0.8, 0.8]:
+				shape_at("cylinder", tank + Vector3(x, 0.7, z), Vector3(0.12, 1.4, 0.12), Color(0.3, 0.3, 0.3), true, Vector3.ZERO, "metal")
+		shape_at("cylinder", tank + Vector3(0, 2.5, 0), Vector3(2.2, 2.2, 2.2), Color(0.55, 0.56, 0.58), true, Vector3.ZERO, "metal")
+		shape_at("cone", tank + Vector3(0, 3.9, 0), Vector3(2.4, 0.6, 2.4), Color(0.45, 0.46, 0.48), false, Vector3.ZERO, "metal")
+	for k in 3:
+		var a := Vector3(-11.6, 0, 30.5 + k * 2.6)
+		box(a + Vector3(0, 0.6, 0), Vector3(1.6, 1.2, 1.3), Color(0.62, 0.63, 0.64), true, 0.0, "metal")
+		shape_at("cylinder", a + Vector3(0, 1.22, 0), Vector3(0.9, 0.04, 0.9), Color(0.15, 0.15, 0.16), false, Vector3.ZERO, "metal")
+	ambient("hum", Vector3(-11.6, 1.0, 33.0), true, -10.0, 16.0)
+	shape_at("sphere", Vector3(8.0, 1.3, 24.2), Vector3(1.3, 1.3, 0.3), Color(0.82, 0.82, 0.8), false, Vector3(25, 200, 0))
+	shape_at("cylinder", Vector3(8.0, 0.5, 24.4), Vector3(0.08, 1.0, 0.08), Color(0.4, 0.4, 0.4), false, Vector3.ZERO, "metal")
+	# the terrace bar: tables, chairs, strings of bulbs; two glasses, still with something in them
+	if not furnish("counter", Vector3(-9.5, 0, 45.2), 180.0, Vector3(1.8, 0.92, 0.6), Vector3(0, 0.46, 0)):
+		box(Vector3(-9.5, 0.46, 45.2), Vector3(1.8, 0.92, 0.6), Color(0.35, 0.25, 0.18), true, 0.0, "wood")
+	for t in [Vector3(-11.0, 0, 40.0), Vector3(-6.5, 0, 41.5), Vector3(-2.5, 0, 39.0), Vector3(-7.0, 0, 36.5)]:
+		shape_at("cylinder", t + Vector3(0, 0.72, 0), Vector3(0.8, 0.04, 0.8), Color(0.85, 0.85, 0.83), true, Vector3.ZERO, "metal")
+		shape_at("cylinder", t + Vector3(0, 0.36, 0), Vector3(0.06, 0.72, 0.06), Color(0.3, 0.3, 0.3), false, Vector3.ZERO, "metal")
+		for a in [0.0, 2.1, 4.2]:
+			prop("chair_wood", t + Vector3(cos(a) * 0.75, 0, sin(a) * 0.75), rad_to_deg(-a) - 90.0)
+	for g in [Vector3(-6.62, 0.74, 41.45), Vector3(-6.38, 0.74, 41.6)]:
+		part("cylinder", g + Vector3(0, 0.07, 0), Vector3(0.06, 0.14, 0.06), Color.WHITE).material_override = clear_glass()
+		part("cylinder", g + Vector3(0, 0.04, 0), Vector3(0.052, 0.07, 0.052), Color(0.85, 0.45, 0.2), null, Vector3.ZERO, 0.0, 0.2)
+	interactable(Vector3(-6.5, 0.9, 41.5), Vector3(0.9, 0.5, 0.9), func(): return "Two glasses",
+		func(): Game.hud.show_thought("Two drinks. The ice hasn't melted. ...Somebody was sitting here a second ago.", 4.0))
+	var poles := [Vector3(-13.2, 0, 35.0), Vector3(-0.5, 0, 35.0), Vector3(-0.5, 0, 45.2), Vector3(-13.2, 0, 45.2)]
+	for p in poles:
+		shape_at("cylinder", p + Vector3(0, 1.4, 0), Vector3(0.06, 2.8, 0.06), Color(0.25, 0.25, 0.25), true, Vector3.ZERO, "metal")
+	for k in 4:
+		var a: Vector3 = poles[k] + Vector3(0, 2.7, 0)
+		var b: Vector3 = poles[(k + 1) % 4] + Vector3(0, 2.7, 0)
+		for j in 13:
+			var t := (j + 0.5) / 13.0
+			var q := a.lerp(b, t) - Vector3(0, sin(t * PI) * 0.45, 0)
+			part("sphere", q, Vector3.ONE * 0.07, Color(1.0, 0.85, 0.55), null, Vector3.ZERO, 3.0)
+	omni(Vector3(-7.0, 2.2, 40.0), Color(1.0, 0.8, 0.5), 1.0, 10.0, false)
+	prop("parasol", Vector3(-2.5, 0, 39.0), 0.0)
+	for k in 3:
+		prop("planter_box", Vector3(-13.3, 0, 26.5 + k * 1.6), 90.0)
+	# the pool: lit, steaming faintly, above the clouds
+	_roof_pool()
+	# a lantern or two
+	for lp in [Vector3(-0.5, 0, 24.0), Vector3(15.0, 0, 34.0)]:
+		if not prop("lamp_lantern", lp, 0.0):
+			shape_at("cylinder", lp + Vector3(0, 1.2, 0), Vector3(0.08, 2.4, 0.08), Color(0.2, 0.2, 0.2), true, Vector3.ZERO, "metal")
+		omni(lp + Vector3(0, 2.4, 0), Color(1.0, 0.82, 0.55), 0.8, 8.0, false)
+	# the helipad
+	for k in 24:
+		var a := k * TAU / 24.0
+		box(Vector3(1.0 + cos(a) * 4.0, 0.005, 29.0 + sin(a) * 4.0), Vector3(1.0, 0.01, 0.25), Color(0.85, 0.85, 0.8), false, rad_to_deg(-a) + 90.0)
+	var hl := label(Vector3(1.0, 0.012, 29.0), 0.0, "H", 3.0, Color(0.85, 0.85, 0.8), false)
+	hl.rotation_degrees = Vector3(-90, 0, 0)
+
+
+func _roof_pool() -> void:
+	var r := ROOF_POOL
+	var depth := 0.7
+	var cc := Vector3(r.position.x + r.size.x * 0.5, 0, r.position.y + r.size.y * 0.5)
+	var tile := Color(0.5, 0.78, 0.86)
+	box(Vector3(cc.x, -depth - 0.05, cc.z), Vector3(r.size.x, 0.1, r.size.y), tile, true, 0.0, "tiles_pool")
+	box(Vector3(cc.x, -depth * 0.5, r.position.y - 0.1), Vector3(r.size.x + 0.4, depth, 0.2), tile, true, 0.0, "tiles_pool")
+	box(Vector3(cc.x, -depth * 0.5, r.end.y + 0.1), Vector3(r.size.x + 0.4, depth, 0.2), tile, true, 0.0, "tiles_pool")
+	box(Vector3(r.position.x - 0.1, -depth * 0.5, cc.z), Vector3(0.2, depth, r.size.y), tile, true, 0.0, "tiles_pool")
+	box(Vector3(r.end.x + 0.1, -depth * 0.5, cc.z), Vector3(0.2, depth, r.size.y), tile, true, 0.0, "tiles_pool")
+	# the roof slab is cut away under it (the pool sits in it)
+	var mi := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = r.size
+	plane.subdivide_width = 20
+	plane.subdivide_depth = 14
+	mi.mesh = plane
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://scripts/world/water.gdshader" if Settings.quality >= 1 else "res://scripts/world/water_lite.gdshader")
+	mi.material_override = mat
+	mi.position = cc + Vector3(0, -0.08, 0)
+	add_child(mi)
+	omni(cc + Vector3(0, -0.4, 0), Color(0.3, 0.85, 1.0), 1.6, 7.0, false)
+	for k in 3:
+		prop("deckchair", Vector3(r.position.x + 1.5 + k * 3.0, 0, r.position.y - 1.3), 180.0)
+	interactable(cc + Vector3(0, 0.4, -r.size.y * 0.5 - 0.3), Vector3(r.size.x, 0.6, 0.4), func(): return "The pool",
+		func(): Game.hud.show_thought("Warm. Lit from underneath. A swimming pool on a roof above the clouds, and the water's warm.", 4.5))
+
+
+func _footbridge() -> void:
+	# from the terrace (north edge, z 22) to roof A (its south rim, z 6.9): railings both sides, lamps on posts
+	var za := 6.9
+	var zb := HOTEL.position.y
+	var mid := (za + zb) * 0.5
+	var len := zb - za
+	box(Vector3(BRIDGE_X, -0.08, mid), Vector3(1.6, 0.16, len), Color(0.4, 0.42, 0.45), true, 0.0, "metal")
+	for sx in [-0.78, 0.78]:
+		box(Vector3(BRIDGE_X + sx, 1.05, mid), Vector3(0.05, 0.05, len), Color(0.55, 0.57, 0.6), false, 0.0, "metal")
+		box(Vector3(BRIDGE_X + sx, 0.55, mid), Vector3(0.03, 0.03, len), Color(0.55, 0.57, 0.6), false, 0.0, "metal")
+		blocker(Vector3(BRIDGE_X + sx, 0.6, mid), Vector3(0.06, 1.2, len))
+		var z := za + 0.4
+		while z < zb:
+			box(Vector3(BRIDGE_X + sx, 0.52, z), Vector3(0.05, 1.05, 0.05), Color(0.55, 0.57, 0.6), false, 0.0, "metal")
+			z += 1.5
+	for z in [za + 3.0, mid, zb - 3.0]:
+		part("sphere", Vector3(BRIDGE_X + 0.78, 1.2, z), Vector3.ONE * 0.1, Color(1.0, 0.85, 0.6), null, Vector3.ZERO, 3.0)
+	omni(Vector3(BRIDGE_X, 1.4, mid), Color(1.0, 0.82, 0.55), 0.7, 9.0, false)
+	trigger(Vector3(BRIDGE_X, 1.0, zb - 2.0), Vector3(1.6, 2.0, 1.0), func():
+		Game.hud.show_thought("A bridge, with railings. ...Don't look down. You don't have to look down.", 3.5))
