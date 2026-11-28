@@ -119,7 +119,7 @@ func _run() -> void:
 		txt += String(o[0]) + " | "
 	check(not txt.contains(".0"), "no '5.0' after loading (%s)" % txt)
 
-	print("== BACKROOMS: the power comes on - and there's a way out of the power room")
+	print("== BACKROOMS: the power comes on - and it stays behind the glass")
 	await zone("maze")
 	var mz: MazeZone = Game.zone
 	mz._open_maint()
@@ -127,100 +127,28 @@ func _run() -> void:
 	var sd: float = mz._side
 	place(wx * Vector3(20.5, 0.05, 0), 0.0)
 	calm()
-	for letter in mz._order:
-		for b in mz._breakers:
-			if b.letter == letter:
-				mz._flip(b)
-	await wait(0.4)
 	mz._power_on()
-	await wait(0.6)
+	await wait(3.6)
+	check(mz._watching and not mz._hunting and is_instance_valid(mz._glass), "it comes to the glass - and stays behind it, watching")
 	var route := [wx * Vector3(20.2, 0, 1.6 * sd), wx * Vector3(20.2, 0, 4.4 * sd), wx * Vector3(20.2, 0, 6.5 * sd),
 		wx * Vector3(1.0, 0, 6.5 * sd), wx * Vector3(-2.0, 0, 6.5 * sd)]
 	var ok := await run_to(route)
-	check(ok and not Game.in_sequence and mz._in_grid(Game.player.global_position), "ran through the shutter and the service passage, back into the maze")
-	check(mz._hunting, "and it's coming")
-	var d0: float = mz._stalker.global_position.distance_to(Game.player.global_position)
-	var through := false
-	var tf := 0.0
-	while tf < 4.0 and not through:
-		await wait(0.1)
-		tf += 0.1
-		through = mz._in_grid(mz._stalker.global_position) or (wx.affine_inverse() * mz._stalker.global_position).z * sd > 3.0 or Game.in_sequence
-	check(through, "it followed you the way you went (stalker at %s, was %.1f m away)" % [wx.affine_inverse() * mz._stalker.global_position, d0])
-	print("== BACKROOMS: the chase - the maze closes down to one route to the lift")
-	check(mz._chase_on and mz._chase_path.size() > 1, "the chase began (%d cells to the lift)" % mz._chase_path.size())
-	var pts := mz.chase_waypoints()
-	print("    %d rooms, %d false trails, hazards %s" % [mz._chase_path.size(), mz._decoys.size(), mz._hazards.map(func(h): return h.kind)])
-	if OS.get_cmdline_user_args().has("--trace"):
-		print("    path ", mz._chase_path)
-	var made_it := await run_to(pts, true, 120.0)
-	print("    reached route cell %d/%d, fear %.0f, stalker %.1f m behind" % [mz._chase_idx, mz._chase_path.size(), Game.player.dread.fear,
-		mz._stalker.global_position.distance_to(Game.player.global_position)])
+	check(ok and not Game.in_sequence and mz._in_grid(Game.player.global_position), "through the shutter and the service passage, back into the rooms")
+	await wait(0.3)
+	check(mz._way_on and mz._way_path.size() > 1 and not mz._hunting and not mz._chase_on, "red lamps and EXIT signs lead back to the lift (%d rooms) - and nothing comes after you" % mz._way_path.size())
+	var pts := mz._way_path.map(func(c): return mz.cell_center(c.x, c.y))
+	var made_it := await run_to(pts, true, 150.0)
 	var tw := 0.0
-	while tw < 4.0 and not Game.in_sequence:
+	while tw < 6.0 and not Game.in_sequence:
 		await wait(0.1)
 		tw += 0.1
-	check(mz._sealed.size() >= 3, "openings slammed shut along the way (%d)" % mz._sealed.size())
-	check(made_it and (Game.in_sequence or Game.has_flag("maze_escaped")) and not mz._hunting,
-		"sprinting the red route, you reach the lift (the lift sequence started: %s)" % Game.in_sequence)
+	check(made_it and (Game.in_sequence or Game.has_flag("maze_escaped")), "following the trail, you reach the lift (sequence %s)" % Game.in_sequence)
 	tw = 0.0
-	while tw < 12.0 and Game.zone_type != "deep":
+	while tw < 14.0 and Game.zone_type != "deep":
 		await wait(0.2)
 		tw += 0.2
 	check(Game.zone_type == "deep", "and the lift takes you on (zone %s)" % Game.zone_type)
 	Game._cancel_sequences()
-
-	print("== BACKROOMS: die in the chase, and you're back at the start of the chase")
-	for f in ["maze_escaped", "maze_chase", "maze_hunted"]:
-		Game.clear_flag(f)       # (the run above got out of the maze)
-	await zone("maze")
-	mz = Game.zone
-	mz._open_maint()
-	mz._hunting = true
-	Game.set_flag("maze_power")
-	var chase_at: Vector3 = mz._wing_xf * Vector3(-2.0, 0.05, 0)
-	place(chase_at, 0.0)
-	await wait(0.4)
-	check(mz._chase_on and Game.has_flag("maze_chase") and Game.has_checkpoint(), "the chase saves a checkpoint")
-	check(mz._sparks.size() == mz._decoys.size() and mz._decoys.size() > 0, "a dead, grey EXIT sign over every false trail (%d)" % mz._sparks.size())
-	var old_zone: Node = Game.zone
-	Game.entity_death("stalker", mz._stalker)
-	var t_wake := 0.0
-	while t_wake < 40.0 and not (Game.zone != old_zone and Game.zone_type == "maze" and Game.mode == "game" and not Game.in_sequence):
-		await wait(0.1)
-		t_wake += 0.1
-	mz = Game.zone
-	check(Game.zone_type == "maze" and Game.player.global_position.distance_to(chase_at) < 1.5, "woke up... back where the chase began (%s)" % Game.player.global_position.snapped(Vector3.ONE * 0.1))
-	var again := false
-	var seen := []
-	for k in 20:
-		await wait(0.1)
-		seen.append("%s%s%s" % [int(mz._hunting), int(mz._chase_on), int(Game.in_sequence)])
-		again = again or (mz._hunting and mz._chase_on)
-	check(again and Game.has_flag("maze_power"), "the power on, and it's after you again (%s; stalker %.1f m; chase %s escaped %s saved %s)" % [" ".join(seen), mz._stalker.global_position.distance_to(Game.player.global_position), Game.has_flag("maze_chase"), Game.has_flag("maze_escaped"), FileAccess.get_file_as_string(Game.SAVE_PATH).contains("maze_escaped")])
-	Game._cancel_sequences()
-	print("== BACKROOMS: run into a hole instead of jumping it, and you fall")
-	await zone("maze")
-	mz = Game.zone
-	mz._open_maint()
-	place(mz._wing_xf * Vector3(-2.0, 0.05, 0), 0.0)
-	mz._hunting = true
-	await wait(0.3)
-	var pits: Array = mz._hazards.filter(func(h): return h.kind == "pit")
-	check(mz._chase_on and not pits.is_empty(), "a chase with a pit in it (%d)" % pits.size())
-	if not pits.is_empty():
-		var hz: Dictionary = pits[0]
-		mz._hunting = false
-		mz._stalker.global_position = mz.cell_center(0, 0)
-		mz._build_hazard(hz, 0.0)
-		await wait(0.5)
-		var al: Vector3 = hz.along
-		place(hz.c - al * 3.0 + Vector3(0, 0.05, 0), rad_to_deg(atan2(-al.x, -al.z)))
-		calm()
-		await walk(3.0, ["move_forward", "sprint"])
-		check(Game.in_sequence, "into the hole (y=%.1f)" % Game.player.global_position.y)
-		await wait(1.0)
-		Game._cancel_sequences()
 	print("== BLACKOUT: through number 9 on foot - front door, living room, kitchen, back door, garden")
 	await zone("blackout")
 	var bz: BlackoutZone = Game.zone
@@ -300,31 +228,18 @@ func _run() -> void:
 	p = await walk(10.0)
 	check(p.z < AbyssZone.CROSS.z + 9.5 and p.y > -1.0, "across the south arch to the centre (z=%.1f y=%.2f)" % [p.z, p.y])
 
-	print("== THE DEEP: outrunning the leviathan (sprinting straight for the door)")
+	print("== THE DEEP: the leviathan passes over - and doesn't come for you")
 	var ab: AbyssZone = Game.zone
 	place(Vector3(0, 0.05, AbyssZone.STATION_Z - 16.0), 0.0)
 	calm()
 	ab._begin_chase()
-	Input.action_press("move_forward")
-	Input.action_press("sprint")
-	var t_run := 0.0
-	while t_run < 20.0 and not Game.in_sequence and Game.player.global_position.z > AbyssZone.EXIT_Z + 1.2:
-		await get_tree().physics_frame
-		t_run += get_physics_process_delta_time()
-	Input.action_release("move_forward")
-	Input.action_release("sprint")
-	var gap: float = ab.leviathan.head_position().distance_to(Game.player.camera.global_position)
-	check(not Game.in_sequence, "sprinting, you reach the door alive (%.1f s, it was %.1f m behind you)" % [t_run, gap])
-	print("== THE DEEP: walking, it catches you")
-	await zone("abyss")
-	ab = Game.zone
-	place(Vector3(0, 0.05, AbyssZone.STATION_Z - 16.0), 0.0)
-	calm()
-	ab._begin_chase()
 	p = await walk(16.0)
-	check(Game.in_sequence, "walking, it's on you before the door (z=%.1f)" % p.z)
-	await wait(1.0)
-	Game._cancel_sequences()
+	check(not Game.in_sequence and p.z < AbyssZone.STATION_Z - 30.0, "walking on, it never touches you (z=%.1f)" % p.z)
+	var tw2 := 0.0
+	while tw2 < 15.0 and ab._chase:
+		await wait(0.2)
+		tw2 += 0.2
+	check(not ab._chase and not Game.in_sequence, "it's gone back into the dark")
 
 	print("== COMPRESSION: climbing the stairwell on foot")
 	await zone("tenement")

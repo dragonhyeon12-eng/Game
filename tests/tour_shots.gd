@@ -51,6 +51,8 @@ const SETS := {
 		["maze", Vector3(19.5, 0.05, -5.0), 180.0, 0.0, "b13_rooms"], ["maze", Vector3(-6.75, 0.05, -100.0), 0.0, -6.0, "b14_chairs"],
 		["maze", Vector3(2.0, 0.05, -92.0), 180.0, 0.0, "b15_door"], ["maze", Vector3(46.0, 0.05, -94.0), -90.0, 0.0, "b16_vending"],
 		["maze", Vector3(-14.0, 0.05, -53.0), 170.0, -6.0, "b17_tv"]],
+	"nochase": [["maze", Vector3.ZERO, 0.0, 2.0, "nc1_glass", "glass"], ["maze", Vector3.ZERO, 0.0, 0.0, "nc2_trail", "trail"],
+		["stilllife", Vector3.ZERO, 0.0, 0.0, "nc3_restless", "restless"]],
 	"cave": [["seabed", Vector3(2, 0.05, -128.0), 0.0, 4.0, "cave_mouth"], ["seabed", Vector3(2.5, 0.05, -150.0), 0.0, 0.0, "cave_tunnel"],
 		["seabed", Vector3(2, 0.05, -172.0), 0.0, 3.0, "cave_chamber"]],
 }
@@ -99,6 +101,36 @@ func _run() -> void:
 			if act == "flip_two":
 				Game.zone._set_breaker(Game.zone._breakers[0], true)
 				Game.zone._set_breaker(Game.zone._breakers[2], true)
+		if act == "glass" or act == "trail":      # the power on: it at the glass; then the red trail back
+			var mz: MazeZone = Game.zone
+			var wx: Transform3D = mz._wing_xf
+			if not Game.has_flag("maze_power"):
+				mz._open_maint()
+				mz._power_on()
+				await get_tree().create_timer(3.5).timeout
+			if act == "glass":
+				at = wx * Vector3(9.3, 0.05, 0.6)
+				var d: Vector3 = wx.basis * Vector3(0, 0, -1)
+				yaw = atan2(-d.x, -d.z)
+			else:
+				pl.teleport(Transform3D(Basis(), mz.cell_center(mz._side_cell.x, mz._side_cell.y) + Vector3(0, 0.05, 0)))
+				await get_tree().create_timer(0.5).timeout
+				var c0: Vector2i = mz._way_path[0]
+				var c1: Vector2i = mz._way_path[1]
+				at = mz.cell_center(c0.x, c0.y) + Vector3(0, 0.05, 0)
+				var d := mz.cell_center(c1.x, c1.y) - mz.cell_center(c0.x, c0.y)
+				yaw = atan2(-d.x, -d.z)
+		if act == "restless":      # a woken mannequin, looked away from, then looked at again
+			var z: StillLifeZone = Game.zone
+			var m: Mannequin = z._figures.filter(func(f): return f.has_meta("window")).front()
+			for f in z._figures:
+				f.hunting = true
+			var mp: Vector3 = m.global_position
+			at = Vector3(0, 0.05, mp.z + 0.6)
+			pl.teleport(Transform3D(Basis(Vector3.UP, atan2(mp.x, 0.0)), at))      # facing away
+			await get_tree().create_timer(5.0).timeout
+			var d2 := mp - at
+			yaw = atan2(-d2.x, -d2.z)
 		pl.teleport(Transform3D(Basis(Vector3.UP, yaw), at))
 		pl._pitch = deg_to_rad(spec[3])
 		pl.head.rotation.x = pl._pitch

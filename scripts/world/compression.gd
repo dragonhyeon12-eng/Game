@@ -20,7 +20,7 @@ const PRESS_X0 := 6.0
 const PRESS_X1 := 14.0
 const PRESS_OPEN := 1.95         # half-width of the press room
 const PRESS_SPEED := 0.38        # m/s per wall while unwatched
-const FIGURE_SPEED := 1.4
+
 
 ## Checkpoints (see Zone.checkpoint_at): the hub, each time you come back to it with another fuse, and
 ## with the power on.
@@ -586,22 +586,25 @@ func _update_drying(delta: float, p: Vector3) -> void:
 	if _figure_hint == 0:
 		_figure_hint = 1
 		Game.hud.show_thought("Sheets on the lines. And... shapes. Under the sheets. Standing.", 4.0)
+	# they turn to watch you; when you can't see one, it has shifted where it stands. They never come for you.
 	for f in _figures:
 		var head: Vector3 = f.global_position + Vector3(0, 1.4, 0)
 		var to := p - f.global_position
 		to.y = 0.0
-		var d := to.length()
 		f.rotation.y = atan2(to.x, to.z)
 		if Observation.is_observed(head, 0.6):
+			f.set_meta("unseen", 0.0)
 			continue
-		var step := minf(FIGURE_SPEED * delta, maxf(d - 0.2, 0.0))
-		f.global_position += to.normalized() * step
-		if _figure_hint == 1 and d < 6.0:
-			_figure_hint = 2
-			Game.hud.show_hint("They only move when you aren't looking.", 6.0)
-		if d < 0.75:
-			Game.entity_death("sheet", f)
-			return
+		var u: float = f.get_meta("unseen", 0.0) + delta
+		f.set_meta("unseen", u)
+		if u > 1.5 and randf() < delta * 0.6:
+			f.set_meta("unseen", 0.0)
+			var home: Vector3 = f.get_meta("home")
+			var off := Vector3(randf_range(-0.5, 0.5), 0, randf_range(-0.5, 0.5))
+			f.global_position = Vector3(home.x + off.x, f.global_position.y, home.z + off.z)
+			if _figure_hint == 1 and to.length() < 6.0:
+				_figure_hint = 2
+				Game.hud.show_thought("That one moved. ...It didn't come closer. It just moved. It's watching me.", 4.0)
 
 
 # ------------------------------------------------------------------ props

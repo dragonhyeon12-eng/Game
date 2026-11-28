@@ -595,14 +595,15 @@ func _begin_collapse() -> void:
 	Sfx.play("grind", 0.0, 0.5)
 	Sfx.play("metal_screech", -2.0, 0.4)
 	Game.player.jolt(Vector3(-5, 4, 3))
-	Game.player.dread.add_fear(15.0, "collapse")
-	Game.hud.show_thought("The whole building-- RUN. RUN!", 3.0)
+	Game.player.dread.add_fear(10.0, "collapse")
+	Game.hud.show_thought("Behind me - the building's folding up. ...Only behind me. Keep going.", 3.5)
 
 
 func _update_collapse(delta: float) -> void:
 	var pl: Player = Game.player
-	_front_speed = minf(_front_speed + delta * 0.05, 3.3)
-	_front += _front_speed * delta
+	# it folds up behind you, never onto you: it keeps its distance, whatever pace you go at
+	_front_speed = 2.2
+	_front = minf(_front + _front_speed * delta, pl.global_position.x - 4.0)
 	_dust.global_position = Vector3(_front, 1.2, CORR_Z)
 	_dust.emitting = true
 	for s in _segs:
@@ -623,17 +624,13 @@ func _update_collapse(delta: float) -> void:
 			Sfx.play(["thud", "creak", "grind", "scrape"][randi() % 4], -4.0, randf_range(0.4, 0.8))
 		if x + 4.0 > pl.global_position.x:
 			pl.jolt(Vector3(randf_range(-2, 0), randf_range(-1, 1), randf_range(-1, 1)))
-	if _front > pl.global_position.x - 0.3 and pl.global_position.x < CORR_X1:
-		_collapse = false
-		Game.entity_death("crush", null)
-		return
 	if pl.global_position.x > CORR_X1 - 0.5:
 		_collapse = false
 		_dust.emitting = false
 		Game.set_flag("ten_shaft")
 		checkpoint_at("shaft")
 		Sfx.play("thud", 4.0, 0.4)
-		Game.hud.show_thought("It stopped. ...It stopped at the door. Up. Go UP.", 3.0)
+		Game.hud.show_thought("It stopped. ...At the door. Up, then.", 3.0)
 
 
 # ---- 7: the escape shaft -----------------------------------------------------------

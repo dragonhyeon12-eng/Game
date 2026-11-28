@@ -459,12 +459,15 @@ func _begin_chase() -> void:
 		return
 	_chase = true
 	_chase_t = 0.0
+	# it comes out of the dark close enough to feel, goes right over you - and on. It never comes for you.
 	var p: Vector3 = Game.player.global_position
-	leviathan.place_head(p + Vector3(48, 10, -8), Vector3(-1, -0.15, 0))
-	leviathan.rush(p, 3.6)
-	Sfx.stinger("screech", 2.0)
+	leviathan.place_head(p + Vector3(-60, 12, 4), Vector3(1, 0, -0.08))
+	leviathan.rush(p + Vector3(70, 10, -8), 11.0)
+	Sfx.stinger("sub_drop", 0.0)
 	Sfx.play("whoosh", 2.0, 0.4)
-	Game.hud.show_thought("IT'S HERE. THE DOOR. RUN.", 3.0)
+	Game.player.jolt(Vector3(-3, 2, 1))
+	Game.player.dread.add_fear(12.0, "overhead")
+	Game.hud.show_thought("...It went right over me. It didn't even slow down. ...The door. Just walk to the door.", 4.5)
 
 
 func _escape() -> void:
@@ -541,8 +544,6 @@ func _process(delta: float) -> void:
 		return
 	if _chase:
 		_chase_t += delta
-		leviathan.rush_target = pl.camera.global_position
-		leviathan.speed = 3.6 + _chase_t * 0.08
-		if leviathan.head_position().distance_to(pl.camera.global_position) < 3.2:
+		if leviathan.arrived or _chase_t > 14.0:
+			leviathan.return_to_orbit(9.0)
 			_chase = false
-			Game.entity_death("leviathan", leviathan)

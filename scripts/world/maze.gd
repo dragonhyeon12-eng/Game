@@ -534,8 +534,13 @@ func _restore_chase() -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	_update_way_in(delta)
-	if _hunting and not _chase_on and Game.player and _in_grid(Game.player.global_position) and not Game.in_sequence:
-		_begin_chase()
+	if Game.has_flag("maze_power") and not _way_on and Game.player and _in_grid(Game.player.global_position) and not Game.in_sequence:
+		_way_back()
+	if _way_on:
+		_update_way_back(delta)
+	if _watching and _stalker and Game.player:
+		var to: Vector3 = Game.player.global_position - _stalker.global_position
+		_stalker.rotation.y = lerp_angle(_stalker.rotation.y, atan2(to.x, to.z), minf(1.0, delta * 2.0))
 	if _chase_on:
 		_update_chase(delta)
 	elif _at_bars:
@@ -923,21 +928,19 @@ func _power_on() -> void:
 		_set_dynamic(w, not w.open)
 	_lift_light.light_energy = 1.5
 	_lift_sign.material_override = Shapes.material(Color(1.0, 0.25, 0.15), 0.4, 3.0)
-	Game.hud.show_thought("Power. ...The lift. Back where I started. And the shutter - it's opening.", 4.0)
+	Game.hud.show_thought("Power. ...The lift. Back the way I came. And the shutter - it's opening.", 4.0)
 	_open_escape()
 	_trail.clear()
 	_portals()
 	await get_tree().create_timer(3.0, false).timeout
 	if not is_inside_tree():
 		return
-	_glass.queue_free()
-	Sfx.play_at("hit", self, _stalker.global_position + Vector3(0, 1.5, 0), 6.0, 40.0)
-	Sfx.stinger("screech", -2.0)
-	Game.player.dread.add_fear(15.0, "it's out")
-	Game.hud.show_thought("RUN.", 2.0)
-	_stalker.scramble = true          # out of the glass on all fours, and it doesn't get up again
-	_hunting = true
-	Game.set_flag("maze_hunted")
+	# behind the glass, it comes up to the glass. It puts its hand on it. It watches you go. That's all.
+	_stalker.global_position = _wing_xf * Vector3(9.3, 0, -2.0)
+	Sfx.play_at("thud", self, _stalker.global_position + Vector3(0, 1.5, 0), 0.0, 30.0, 0.7)
+	Game.player.dread.add_fear(8.0, "at the glass")
+	Game.hud.show_thought("It's at the glass. ...It's just watching me. Go. Just go.", 3.5)
+	_watching = true
 
 
 ## After the power comes on, two doorways no longer lead where they did.
@@ -950,8 +953,8 @@ func _portals() -> void:
 		var from := cell_center(a.x, a.y)
 		var to := cell_center(b.x, b.y)
 		trigger(from + Vector3(0, 1.2, 0), Vector3(1.5, 2.4, 1.5), func():
-			if _chase_on or _at_bars:
-				return          # (not in the chase: it would throw you off the one route there is)
+			if _chase_on or _at_bars or _way_on:
+				return          # (not on the way back: it would throw you off the trail)
 			var off: Vector3 = Game.player.global_position - from
 			Game.player.global_position = to + off
 			Sfx.play("glitch", -14.0)
@@ -2656,3 +2659,54 @@ func _stains() -> void:
 			mmi.visibility_range_end_margin = 10.0
 			add_child(mmi)
 	_stain_lists.clear()
+
+
+
+# ------------------------------------------------------------------ the way back
+# No chase. With the power on, the rooms are red and wrong - walls moved, two doorways leading elsewhere - and
+# a trail of dim red lamps and EXIT signs leads back to the lift. Whatever was behind the glass stays there.
+
+var _way_on := false
+var _watching := false
+var _way_path: Array[Vector2i] = []
+var _way_lights: Array = []        # [light, phase]
+var _lift_called := false
+
+
+func _way_back() -> void:
+	_way_on = true
+	_seal_entry()
+	var start := cell_at(Game.player.global_position)
+	_way_path = _route_cells(start, Vector2i(0, 0))
+	# the way stays open: any shifting wall on it is open, and stays so
+	for i in _way_path.size() - 1:
+		var mid := (cell_center(_way_path[i].x, _way_path[i].y) + cell_center(_way_path[i + 1].x, _way_path[i + 1].y)) * 0.5
+		for w in _dynamic:
+			if Vector2(w.center.x - mid.x, w.center.z - mid.z).length() < 0.01 and not w.open:
+				_set_dynamic(w, true)
+	for i in _way_path.size():
+		var l := _red_light(_way_path[i])
+		l.visible = true
+		l.light_energy = 1.6
+		_way_lights.append([l, randf() * TAU])
+	for i in range(1, _way_path.size() - 1):
+		var din := _way_path[i] - _way_path[i - 1]
+		var dout := _way_path[i + 1] - _way_path[i]
+		if din != dout or i % 4 == 0:
+			_exit_sign(_way_path[i], din, signi(din.x * dout.y - din.y * dout.x))
+	if _env:
+		var tw := create_tween().set_parallel()
+		tw.tween_property(_env, "ambient_light_color", Color(0.7, 0.3, 0.22), 2.0)
+		tw.tween_property(_env, "fog_light_color", Color(0.35, 0.1, 0.06), 2.0)
+	Sfx.play("metal_screech", -10.0, 0.5)
+	Game.hud.show_thought("Red. All of it. ...And EXIT signs, leading off. Back to the lift.", 3.5)
+
+
+func _update_way_back(delta: float) -> void:
+	# the red lamps breathe, slowly, out of step with each other
+	for wl in _way_lights:
+		wl[1] += delta * 1.3
+		(wl[0] as OmniLight3D).light_energy = 1.2 + 0.5 * sin(wl[1])
+	if not _lift_called and cell_at(Game.player.global_position) == Vector2i(0, 0):
+		_lift_called = true
+		_lift_arrives()

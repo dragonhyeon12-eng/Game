@@ -199,14 +199,19 @@ func _stilllife() -> void:
 	check(Game.has_flag("sl_family") and Game.has_flag("sl_key"), "...and the guard's keys")
 	var awake := z._figures.filter(func(m): return m.hunting).size()
 	check(awake > 12, "...and the window displays wake (%d)" % awake)
-	# look away from a window: its mannequin's out of it (one from far down the arcade: the near ones may be out already)
-	var waiting := z._figures.filter(func(m): return m.has_meta("out_to"))
-	check(waiting.size() > 0, "far down the arcade, some are still in their windows (%d)" % waiting.size())
-	var one: Mannequin = waiting.back()
+	# look away from one: it changes its stance and turns to you - and it's still on its plinth
+	var one: Mannequin = z._figures.filter(func(m): return m.hunting and m.has_meta("window")).back()
+	var home: Vector3 = one.global_position
+	var pose0: String = one.pose
 	place(Vector3(0, 0.05, one.global_position.z), 0.0)
 	Game.player.rotation.y = atan2(one.global_position.x, 0.0)      # facing away from it
-	await wait(1.5)
-	check(not one.has_meta("out_to") and absf(one.global_position.x) < StillLifeZone.HALF, "a display stepped out of its window while you looked away")
+	var changed := false
+	for k in 40:
+		await wait(0.2)
+		if one.pose != pose0:
+			changed = true
+			break
+	check(changed and one.global_position.distance_to(home) < 0.01, "a display changed its stance while you looked away (%s -> %s), and stayed in its window" % [pose0, one.pose])
 	_calm_figures(z)
 	print("== STILL LIFE: the escalator")
 	place(StillLifeZone.ESC + Vector3(0, 0.05, 1.6), 0.0)

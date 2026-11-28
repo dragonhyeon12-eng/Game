@@ -288,8 +288,7 @@ func _run() -> void:
 	check(mz._flipped.size() == 4, "breakers flipped in the right order")
 	mz._power_on()
 	await wait(3.5)
-	check(Game.has_flag("maze_power") and mz._hunting, "power on; it's out")
-	mz._hunting = false
+	check(Game.has_flag("maze_power") and mz._watching and not mz._hunting, "power on; it watches from behind the glass")
 	mz._lift_arrives()
 	await wait(2.8)
 	await wait(5.0)
@@ -528,15 +527,17 @@ func _compression() -> void:
 	var fig: Node3D = cz._figures[0]
 	look_at_point(fig.global_position + Vector3(0, 1.4, 0))
 	await wait(2.2)   # their grace period
+	var home: Vector3 = fig.get_meta("home")
 	var d0 := fig.global_position.distance_to(Game.player.global_position)
 	look_at_point(Vector3(-2, 1.5, -7))   # away from them
-	await wait(0.6)
-	var d1 := fig.global_position.distance_to(Game.player.global_position)
-	check(d1 < d0 - 0.4, "they come closer while you look away (%.1f -> %.1f)" % [d0, d1])
-	look_at_point(fig.global_position + Vector3(0, 1.4, 0))
-	await wait(0.6)
-	var d2 := fig.global_position.distance_to(Game.player.global_position)
-	check(absf(d2 - fig.global_position.distance_to(Game.player.global_position)) < 0.01 and d2 > 0.8, "and stop when you look")
+	var moved := false
+	var closest := INF
+	for k in 30:
+		await wait(0.2)
+		closest = minf(closest, fig.global_position.distance_to(Game.player.global_position))
+		moved = moved or Vector2(fig.global_position.x - home.x, fig.global_position.z - home.z).length() > 0.05
+	check(moved and Vector2(fig.global_position.x - home.x, fig.global_position.z - home.z).length() < 0.75, "look away and one shifts where it stands - but stays where it was")
+	check(closest > d0 - 0.8 and Game.zone_type == "compression", "and it doesn't come for you (%.1f m, closest %.1f m)" % [d0, closest])
 	await shot("drying_room")
 	Game.player.teleport(Transform3D(Basis(), Vector3(2.5, 0.05, -20.5)))
 	await wait(0.3)

@@ -230,7 +230,6 @@ func _shop(i: int) -> void:
 			m.set_meta("window", true)
 			if m_i == 0:
 				m.set_meta("wakes", "sl_key")       # one from each window comes out; the rest just watch
-				m.set_meta("out_to", Vector3(fx - s * 1.3, 0, mz))     # where it steps out to, through the glass
 		_stock(kind, s, fx, bx, zc, neon)
 	if quirk == "family":
 		_family_table()
@@ -580,13 +579,12 @@ func _wake(flag: String) -> void:
 			m.hunting = true
 
 
-## Every one you can't see, steps. Hunting ones step toward you; the rest only change. A window display
-## that wakes is first out of its window - through the glass - the moment nobody's watching.
+## None of them ever leaves its plinth. But every one you can't see changes: a new stance, and its face
+## turned to you. The restless ones (woken by what you've done) change sooner, and into worse.
 func _update_figures(delta: float, p: Vector3) -> void:
-	var on_level := STOREY if p.y > STOREY - 0.5 else 0.0
 	_creak_t -= delta
 	for m in _figures:
-		if not m.visible:
+		if not m.visible or m.pose == "sit":
 			continue
 		var head := m.head_position()
 		var seen := Observation.is_observed(head + Vector3(0, -0.5, 0), 0.6) and _lit_at(m.global_position)
@@ -594,45 +592,19 @@ func _update_figures(delta: float, p: Vector3) -> void:
 			m.unseen_t = 0.0
 			continue
 		m.unseen_t += delta
-		if not m.hunting:
-			if m.unseen_t > 3.0 and randf() < delta * 0.25 and m.global_position.distance_to(p) < 18.0:
-				m.unseen_t = 0.0
-				m.set_pose(["stand", "hip", "wave", "point"].pick_random())
-				m.face_toward(p)
+		var restless := m.hunting
+		if m.unseen_t < (1.2 if restless else 3.0) or randf() > delta * (0.8 if restless else 0.25):
 			continue
-		if m.has_meta("out_to"):
-			var near: bool = (m.get_meta("out_to") as Vector3).distance_to(p) < 22.0
-			if near and m.unseen_t > 0.6 and not Observation.is_observed(m.get_meta("out_to") + Vector3(0, 1.0, 0), 0.8):
-				m.global_position = m.get_meta("out_to")
-				m.remove_meta("out_to")
-				m.face_toward(p)
-				m.set_pose("reach")
-				Sfx.play_at("creak", self, m.global_position + Vector3(0, 1.0, 0), -6.0, 16.0)
+		var d := m.global_position.distance_to(p)
+		if d > 18.0:
 			continue
-		if absf(m.level_y - on_level) > 0.5:
-			continue
-		m.step_t -= delta
-		if m.step_t > 0.0:
-			continue
-		if m.unseen_t < 0.3:
-			continue        # (a glance away isn't enough)
-		m.step_t = 0.3
-		var to := p - m.global_position
-		to.y = 0.0
-		var d := to.length()
-		if d < 0.95:
-			Game.entity_death("mannequin", m)
-			return
-		var dir := to / d
-		var step := minf(0.38, d - 0.7)
-		var target := m.global_position + _clear_step(m.global_position, dir, step)
-		target.y = m.level_y
-		m.global_position = target
+		m.unseen_t = 0.0
+		var poses: Array = (["point", "reach", "reach", "lunge", "hip"] if restless else ["stand", "hip", "wave", "point"]).filter(func(q): return q != m.pose)
+		m.set_pose(poses.pick_random())
 		m.face_toward(p)
-		m.set_pose("reach" if d > 3.0 else "lunge")
-		if _creak_t <= 0.0 and d < 12.0:
-			_creak_t = randf_range(0.6, 1.4)
-			Sfx.play_at("creak", self, m.global_position + Vector3(0, 1.0, 0), -8.0, 14.0)
+		if restless and _creak_t <= 0.0 and d < 12.0:
+			_creak_t = randf_range(1.5, 3.0)
+			Sfx.play_at("creak", self, m.global_position + Vector3(0, 1.0, 0), -10.0, 14.0)
 
 
 ## A step from `from` along `dir`, turning aside if something's in the way.
@@ -665,7 +637,7 @@ func _begin_climax() -> void:
 	Game.set_flag("sl_lights3")
 	Sfx.stinger("braam", -2.0)
 	Sfx.play("switch", 2.0, 0.5)
-	Game.hud.show_thought("The lights - behind me - they're going out. In the dark they don't have to wait for me to look away.", 4.5)
+	Game.hud.show_thought("The lights - behind me - they're going out. ...Every one of them is turned this way now.", 4.5)
 	_wake("sl_lights3")
 
 
