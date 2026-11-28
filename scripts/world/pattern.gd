@@ -360,7 +360,13 @@ func _core() -> void:
 		func(): Game.on_pattern_exit(), func(): return _open)
 	trigger(CORE + Vector3(0, 1.2, 6.0), Vector3(4, 2.4, 2), func():
 		Game.set_flag("pt_core")
-		Game.hud.show_thought("The middle. It's all holes in here. ...Three rings on the far wall, and a notch in each.", 4.0))
+		Game.hud.show_thought("The middle. It's all holes in here. ...The rings on the far wall are turning.", 4.0)
+		# the rings turn to their notches by themselves, and the vault rolls aside
+		for k in 3:
+			get_tree().create_timer(1.0 + k * 0.9, false).timeout.connect(func():
+				if is_inside_tree() and not _open:
+					while _ring_pos[k] != 0:
+						_turn(k)))
 
 
 func _turn(k: int) -> void:

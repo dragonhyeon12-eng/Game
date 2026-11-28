@@ -11,9 +11,9 @@ enum Edge { WALL, OPEN, EXTRA, DYNAMIC }
 const DX := [1, -1, 0, 0]
 const DZ := [0, 0, 1, -1]
 
-const W := 12
-const H := 12
-const CELL := 5.0
+const W := 16
+const H := 16
+const CELL := 6.5
 const WALL_H := 2.9
 const THICK := 0.24
 const PILLAR := 0.28   # slightly thicker than walls
@@ -215,19 +215,25 @@ func _generate() -> void:
 			if arr[i] != Edge.WALL:
 				continue
 			var r := rng.randf()
-			if r < 0.12:
+			if r < 0.3:                      # (open-plan: most of the walls a maze would have aren't there)
 				arr[i] = Edge.EXTRA
-			elif r < 0.27:
+			elif r < 0.42:
 				arr[i] = Edge.DYNAMIC
 		set(arr_name, arr)
 
-	# a few open-plan "office" rooms (2x2)
-	for r in 3:
-		var rx := rng.randi_range(1, W - 3)
-		var rz := rng.randi_range(1, H - 3)
-		for e in [[rx, rz, 0], [rx, rz + 1, 0], [rx, rz, 2], [rx + 1, rz, 2]]:
-			if _get_edge(e[0], e[1], e[2]) != Edge.OPEN:
-				_set_edge(e[0], e[1], e[2], Edge.EXTRA)
+	# open-plan halls: big empty rooms of carpet and light (3x3 and 2x2)
+	for r in 7:
+		var size := 3 if r % 2 == 0 else 2
+		var rx := rng.randi_range(1, W - size - 1)
+		var rz := rng.randi_range(1, H - size - 1)
+		for i in size:
+			for j in size:
+				if i < size - 1:
+					if _get_edge(rx + i, rz + j, 0) != Edge.OPEN:
+						_set_edge(rx + i, rz + j, 0, Edge.EXTRA)
+				if j < size - 1:
+					if _get_edge(rx + i, rz + j, 2) != Edge.OPEN:
+						_set_edge(rx + i, rz + j, 2, Edge.EXTRA)
 
 	# exit: the boundary cell farthest from the start (BFS over permanent openings)
 	var dist := {Vector2i(0, 0): 0}
@@ -764,12 +770,13 @@ func _wing(door_center: Vector3, out: Vector3, along: Vector3) -> void:
 	_main_switch = group(_wing_xf * Vector3(21.78, 1.1, 0.95))
 	part("box", Vector3(0, 0.15, 0), Vector3(0.07, 0.3, 0.07), Color(0.6, 0.08, 0.05), _main_switch)
 	interactable(_wing_xf * Vector3(21.7, 1.2, 0.95), Vector3(0.3, 0.5, 0.4),
-		func(): return "MAIN SUPPLY" if _flipped.size() == 4 else "Main supply (breakers off)",
+		func(): return "MAIN SUPPLY",
 		func():
-			if _flipped.size() < 4:
-				Game.hud.show_thought("Nothing. The breakers have to be up first.", 2.5)
-			else:
-				_power_on(),
+			for b in _breakers:
+				if not b.up:
+					b.up = true
+					_set_breaker(b, true)
+			_power_on(),
 		func(): return not Game.has_flag("maze_power"))
 	# a tape recorder (optional)
 	_wbox(Vector3(17.2, 0.45, -2.5), Vector3(0.6, 0.9, 0.8), Color(0.35, 0.3, 0.25), true, "wood")

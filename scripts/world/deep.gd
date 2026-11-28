@@ -554,6 +554,11 @@ func _update_drain(delta: float) -> void:
 # ------------------------------------------------------------------ runtime
 
 func on_player_entered(from_save: bool) -> void:
+	give(["deep_handle", "deep_key"])
+	if _lever_arm:
+		_lever_arm.visible = true
+	if _handle_pickup:
+		_handle_pickup.visible = false
 	_t = 0.0
 	_hint = 2 if from_save else 0
 	if not from_save:
@@ -804,7 +809,7 @@ func _objectives() -> void:
 	part("box", Vector3(-0.06, 0.9, 1.3), Vector3(0.05, 0.08, 0.06), Color(0.75, 0.6, 0.25), _gate, Vector3.ZERO, 0.0, "metal")   # padlock
 	part("box", Vector3(-0.08, 0.95, 1.2), Vector3(0.02, 0.2, 0.12), Color(0.85, 0.82, 0.7), _gate, Vector3(0, 0, 10), 0.0, 0.8)   # tag
 	interactable(GATE_POS + Vector3(0, 1.0, 0), Vector3(0.6, 2.0, 1.4),
-		func(): return "Unlock the gate" if Game.has_flag("deep_key") else "Gate",
+		func(): return "Open the gate" if Game.has_flag("deep_key") else "Gate",
 		func():
 			Game.set_flag("deep_saw_gate")
 			if Game.has_flag("deep_key"):

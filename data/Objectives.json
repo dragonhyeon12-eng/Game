@@ -1,18 +1,9 @@
 {
-	"_doc": "Objectives shown in the top-left corner, per zone. An objective is done when its flag is set. 'after' hides it until that flag is set (unless it is already done). {name} is replaced by Game.counters[name].",
+	"_doc": "Objectives shown in the top-left corner, per zone. An objective is done when its flag is set. 'after' hides it until that flag is set (unless it is already done). {name} is replaced by Game.counters[name]. One general aim per realm: no checklists (open-world progression).",
 	"bedroom": [
 		{
-			"flag": "tutorial_done",
-			"text": "Watch the video on the PC"
-		},
-		{
-			"flag": "has_notebook",
-			"text": "Take the notebook from the desk"
-		},
-		{
 			"flag": "_sleep",
-			"text": "Go to bed",
-			"after": "has_notebook"
+			"text": "Get some sleep"
 		}
 	],
 	"shifting": [
@@ -23,433 +14,92 @@
 	],
 	"city": [
 		{
-			"flag": "city_landmarks",
-			"text": "Explore the neighbourhood ({landmarks}/3)"
-		},
-		{
-			"flag": "manifest_first",
-			"text": "Picture something (hold Q)"
-		},
-		{
-			"flag": "city_changed",
-			"text": "Change something in the dream ({changes}/2)",
-			"after": "manifest_first"
-		},
-		{
-			"flag": "city_talked",
-			"text": "Talk to the residents ({talked}/3)"
-		},
-		{
-			"flag": "city_told",
-			"text": "Tell someone they're dreaming",
-			"after": "city_talked"
-		},
-		{
-			"flag": "observer_noticed",
-			"text": "Find the man who doesn't move",
-			"after": "city_told"
-		},
-		{
 			"flag": "fell_through",
-			"text": "Find a quiet place to sleep: the big tree on the hill",
-			"after": "observer_noticed"
+			"text": "Wander. Find somewhere quiet to rest"
 		}
 	],
 	"remember": [
 		{
-			"flag": "rm_fountain",
-			"text": "Walk into the park"
-		},
-		{
-			"flag": "rm_gardens",
-			"text": "Follow the signs to the gardens",
-			"after": "rm_fountain"
-		},
-		{
-			"flag": "rm_playground",
-			"text": "Keep walking",
-			"after": "rm_gardens"
-		},
-		{
-			"flag": "rm_gate",
-			"text": "Find the three markers ({markers}/3)",
-			"after": "rm_impossible"
-		},
-		{
 			"flag": "rm_exit",
-			"text": "Go out through the white arch",
-			"after": "rm_gate"
+			"text": "Find the way out"
 		}
 	],
 	"maze": [
 		{
-			"flag": "maze_found_wing",
-			"text": "Find a way out of the yellow rooms"
-		},
-		{
-			"flag": "maze_notes",
-			"text": "Find the notes about the power ({notes}/3)",
-			"after": "maze_power_room"
-		},
-		{
-			"flag": "maze_power",
-			"text": "Restore the power: breakers in order, then the main supply",
-			"after": "maze_power_room"
-		},
-		{
 			"flag": "maze_escaped",
-			"text": "Get back to the lift where you started",
-			"after": "maze_power"
+			"text": "Find a way out"
 		}
 	],
 	"deep": [
 		{
-			"flag": "deep_in_pump",
-			"text": "Get into the PUMP ROOM"
-		},
-		{
-			"flag": "deep_handle",
-			"text": "Find the DRAIN lever's missing handle",
-			"after": "deep_saw_lever"
-		},
-		{
-			"flag": "deep_lever",
-			"text": "Pull the DRAIN lever",
-			"after": "deep_saw_lever"
-		},
-		{
-			"flag": "deep_drained",
-			"text": "Watch the deep pool until it's empty",
-			"after": "deep_lever"
-		},
-		{
-			"flag": "deep_key",
-			"text": "Find the key to the gate around the deep pool",
-			"after": "deep_saw_gate"
-		},
-		{
-			"flag": "deep_gate",
-			"text": "Unlock the gate",
-			"after": "deep_saw_gate"
-		},
-		{
 			"flag": "deep_grabbed",
-			"text": "Go down",
-			"after": "deep_gate"
+			"text": "Find a way down"
 		}
 	],
 	"seabed": [
 		{
-			"flag": "seabed_light",
-			"text": "Picture a light (hold Q)"
-		},
-		{
-			"flag": "seabed_cliff",
-			"text": "Follow the glowing stones. Don't stray."
-		},
-		{
-			"flag": "seabed_cave",
-			"text": "Get inside the sea cave",
-			"after": "seabed_cliff"
-		},
-		{
 			"flag": "deep_doorway",
-			"text": "Step through the glowing doorway",
-			"after": "seabed_cave"
+			"text": "Find the way out"
 		}
 	],
 	"compression": [
 		{
-			"flag": "comp_saw_box",
-			"text": "Find a way out"
-		},
-		{
-			"flag": "comp_fuses",
-			"text": "Find 3 fuses for the freight elevator ({fuses}/3)",
-			"after": "comp_saw_box"
-		},
-		{
-			"flag": "comp_power",
-			"text": "Put the fuses in the fuse box",
-			"after": "comp_saw_box"
-		},
-		{
 			"flag": "comp_elevator",
-			"text": "Take the freight elevator up",
-			"after": "comp_power"
+			"text": "Find a way out"
 		}
 	],
 	"above": [
 		{
-			"flag": "above_key",
-			"text": "Get the key at the end of the plank"
-		},
-		{
-			"flag": "above_cross",
-			"text": "Cross the beam to the next roof"
-		},
-		{
-			"flag": "above_bridge",
-			"text": "Use the key on the bridge controls",
-			"after": "above_cross"
-		},
-		{
-			"flag": "above_lift",
-			"text": "Take the sky lift",
-			"after": "above_bridge"
-		},
-		{
-			"flag": "above_stairs",
-			"text": "Climb the stairs to the unfinished tower",
-			"after": "above_lift"
-		},
-		{
-			"flag": "above_crane",
-			"text": "Up the scaffolding. Swing the crane's girder across the gap",
-			"after": "above_stairs"
-		},
-		{
-			"flag": "above_skyway",
-			"text": "Cross the skyway",
-			"after": "above_crane"
-		},
-		{
-			"flag": "above_mast",
-			"text": "Climb the mast to the red light",
-			"after": "above_skyway"
-		},
-		{
 			"flag": "above_escaped",
-			"text": "Follow the path to the door in the sky",
-			"after": "above_mast"
+			"text": "Find a way down from here"
 		}
 	],
 	"bedroom_dream": [
 		{
-			"flag": "city_realitycheck",
-			"text": "Reality check: read the clock, look away, read it again"
-		},
-		{
 			"flag": "_outside",
-			"text": "Go outside",
-			"after": "city_realitycheck"
+			"text": "Go outside"
 		}
 	],
 	"abyss": [
 		{
-			"flag": "abyss_valves",
-			"text": "Open the flooded bulkhead: turn the valve wheels ({valves}/2)"
-		},
-		{
-			"flag": "abyss_room1",
-			"text": "Find the door that leads somewhere",
-			"after": "abyss_valves"
-		},
-		{
-			"flag": "abyss_room2",
-			"text": "A room with no doors. Find a way through",
-			"after": "abyss_room1"
-		},
-		{
-			"flag": "abyss_room3",
-			"text": "There's a door here - but only when you're not looking at it",
-			"after": "abyss_room2"
-		},
-		{
-			"flag": "abyss_beacons",
-			"text": "Light the four beacons across the trenches ({beacons}/4)",
-			"after": "abyss_cross"
-		},
-		{
-			"flag": "abyss_station",
-			"text": "Cross the bridge of light to the station",
-			"after": "abyss_beacons"
-		},
-		{
 			"flag": "deep_escaped",
-			"text": "Get out the far side. The glowing door in the cliff. RUN.",
-			"after": "abyss_station"
+			"text": "Keep going"
 		}
 	],
 	"tenement": [
 		{
-			"flag": "ten_apartment",
-			"text": "Apartment 3B is standing open"
-		},
-		{
-			"flag": "ten_vent",
-			"text": "Find a way through the apartment",
-			"after": "ten_apartment"
-		},
-		{
-			"flag": "ten_stairs",
-			"text": "Squeeze through the vent",
-			"after": "ten_vent"
-		},
-		{
-			"flag": "ten_floor7",
-			"text": "Get to floor 7 (now: {floor})",
-			"after": "ten_stairs"
-		},
-		{
-			"flag": "ten_shaft",
-			"text": "RUN",
-			"after": "ten_collapse"
-		},
-		{
 			"flag": "comp_escaped",
-			"text": "Climb the shaft to the door at the top",
-			"after": "ten_shaft"
+			"text": "Find a way up"
 		}
 	],
 	"blackout": [
 		{
-			"flag": "bo_tree",
-			"text": "Follow the streetlights up Larkspur Lane"
-		},
-		{
-			"flag": "bo_inside",
-			"text": "The road's blocked. Go through number 9",
-			"after": "bo_tree"
-		},
-		{
-			"flag": "bo_key",
-			"text": "The back door is padlocked. Find the key",
-			"after": "bo_inside"
-		},
-		{
-			"flag": "bo_backyard",
-			"text": "Get out the back door",
-			"after": "bo_key"
-		},
-		{
-			"flag": "bo_power",
-			"text": "Round the gardens to the junction box. Turn the power on",
-			"after": "bo_backyard"
-		},
-		{
 			"flag": "bo_escaped",
-			"text": "Get on the night bus",
-			"after": "bo_power"
+			"text": "Find a way out of Larkspur Lane"
 		}
 	],
 	"stilllife": [
 		{
-			"flag": "sl_directory",
-			"text": "Find a way out of the arcade"
-		},
-		{
-			"flag": "sl_note",
-			"text": "The escalator's locked. Find security",
-			"after": "sl_directory"
-		},
-		{
-			"flag": "sl_key",
-			"text": "The guard's at dinner. Home & Family",
-			"after": "sl_note"
-		},
-		{
-			"flag": "sl_escalator",
-			"text": "Unlock the escalator grille",
-			"after": "sl_key"
-		},
-		{
-			"flag": "sl_level3",
-			"text": "Up to the gallery",
-			"after": "sl_escalator"
-		},
-		{
 			"flag": "sl_escaped",
-			"text": "Find the staff exit",
-			"after": "sl_level3"
+			"text": "Find a way out of the arcade"
 		}
 	],
 	"openspace": [
 		{
-			"flag": "os_car",
-			"text": "Find your car (listen for it)"
-		},
-		{
-			"flag": "os_station",
-			"text": "Walk to the gas station",
-			"after": "os_car"
-		},
-		{
-			"flag": "os_call",
-			"text": "Answer the phone",
-			"after": "os_station"
-		},
-		{
-			"flag": "os_plaza",
-			"text": "Out the back of the shop",
-			"after": "os_call"
-		},
-		{
 			"flag": "os_escaped",
-			"text": "Get to the subway stairs",
-			"after": "os_plaza"
+			"text": "Find a way out"
 		}
 	],
 	"pattern": [
 		{
-			"flag": "pt_hive",
-			"text": "Find the way out: the middle"
-		},
-		{
-			"flag": "pt_deep",
-			"text": "Go deeper through the doorway without holes ({hive}/4)",
-			"after": "pt_hive"
-		},
-		{
-			"flag": "pt_rings",
-			"text": "Line up the three rings",
-			"after": "pt_deep"
-		},
-		{
 			"flag": "pt_escaped",
-			"text": "Through the porthole door",
-			"after": "pt_rings"
+			"text": "Find the way out"
 		}
 	],
 	"quiet": [
 		{
-			"flag": "q_number",
-			"text": "Take a number"
-		},
-		{
-			"flag": "q_book",
-			"text": "Sign the visitors' book",
-			"after": "q_number"
-		},
-		{
-			"flag": "q_records",
-			"text": "Find the patient's file in Records",
-			"after": "q_book"
-		},
-		{
-			"flag": "q_key",
-			"text": "Get the key to Ward 6 from the nurses' station",
-			"after": "q_records"
-		},
-		{
-			"flag": "q_chart",
-			"text": "Ward 6, at the end of the corridor",
-			"after": "q_key"
-		},
-		{
-			"flag": "q_garden",
-			"text": "Go out to the memorial garden",
-			"after": "q_chart"
-		},
-		{
-			"flag": "q_gatekey",
-			"text": "Talk to the man on the bench",
-			"after": "q_garden"
-		},
-		{
 			"flag": "q_escaped",
-			"text": "Through the gate",
-			"after": "q_gatekey"
+			"text": "Find a way out"
 		}
 	]
 }

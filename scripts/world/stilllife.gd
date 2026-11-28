@@ -13,7 +13,7 @@ extends Zone
 ##  4 LIFELIKE          the gallery: figures each more real than the last, then people you know, then an
 ##                      empty plinth with your card. The lights fail behind you. The staff exit.
 
-const HALF := 7.0              # the arcade is 14 m wide (x -7..7)
+const HALF := 10.0             # the arcade is 20 m wide (x -10..10): a wide, bright, empty concourse
 const SHOP_D := 10.0           # shops are 10 m deep
 const SHOP_W := 12.0
 const SHOP_H := 4.2
@@ -688,6 +688,7 @@ func _update_climax(delta: float) -> void:
 # ------------------------------------------------------------------ runtime
 
 func on_player_entered(from_save: bool) -> void:
+	give(["sl_key"])
 	_t = 0.0
 	_hint = 2 if from_save else 0
 	# back from a checkpoint: you've had dinner, you have the keys; maybe the grille's up

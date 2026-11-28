@@ -14,7 +14,7 @@ extends Zone
 ##                    crowd standing in the road, with nobody there to cast them. Then the lights die, one by
 ##                    one, from the far end, coming for you. The night bus is waiting.
 
-const ROAD_W := 4.0
+const ROAD_W := 5.5
 const NORTH := -118.0
 const TREE_Z := -55.0
 const BOX := Vector3(-9.0, 0, -113.0)
@@ -786,6 +786,7 @@ func _update_shadows(delta: float, p: Vector3) -> void:
 # ------------------------------------------------------------------ runtime
 
 func on_player_entered(from_save: bool) -> void:
+	give(["bo_key"])
 	_t = 0.0
 	_hint = 2 if from_save else 0
 	_dark_t = 0.0

@@ -39,6 +39,9 @@ const SETS := {
 		["remember", Vector3(0, 0.05, -328.0), 0.0, 0.0, "r07_playground"], ["remember", Vector3(-22.0, 0.05, -342.0), 60.0, -2.0, "r08_swings"],
 		["remember", Vector3(0, 0.05, -436.0), 0.0, 6.0, "r09_approach"], ["remember", Vector3(0, 0.05, -490.0), 0.0, 3.0, "r10_hub"],
 		["remember", Vector3(20.0, 0.05, -500.0), -90.0, 2.0, "r11_corridor"], ["remember", Vector3(0, 0.05, -560.0), 0.0, 4.0, "r12_arch"]],
+	"open": [["maze", Vector3(0, 0.05, 0), 45.0, 0.0, "o1_maze"], ["maze", Vector3(20, 0.05, 20), 200.0, 0.0, "o2_maze2"],
+		["stilllife", Vector3(0, 0.05, -10.0), 0.0, 0.0, "o3_mall"], ["quiet", Vector3(0, 0.05, -14.0), 0.0, 0.0, "o4_corridor"],
+		["blackout", Vector3(0, 0.05, -20.0), 0.0, 2.0, "o5_lane"], ["quiet", Vector3(0, 0.05, -44.0), -90.0, 0.0, "o6_garden_door"]],
 	"cave": [["seabed", Vector3(2, 0.05, -128.0), 0.0, 4.0, "cave_mouth"], ["seabed", Vector3(2.5, 0.05, -150.0), 0.0, 0.0, "cave_tunnel"],
 		["seabed", Vector3(2, 0.05, -172.0), 0.0, 3.0, "cave_chamber"]],
 }

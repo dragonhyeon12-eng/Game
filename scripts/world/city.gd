@@ -1362,9 +1362,6 @@ func _quest() -> void:
 			box(p, Vector3(0.42, 0.04, 0.95), Color(0.85, 0.45, 0.35), false, rad_to_deg(atan2(a1.x - a0.x, a1.z - a0.z)) + 90.0, "fabric")
 	interactable(a0.lerp(a1, 0.5) + Vector3(0, -0.4, 0), Vector3(2.0, 1.0, 1.4), func(): return "Lie down in the hammock",
 		func():
-			if not Game.has_flag("observer_noticed"):
-				Game.hud.show_thought("Not yet. There's more of the dream to see.", 3.0)
-				return
 			Game.hud.show_thought("Quiet. Just the leaves. ...So sleepy. Just for a minute.", 3.0)
 			Game.enter_remember())
 	Notebook.rule_broken.connect(_on_rule_broken)

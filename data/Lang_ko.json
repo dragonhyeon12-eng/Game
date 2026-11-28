@@ -761,7 +761,15 @@
 		"Checkpoint.": "체크포인트.",
 		"Again. It's right behind me. RUN.": "또야. 바로 뒤에 있어. 뛰어.",
 		"Epilepsy-safe mode": "광과민성 발작 보호 모드",
-		"Tap the arrows (or Left / Right) to change. Epilepsy-safe mode removes all flashing, strobing and flicker.": "화살표를 누르거나 (← / →) 값을 바꾸세요. 광과민성 발작 보호 모드는 모든 번쩍임, 점멸, 깜빡임을 없앱니다."
+		"Tap the arrows (or Left / Right) to change. Epilepsy-safe mode removes all flashing, strobing and flicker.": "화살표를 누르거나 (← / →) 값을 바꾸세요. 광과민성 발작 보호 모드는 모든 번쩍임, 점멸, 깜빡임을 없앱니다.",
+		"Get some sleep": "잠을 좀 자자",
+		"Wander. Find somewhere quiet to rest": "걸어 다니기. 조용히 쉴 곳 찾기",
+		"Find the way out": "나가는 길 찾기",
+		"Find a way down": "내려갈 방법 찾기",
+		"Keep going": "계속 가기",
+		"Find a way up": "올라갈 방법 찾기",
+		"Find a way down from here": "여기서 내려갈 방법 찾기",
+		"Find a way out of Larkspur Lane": "라크스퍼 레인에서 나갈 방법 찾기"
 	},
 	"patterns": [
 		[

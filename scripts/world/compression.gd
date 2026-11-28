@@ -627,6 +627,13 @@ func _props() -> void:
 # ------------------------------------------------------------------ runtime
 
 func on_player_entered(from_save: bool) -> void:
+	give(["comp_fuse_vent", "comp_fuse_press", "comp_fuse_sheets", "comp_fuses"])
+	for f in _fuse_items.values():
+		(f as Node3D).visible = false
+	if not Game.has_flag("comp_power"):
+		Game.counters["fuses_in"] = 3
+		_show_fuses()
+		_power_on(true)
 	_t = 0.0
 	_hint = 2 if from_save else 0
 	for flag in _fuse_items:

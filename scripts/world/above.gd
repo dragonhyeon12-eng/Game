@@ -519,6 +519,7 @@ func _climb() -> void:
 # ------------------------------------------------------------------ runtime
 
 func on_player_entered(from_save: bool) -> void:
+	give(["above_key"])
 	_t = 0.0
 	_hint = 2 if from_save else 0
 	if Game.has_flag("above_key"):

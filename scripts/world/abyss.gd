@@ -182,7 +182,7 @@ func _maze(rock: Color) -> void:
 				create_tween().tween_property(wheel, "rotation:z", wheel.rotation.z + TAU * 1.5, 2.2).set_trans(Tween.TRANS_SINE)
 				Sfx.play("metal_screech", -6.0, 0.8)
 				Sfx.play("bubbles", -2.0)
-				if _valves.size() >= 2:
+				if _valves.size() >= 1:
 					Game.set_flag("abyss_valves")
 					_open_bulkhead()
 				else:
@@ -330,6 +330,13 @@ func _cross(rock: Color) -> void:
 	trigger(Vector3(0, 1.0, -74), Vector3(6, 2.4, 3), func():
 		Game.set_flag("abyss_cross")
 		checkpoint_at("cross")
+		# the beacons come on one by one across the trenches, on their own, and the bridge rises
+		var ids := _beacon_lights.keys()
+		for i in ids.size():
+			var id = ids[i]
+			get_tree().create_timer(1.5 + i * 1.6, false).timeout.connect(func():
+				if is_inside_tree() and not _beacons.has(id):
+					_light_beacon(id))
 		Sfx.stinger("sub_drop", -2.0)
 		Game.hud.show_thought("Trenches. Four of them, in a cross. And lights. Over there - a station. With its lights on.", 5.0))
 

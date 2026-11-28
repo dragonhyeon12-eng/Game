@@ -678,6 +678,13 @@ static func _soft_dot() -> Texture2D:
 	return _dot
 
 
+## Open-world progression: what the old puzzles made you hunt for (keys, handles, fuses) is simply in hand,
+## so a door is a door and a lever is a lever. Set as the zone is entered.
+func give(flags: Array) -> void:
+	for f in flags:
+		Game.set_flag(f)
+
+
 func blocker(center: Vector3, size: Vector3) -> void:
 	var cs := CollisionShape3D.new()
 	var b := BoxShape3D.new()

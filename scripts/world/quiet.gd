@@ -14,7 +14,7 @@ extends Zone
 ##  5 The garden    a memorial garden under the stars. Plaques. Theo's kite in the tree. Mr. Halvorsen on a bench,
 ##                  feeding the pigeons. The gate at the far end goes somewhere none of them have been.
 
-const CORR_X := 1.5
+const CORR_X := 2.5            # (5 m wide: a long, bright, empty hospital corridor)
 const CORR_Z0 := -12.0
 const CORR_Z1 := -50.0
 const WARD6 := Vector3(0, 0, -54.0)
@@ -265,14 +265,14 @@ func _corridor() -> void:
 	for z in [-14.0, -22.0, -28.0, -48.0]:
 		prop("hand_rail_hosp", Vector3(-CORR_X + 0.01, 0.9, z), 90.0)
 		prop("hand_rail_hosp", Vector3(CORR_X - 0.01, 0.9, z - 1.0), -90.0)
-	prop("wheelchair", Vector3(-1.05, 0, -26.5), 120.0)
-	prop("stretcher", Vector3(1.05, 0, -16.5), 2.0, 0.85)
-	blocker(Vector3(1.05, 0.5, -16.5), Vector3(0.5, 1.0, 1.7))
-	prop("wet_floor_sign", Vector3(0.4, 0, -28.4), 30.0)
-	prop("oxygen_tank", Vector3(-1.25, 0, -46.5), 0.0)
+	prop("wheelchair", Vector3(-1.9, 0, -26.5), 120.0)
+	prop("stretcher", Vector3(1.9, 0, -16.5), 2.0, 0.85)
+	blocker(Vector3(1.9, 0.5, -16.5), Vector3(0.5, 1.0, 1.7))
+	prop("wet_floor_sign", Vector3(0.8, 0, -28.4), 30.0)
+	prop("oxygen_tank", Vector3(-2.2, 0, -46.5), 0.0)
 	prop("xray_lightbox", Vector3(-CORR_X + 0.01, 1.6, -40.0), 90.0)
-	prop("privacy_screen", Vector3(1.0, 0, -36.8), -80.0, 0.8)
-	blocker(Vector3(1.0, 0.8, -36.8), Vector3(0.3, 1.6, 1.4))
+	prop("privacy_screen", Vector3(1.9, 0, -36.8), -80.0, 0.8)
+	blocker(Vector3(1.9, 0.8, -36.8), Vector3(0.3, 1.6, 1.4))
 	# the flood: pool water over the floor, the tiles under it the pool's tiles
 	var fz := (FLOOD.x + FLOOD.y) * 0.5
 	var fl := FLOOD.x - FLOOD.y
@@ -293,7 +293,7 @@ func _corridor() -> void:
 		Sfx.play("splash", -4.0, 1.3)
 		Game.hud.show_thought("Water. In a hospital corridor. ...It's warm. It smells like the pool. It smells exactly like the pool.", 4.5))
 	# the visitors: under sheets, in the doorways
-	for spec in [[Vector3(-0.9, 0, -31.0), 90.0], [Vector3(0.9, 0, -40.0), -90.0], [Vector3(-0.9, 0, -43.0), 90.0]]:
+	for spec in [[Vector3(-1.9, 0, -31.0), 90.0], [Vector3(1.9, 0, -40.0), -90.0], [Vector3(-1.9, 0, -43.0), 90.0]]:
 		var f := Node3D.new()
 		f.position = spec[0]
 		f.rotation_degrees.y = spec[1]
@@ -345,7 +345,7 @@ func _records() -> void:
 	if not furnish("metal_desk", Vector3(-5.0, 0, -18.0), 0.0, Vector3(1.6, 0.8, 0.9), Vector3(0, 0.4, 0)):
 		box(Vector3(-5.0, 0.4, -18.0), Vector3(1.6, 0.8, 0.9), Color(0.5, 0.42, 0.32), true, 0.0, "wood")
 	furnish("office_chair", Vector3(-5.0, 0, -18.75), 180.0, Vector3(0.5, 0.9, 0.5), Vector3(0, 0.45, 0))
-	furnish("filing_cabinet", Vector3(-2.2, 0, -21.6), 0.0, Vector3(0.5, 1.3, 0.6), Vector3(0, 0.65, 0))
+	furnish("filing_cabinet", Vector3(-3.3, 0, -21.6), 0.0, Vector3(0.5, 1.3, 0.6), Vector3(0, 0.65, 0))
 	var files := [
 		["MINA (no surname)", "MINA - no surname given. Ice cream vendor. Admitted: never. Discharged: never. Notes: 'Keeps asking whether it's still summer.'"],
 		["HALVORSEN, ARNE", "HALVORSEN, ARNE. Pigeons. Admitted: never. Next of kin: the bench. Notes: 'Very polite. Asks for nothing.'"],
@@ -511,10 +511,10 @@ func _garden() -> void:
 		func(): Game.hud.show_thought("Locked. Through the glass: grass, a tree, a bench. Someone on the bench.", 3.0),
 		func(): return _garden_block != null)
 	# a short glass passage, then the garden: x 6..30, z -36..-56
-	box(Vector3(3.8, -0.1, -46.0), Vector3(4.6, 0.2, 1.8), FLOOR, true, 0.0, "tiles_floor")
-	box(Vector3(3.8, H + 0.1, -46.0), Vector3(4.6, 0.2, 1.8), Color(0.85, 0.86, 0.84), true, 0.0, "tiles_ceiling")
+	box(Vector3((CORR_X + 6.1) * 0.5, -0.1, -46.0), Vector3(6.1 - CORR_X, 0.2, 1.8), FLOOR, true, 0.0, "tiles_floor")
+	box(Vector3((CORR_X + 6.1) * 0.5, H + 0.1, -46.0), Vector3(6.1 - CORR_X, 0.2, 1.8), Color(0.85, 0.86, 0.84), true, 0.0, "tiles_ceiling")
 	for z in [-45.0, -47.0]:
-		box(Vector3(3.8, H * 0.5, z), Vector3(4.6, H, 0.1), Color(0.6, 0.7, 0.75), true, 0.0, "glass")
+		box(Vector3((CORR_X + 6.1) * 0.5, H * 0.5, z), Vector3(6.1 - CORR_X, H, 0.1), Color(0.6, 0.7, 0.75), true, 0.0, "glass")
 	var gx0 := 6.0
 	var gx1 := 30.0
 	var gz0 := -36.0
@@ -605,6 +605,7 @@ func _garden() -> void:
 # ------------------------------------------------------------------ runtime
 
 func on_player_entered(from_save: bool) -> void:
+	give(["q_key", "q_gatekey"])
 	_t = 0.0
 	_hint = 2 if from_save else 0
 	Game.counters["files"] = 0
